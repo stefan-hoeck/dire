@@ -1,12 +1,13 @@
 package dire
 
-import org.scalacheck._, Prop._, Arbitrary.arbitrary
+import org.scalacheck._, Prop._, Arbitrary.{arbitrary ⇒ arb}
 import scalaz._, Scalaz._, scalacheck.{ScalazProperties ⇒ SP}
+import scalaz.scalacheck.ScalazArbitrary._
+import scalaz.scalacheck.ScalaCheckBinding._
 
 object EventTest extends Properties("Event") {
-  implicit def arb[A:Arbitrary]: Arbitrary[Event[A]] = Arbitrary(
-    for { t ← arbitrary[Long]; v ← arbitrary[A] } yield Event(t, v)
-  )
+  implicit def EArb[A:Arbitrary]: Arbitrary[Event[A]] =
+    Arbitrary(^(arb[Long], arb[A])(Event.apply))
 
   property("equal") = SP.equal.laws[Event[Int]]
 
