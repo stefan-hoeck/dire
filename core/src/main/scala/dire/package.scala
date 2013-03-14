@@ -1,5 +1,6 @@
 
 package object dire {
+  /** Time in a descrete reactive setup */
   type Time = Long
 }
 
