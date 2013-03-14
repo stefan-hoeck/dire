@@ -46,7 +46,7 @@ object UtilBuild extends Build {
     "dire",
     file("."),
     settings = buildSettings
-  ) aggregate(core, example)
+  ) aggregate(core)
 
   lazy val core = Project (
     "dire-core",
