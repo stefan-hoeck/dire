@@ -1,59 +1,58 @@
 package dire.model
 
-import dire.{Time, Event}
+import dire.{Time, Event, T0}
 import scalaz._, Scalaz._
 
-sealed trait Signal[+A] {
-  def es: Nel[Event[A]]
-  def events = es.list
+sealed trait Signal[+A] extends Function1[Time,A]{
+  import Signal.Impl
+
+  def init: Event[A]
+
+  def changes: List[Event[A]]
+
+  final def events: List[Event[A]] = init :: changes
 
   /** Value of this signal at time t
     *
-    * Fires an exception if time t is smaller that the time of
-    * the first event in this Signal. In a controlled reactive
-    * framework, such a thin should never happen. Time must be
-    * strictly increasing, and a Signal must start with an
-    * event that happened at the time when the Signal was
-    * created.
-    *
-    * This invariant will have to be considered when designing
-    * an effectful Monad used to initialize a reactive Graph
+    * Since Signals represent total functions, the initial event always
+    * happened at `Time T0`. If a `Signal` should represent
+    * a function whose value is undefined at `T0` or other times,
+    * it should hold values of type `Option[A]`.
     */
-  def valueAt(t: Time): A = (events find { _.at <= t }).get.v
+  def apply(t: Time): A = changes.find { _.at >= t } cata (_.v, now)
 
   /** Actual value of this signal */
-  def now: A = es.head.v
+  lazy val now: A = events.last.v
 
-  def map[B](f: A ⇒ B): Signal[B] = Var(es map { _ map f })
+  def map[B](f: A ⇒ B): Signal[B] =
+    Impl(init map f, changes map { _ map f})
 
   /** Applies functions in a signal to the events of this
     * signal
     */
-  def ap[B](f: Signal[A ⇒ B]): Signal[B] =
-    Event.combine(events, f.events)((a,f) ⇒ f(a)) match {
-      case (h :: t) ⇒ Var(nel(h, t))
-      case _        ⇒ sys.error("What!?")
-    }
+  def ap[B](f: Signal[A ⇒ B]): Signal[B] = {
+    def ts[X](s: Signal[X]) = s.changes map { _.at }
+    def atT(t: Time) = f(t) apply this(t)
+
+    Signal(atT(T0), (ts(this) ::: ts(f)) map { t ⇒ t → atT(t) } toMap)
+  }
 }
 
-/** A changing signal */
-case class Var[+A](es: Nel[Event[A]]) extends Signal[A]
+object Signal extends SignalInstances {
+  def apply[A](ini: A, events: Map[Time,A]): Signal[A] =
+    Impl(Event(T0, ini),
+         events.toList map { case (t,a) ⇒ Event(t,a) } sortBy { _.at })
 
-/** A constant signal */
-case class Val[+A](a: Event[A]) extends Signal[A] {
-  def es = nel(a, Nil)
+  private case class Impl[+A](init: Event[A], changes: List[Event[A]])
+    extends Signal[A]
 }
-
-object Signal extends SignalInstances
 
 trait SignalInstances {
-  implicit def SignalEqual[A:Equal]: Equal[Signal[A]] =
-    Equal.equalBy(_.events)
 
   implicit def SignalApplicative: Applicative[Signal] =
     new Applicative[Signal] {
       def ap[A,B](a: ⇒ Signal[A])(f: ⇒ Signal[A ⇒ B]) = a ap f
-      def point[A](a: ⇒ A) = Val(Event(0L, a))
+      def point[A](a: ⇒ A) = Signal(a, Map.empty)
     }
 }
 

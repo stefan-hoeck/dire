@@ -4,6 +4,9 @@ import dire.{Time, Event}
 import scalaz._, Scalaz._
 
 sealed trait Events[+A] {
+  import Events.Impl
+
+  /** A list of events in increasing time order */
   def events: List[Event[A]]
 
   /** Returns all events of this event stream that happened
@@ -18,30 +21,27 @@ sealed trait Events[+A] {
     *
     * Note: This will actually be easier to implement when we only
     * keep track of the latest events. No sorting will be necessary
-    * whatsoever
+    * then
     */ 
   def at(t: Time): List[A] = events collect { case Event(`t`,v) ⇒ v }
 
-  def map[B](f: A ⇒ B): Events[B] = Src(events map { _ map f })
+  def map[B](f: A ⇒ B): Events[B] = Impl(events map { _ map f })
 
   /** Merges two event streams
     *
     * If the two streams contain events that happened at the same time
-    * the events of the left (`this`) stream happened later
+    * the events of the left (`this`) stream happened after the
+    * events of the right stream
     */
   def merge[B>:A](that: Events[B]): Events[B] =
-    Src(Event.merge(events, that.events))
+    Impl(Event.merge(events, that.events))
 }
 
-/** A source of events */
-case class Src[+A](events: List[Event[A]]) extends Events[A]
+object Events extends EventsInstances {
+  def apply[A](es: List[Event[A]]): Events[A] = Impl(es sortBy (_.at))
 
-/** The empty event stream */
-case object Never extends Events[Nothing] {
-  def events = Nil
+  private case class Impl[+A](events: List[Event[A]]) extends Events[A]
 }
-
-object Events extends EventsInstances
 
 trait EventsInstances {
   implicit def EventsEqual[A:Equal]: Equal[Events[A]] =
@@ -53,7 +53,7 @@ trait EventsInstances {
 
   implicit def EventsMonoid[A]: Monoid[Events[A]] = new Monoid[Events[A]] {
     def append(a: Events[A], b: ⇒ Events[A]) = a merge b
-    val zero = Never
+    val zero = Events(Nil)
   }
 }
 

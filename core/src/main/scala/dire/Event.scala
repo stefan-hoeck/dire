@@ -27,7 +27,7 @@ trait EventFunctions {
     * This function is used for merging event streams. Events will be
     * sorted in decreasing time order. If some events in both lists
     * happened at the same time, the ones in the first list will
-    * be closer to the list's head (later in time).
+    * be closer to the list's end (later in time).
     */
   def merge[A](as: List[Event[A]], bs: List[Event[A]]): List[Event[A]] = {
     type Es = List[Event[A]]
@@ -36,35 +36,9 @@ trait EventFunctions {
 
     @annotation.tailrec
     def run(xs: Es, ys: Es): Unit = (xs,ys) match {
-      case (a::as, b::bs) if a.at < b.at ⇒ { r += b; run(a::as, bs)}
-      case (a::as, b::bs)                ⇒ { r += a; run(as, b::bs)}
-      case (as, bs)                      ⇒ { r ++= as; r ++= bs }
-    }
-
-    run(as, bs)
-
-    r.toList
-  }
-
-  /** Zips two lists of events applying a function to all pairings.
-    *
-    * This function represents the Applicative combination of two
-    * signals
-    */
-  def combine[A,B,C](as: List[Event[A]], bs: List[Event[B]])
-                    (f: (A,B) ⇒ C): List[Event[C]] = {
-    type Es[X] = List[Event[X]]
-
-    val r = new collection.mutable.ListBuffer[Event[C]]
-
-    def add(a: Event[A], b: Event[B]) { r += ^(a, b)(f) }
-
-    @annotation.tailrec
-    def run(xs: Es[A], ys: Es[B]): Unit = (xs,ys) match {
-      case (a::as, b::bs) if a.at ≟ b.at ⇒ { add(a,b); run(as, bs) }
-      case (a::as, b::bs) if a.at > b.at ⇒ { add(a,b); run(as, b::bs) }
-      case (a::as, b::bs)                ⇒ { add(a,b); run(a::as, bs) }
-      case _                             ⇒ ()
+      case (a::as, b::bs) if a.at >= b.at ⇒ { r += b; run(a::as, bs)}
+      case (a::as, b::bs)                 ⇒ { r += a; run(as, b::bs)}
+      case (as, bs)                       ⇒ { r ++= as; r ++= bs }
     }
 
     run(as, bs)
