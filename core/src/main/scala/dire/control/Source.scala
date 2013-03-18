@@ -1,75 +1,77 @@
 package dire.control
 
-import dire.{Event, Out, Time}
-import scalaz._, Scalaz._, effect._
+import dire.{Event, Time, Out}
+import collection.mutable.ListBuffer
+import scalaz.effect.IO
 import scalaz.concurrent.{Actor, Strategy}
 
-class Source[A](
-    private[control] val node: Node,
-    onStart: Out[A] ⇒ IO[IO[Unit]],
-    rawEvents: IORef[List[A]],
-    events: IORef[List[Event[A]]])(implicit S: Strategy) {
-  import Source._
-
-  private[this] var collected: List[A] = Nil
-  private[this] var onStop: IO[Unit] = IO.ioUnit
-  private[this] val actor =
-    Actor[SourceEvent[A]](react(_).unsafePerformIO)
-
-  private def react(e: SourceEvent[A]): IO[Unit] = e match {
-    case Start               ⇒ onStart(a ⇒ IO(actor ! Fired(a))) map { onStop = _ }
-    case Stop                ⇒ onStop
-    case Fired(a)            ⇒ IO(collected = a :: collected)
-    case Collect(cb)         ⇒ doCollect(cb)
-  }
-
-  def collect(cb: Out[Option[Node]]): IO[Unit] = IO(actor ! Collect(cb))
-
-  def start: IO[Unit] = IO(actor ! Start)
-
-  def stop: IO[Unit] = IO(actor ! Stop)
-
-  private[control] def fired: IO[List[Event[A]]] = events.read
-
-  private[this] def doCollect(cb: Out[Option[Node]]): IO[Unit] =
-    collected match {
-      case Nil ⇒ cb(None)
-      case as  ⇒ for {
-        _ ← rawEvents write as
-        _ ← IO(collected = Nil)
-        _ ← cb(Some(node))
-      } yield ()
-    }
-    
+private[control] sealed trait EventSource {
+  private[control] def node: ChildNode
+  def collect(cb: Sink[Unit]): Unit
+  def start(): Unit
+  def stop(): Unit
 }
 
-object Source {
-  def newSource[A](handler: Out[A] ⇒ IO[IO[Unit]]): IO[Source[A]] = for {
-    raw ← IO.newIORef[List[A]](Nil)
-    es  ← IO.newIORef[List[Event[A]]](Nil)
-    n   ← Node.sourceNode(
-            t ⇒ for {
-              as ← raw.read
-              _  ← es write (as map { Event(t, _) })
-              _  ← raw write Nil
-            } yield as.nonEmpty,
-            es write Nil
-          )
-  } yield new Source[A](n, handler, raw, es)
+private[dire] class Source[A](starter: Out[A] ⇒ IO[IO[Unit]])
+    extends EventSource {
+  import Source._
 
-  def ticker(interval: Time): IO[Source[Unit]] =
-    newSource(o ⇒ Clock(interval, _ ⇒ o(())))
+  private[this] var onStop: IO[Unit] = IO.ioUnit
+  private[this] val collected = new ListBuffer[A]
+  private[this] var raw: List[A] = Nil
+  private[this] var events: List[Event[A]] = Nil
+  private[this] val actor = Actor[SourceE[A]](react)
 
-  private[control] sealed trait SourceEvent[+A]
+  private[control] object node extends ChildNode {
+    protected def doCalc(t: Time) = {
+      events = raw map { Event(t, _) }
+      events.nonEmpty
+    }
 
-  private[control] case object Start extends SourceEvent[Nothing]
+    protected def doClean() { raw = Nil; events = Nil }
 
-  private[control] case object Stop extends SourceEvent[Nothing]
+    override protected def sourceEvents: Boolean = raw.nonEmpty
+  }
 
-  private[control] case class Fired[+A](v: A) extends SourceEvent[A]
+  private def react(e: SourceE[A]): Unit = e match {
+    case Start               ⇒ {
+      onStop = starter(a ⇒ IO(actor ! Fired(a))).unsafePerformIO()
+    }
 
-  private[control] case class Collect(cb: Out[Option[Node]])
-    extends SourceEvent[Nothing]
+    case Stop                ⇒ onStop.unsafePerformIO()
+    case Fired(a)            ⇒ collected += a
+    case Collect(cb)         ⇒ {
+      collected ++= collectEvents
+      raw = collected.toList
+      collected.clear()
+      cb apply ()
+    }
+  }
+
+  def fired: List[Event[A]] = events
+  def collect(cb: Sink[Unit]) { actor ! Collect(cb) }
+  def start() { actor ! Start }
+  def stop() { actor ! Stop }
+
+  protected def collectEvents: List[A] = Nil
+}
+
+private[dire] object Source {
+  def apply[A](cb: Out[A] ⇒ IO[IO[Unit]]): IO[Source[A]] =
+    IO(new Source[A](cb))
+
+  def ticks: IO[Source[Unit]] = IO {
+    new Source[Unit](_ ⇒ IO(IO.ioUnit)) {
+      override protected val collectEvents = List(())
+    }
+  }
+
+  private sealed trait SourceE[+A]
+
+  private case object Start extends SourceE[Nothing]
+  private case object Stop extends SourceE[Nothing]
+  private case class Fired[+A](v: A) extends SourceE[A]
+  private case class Collect(cb: Sink[Unit]) extends SourceE[Nothing]
 }
 
 // vim: set ts=2 sw=2 et:

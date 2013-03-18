@@ -1,24 +1,20 @@
 package dire.control
 
-import dire.{Time, T0, Out}
-import java.util.concurrent._, TimeUnit.{MILLISECONDS ⇒ MS}
-import scalaz._, Scalaz._, effect.IO
+import dire.{Time, T0}
+import java.util.concurrent._, TimeUnit.{MICROSECONDS ⇒ MS}
 
-object Clock {
-  def apply(step: Time, out: Out[Time]): IO[IO[Unit]] = IO {
+private[control] object Clock {
+  def apply(step: Time, out: Time ⇒ Unit): () ⇒ Unit = {
     var time = T0
 
     def clock = new Runnable{
-      def run { time += step; out(time).unsafePerformIO }
+      def run { time += step; out(time) }
     }
 
     val timerEx = Executors.newSingleThreadScheduledExecutor
     val handle = timerEx.scheduleAtFixedRate(clock, step, step, MS)
     
-    IO {
-      handle.cancel(true)
-      timerEx.shutdownNow()
-    }
+    () ⇒ { handle.cancel(true); timerEx.shutdownNow() }
   }
 }
 

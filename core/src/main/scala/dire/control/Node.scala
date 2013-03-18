@@ -1,9 +1,7 @@
 package dire.control
 
+import collection.mutable.ListBuffer
 import dire.Time
-import scalaz._, Scalaz._, effect.{IO, IORef}
-import scalaz.Tags.Disjunction
-import scalaz.Tag.subst
 
 /** `Node`s are used to set up the dependency graph between
   * reactive components. They should be an implementation
@@ -22,19 +20,19 @@ import scalaz.Tag.subst
   * The cleanup phase is needed for event streams to release intermediary
   * results of calculations for garbage collection
   */
-private[control] sealed trait Node {
+private[control] trait Node {
 
-  /** True if this node has to be recalculated */
-  def isDirty: IO[Boolean @@ Disjunction]
+  /** True if this node has to be updated */
+  def isDirty: Boolean
 
   /** True if this node changed during the update cycle */
-  def hasChanged: IO[Boolean @@ Disjunction]
+  def hasChanged: Boolean
 
   /** Marks this node and all child nodes as dirty */
-  def setDirty: IO[Unit]
+  def setDirty(): Unit
 
   /** Recalculates this node */
-  def calculate(t: Time): IO[Unit]
+  def calculate(t: Time): Unit
 
   /** Cleans up this node
     *
@@ -43,96 +41,103 @@ private[control] sealed trait Node {
     * resources to be garbage collector. Later it might also be
     * used to rearrange the node graph (adding and removing nodes)
     */
-  def cleanup: IO[Unit]
+  def cleanup(): Unit
 
-  def connectChild(n: ChildNode): IO[Unit] =
-    n.parents.mod { this :: _ } >> addChild(n)
+  /** Adds a child `Node` to this `Node`
+    *
+    * This `Node` as automatically added as a parent to the 
+    * child's list of parents
+    */
+  def connectChild(n: ChildNode) { n.addParent(this); addChild(n) }
 
-  protected def addChild(n: ChildNode): IO[Unit]
+  protected def addChild(n: ChildNode): Unit
 }
 
-private[control] case class ChildNode(
-    node: SourceNode,
-    parents: IORef[List[Node]])
-  extends Node {
-    import Node._
-  def isDirty = node.isDirty
-  def hasChanged = node.hasChanged
-  def setDirty = node.setDirty
-  def cleanup = node.cleanup
-  protected def addChild(n: ChildNode) = node addChild n
+private[control] final class RootNode extends Node {
+  private[this] val children = new ListBuffer[ChildNode]
+
+  def isDirty = false
+  def hasChanged = true
+  def setDirty() { children foreach { _.setDirty } }
+  def calculate(t: Time) { children foreach { _.calculate(t) } }
+  def cleanup() { children foreach { _.cleanup() } }
+  def addChild(n: ChildNode) { children += n }
+
+  /** Updates the whole dependency graph
+    *
+    * This includes the following three phases
+    *
+    * Phase 1: Mark all changed nodes (and their child nodes etc.)
+    *          as 'dirty' meaning each of them has to be updated
+    *
+    * Phase 2: Recalculate all dirty nodes
+    *          Children are only recalculated, if all their parents have
+    *          already ben recalculated (that is, they are no longer
+    *          marked as dirty) and if at least one parent is
+    *          marked as having changed.
+    *
+    * Phase 3: Cleanup all child nodes to release resources for
+    *          garbage collection and to set them back to unchanged.
+    *          A child is only cleaned up, if it is marked as having
+    *          changed.
+    */
+  def update(t: Time) { setDirty(); calculate(t); cleanup() }
+}
+
+private[control] abstract class ChildNode extends Node {
   
-  def calculate(t: Time) = {
-    def mustCalc: IO[Boolean] = for {
-      hasDirtyParent   ← runNodes(_.isDirty, parents)
-      hasChangedParent ← runNodes(_.hasChanged, parents)
-    } yield (!hasDirtyParent && hasChangedParent)
+  private[this] var dirty = false
+  private[this] var changed = false
+  private[this] val children = new ListBuffer[ChildNode]
+  private[this] val parents = new ListBuffer[Node]
 
-    onTrue(mustCalc){ node calculate t }
-  }
-}
+  protected def sourceEvents: Boolean = true
+  protected def doClean()
+  protected def doCalc(t: Time): Boolean
 
-private[control] case class SourceNode(
-    dirty: IORef[Boolean],
-    changed: IORef[Boolean],
-    children: IORef[List[Node]],
-    calc: Time ⇒ IO[Boolean],
-    clean: IO[Unit])
-  extends Node {
-    import Node._
+  final def isDirty = dirty
+  final def hasChanged = changed
+  final def addParent(n: Node) { parents += n }
+  final def addChild(n: ChildNode) { children += n }
 
-  def isDirty: IO[Boolean @@ Disjunction] = subst(dirty.read)
-
-  def hasChanged: IO[Boolean @@ Disjunction] = subst(changed.read)
-
-  def setDirty: IO[Unit] = dirty.write(true) >>
-                           runNodes(_.setDirty, children)
-
-  def calculate(t: Time) = onTrue(isDirty) {
-    dirty.write(false) >>
-    (calc(t) >>= { changed write _ }) >>
-    runNodes(_ calculate t, children)
+  final def setDirty() {
+    if((!dirty) && sourceEvents) {
+      dirty = true
+      children foreach { _.setDirty() }
+    }
   }
 
-  def cleanup: IO[Unit] = onTrue(hasChanged) {
-    changed.write(false) >>
-    clean >>
-    runNodes(_.cleanup, children)
+  final def calculate(t: Time) {
+    if (dirty &&
+        (! parents.exists(_.isDirty)) &&
+        parents.exists(_.hasChanged)) {
+
+      dirty = false
+
+      if (doCalc(t)) {
+        changed = true
+        children foreach { _.calculate(t) }
+      }
+    }
   }
 
-  protected[control] def addChild(c: ChildNode) =
-    children.mod(c :: _).void
+  final def cleanup() {
+    if (hasChanged) {
+      changed = false
+      doClean()
+      children foreach { _.cleanup() }
+    }
+  }
 }
 
 case object Isolated extends Node {
-  def calculate(t: Time) = IO.ioUnit
-  def cleanup = IO.ioUnit
-  def setDirty = IO.ioUnit
-  def isDirty = IO(Node.FalseD)
-  def hasChanged = IO(Node.FalseD)
-  def addChild(n: ChildNode) = IO.ioUnit
-}
-
-object Node {
-  private[control] final val FalseD = Disjunction(false)
-  private final val NoNodes = IO.newIORef[List[Node]](Nil)
-  private final val FalseR = IO.newIORef(false)
-
-  def sourceNode(calc: Time ⇒ IO[Boolean], clean: IO[Unit]): IO[SourceNode] =
-    ^^(FalseR, FalseR, NoNodes)(SourceNode(_,_,_,calc, clean))
-
-  def childNode(calc: Time ⇒ IO[Boolean], clean: IO[Unit]): IO[ChildNode] =
-    ^(sourceNode(calc, clean), NoNodes)(ChildNode.apply)
-
-  private[control] def onTrue[A:Monoid](b: IO[Boolean])(f: IO[A]): IO[A] =
-    b ifM (ifTrue = f, ifFalse = ∅[IO[A]])
-
-  private[control] def onFalse[A:Monoid](b: IO[Boolean])(f: IO[A]): IO[A] =
-    b ifM (ifFalse = f, ifTrue = ∅[IO[A]])
-
-  private[control] def runNodes[A:Monoid](f: Node ⇒ IO[A],
-                                          ns: IORef[List[Node]]): IO[A] =
-    ns.read >>= { _ foldMap f }
+  def calculate(t: Time) {}
+  def cleanup() {}
+  def setDirty() {}
+  def isDirty = false
+  def hasChanged = false
+  override def connectChild(n: ChildNode) {}
+  protected def addChild(n: ChildNode) {}
 }
 
 // vim: set ts=2 sw=2 et:

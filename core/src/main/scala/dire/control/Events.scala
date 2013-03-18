@@ -3,44 +3,65 @@ package dire.control
 import dire.{Event, Out, Time}
 import scalaz._, Scalaz._, effect.IO
 
-sealed trait Events[+A] {
-  def node: Node
+sealed trait RawEvents[+A] { self ⇒ 
+  private[dire] def node: Node
 
-  def fired: IO[List[Event[A]]]
+  private[control] def fired: List[Event[A]]
 
-  def on(out: Out[A]): IO[Unit] = onEvent(e ⇒ out(e.v))
+  private[dire] def onEvent(out: Out[Event[A]]): IO[Unit] = IO {
+    node connectChild (
+      new ChildNode {
+        def doCalc(t: Time) = fired foldMap out as false unsafePerformIO
+        def doClean() {}
+      }
+    )
+  }
 
-  def onEvent(out: Out[Event[A]]): IO[Unit] = for {
-    n ← Node.childNode(_ ⇒ fired flatMap { _ foldMap out } as false,
-                       IO.ioUnit)
-    _ ← node connectChild n
-  } yield ()
+  private[dire] def filterIO(p: A ⇒ Boolean): IO[RawEvents[A]] =
+    toE[A] { _ collect { case e@Event(t,a) if p(a) ⇒ e } }
 
-  def mapIO[B](f: A ⇒ B): IO[Events[B]] = toE(_.map { _ map f }.η[IO])
+  private[dire] def mergeIO[B>:A](that: RawEvents[B]): IO[RawEvents[B]] =
+    toE[B] { _ ::: that.fired }
 
-  def mergeIO[B>:A](that: Events[B]): IO[Events[B]] =
-    toE[B](as ⇒ that.fired map { as ::: _ } )
+  private[dire] def mapEventIO[B](f: Event[A] ⇒ B): IO[RawEvents[B]] =
+    toE[B] { _ map { case e@Event(t,a) ⇒ Event(t, f(e)) } }
 
-  private def toE[B](f: List[Event[A]] ⇒ IO[List[Event[B]]])
-    : IO[Events[B]] = for {
-    r ← IO.newIORef[List[Event[B]]](Nil)
-    n ← Node.childNode(_ ⇒ fired >>= f >>= { bs ⇒ r write bs as bs.nonEmpty },
-                       r write Nil)
-    _ ← node connectChild n
-  } yield new Events[B]{ val node = n; def fired = r.read }
+  private[dire] def toE[B](f: List[Event[A]] ⇒ List[Event[B]])
+    : IO[RawEvents[B]] = IO {
+      val res = new RawEvents[B] {
+        private[this] var es: List[Event[B]] = Nil
+        private[dire] val node: ChildNode = new ChildNode {
+          protected def doCalc(t: Time) = { es = f(self.fired); es.nonEmpty }
+          protected def doClean() { es = Nil }
+        }
+
+        self.node connectChild node
+
+        private[dire] def fired = es
+      }
+
+      res
+    }
 }
 
-object Events {
-  case object Never extends Events[Nothing] {
+object RawEvents {
+  case object Never extends RawEvents[Nothing] {
     val node = Isolated
-    def fired = IO(Nil)
+    val fired = Nil
   }
 
   def src[A](callback: Out[A] ⇒ IO[IO[Unit]])(r: Reactor)
-    : IO[Events[A]] = for {
-      s ← Source.newSource(callback)
-      _ ← r addSource s
-    } yield new Events[A]{ def node = s.node; def fired = s.fired }
+    : IO[RawEvents[A]] = for {
+      s   ← Source(callback)
+      _   ← r addSource s
+      res = new RawEvents[A]{ def node = s.node; def fired = s.fired }
+    } yield res
+
+  def ticks(r: Reactor): IO[RawEvents[Unit]] = for {
+    s   ← Source.ticks
+    _   ← r addSource s
+    res = new RawEvents[Unit]{ def node = s.node; def fired = s.fired }
+  } yield res
 }
 
 // vim: set ts=2 sw=2 et:

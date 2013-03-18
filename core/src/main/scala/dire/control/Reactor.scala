@@ -1,119 +1,82 @@
 package dire.control
 
 import dire.{Time, T0}
-import scala.language.existentials
-import scalaz._, Scalaz._, effect._
+import collection.mutable.ListBuffer
+import scalaz.effect.IO
 import scalaz.concurrent.{Actor, Strategy}
 
-final class Reactor(
-    sources: IORef[List[Source[_]]],
-    callbacks: IORef[List[Node]],
-    state: IORef[Reactor.ReactorState],
-    countDown: IORef[Int],
-    actualTime: IORef[Time],
-    delay: Time)(implicit S: Strategy) {
+final private[dire] class Reactor(delay: Time)(implicit S: Strategy) {
   import Reactor._
 
-  private[this] var clockKill: IO[Unit] = IO.ioUnit
-  private[this] val actor = Actor[ReactorEvent](
-    e ⇒ state.read >>= { react(_, e) } unsafePerformIO)
+  private[this] val node = new RootNode
+  private[this] val sources = new ListBuffer[EventSource]
+  private[this] val readyNodes = new ListBuffer[Node]
+  private[this] var state: ReactorState = Embryo
+  private[this] var count = 0
+  private[this] var time = T0
+  private[this] var clockKill: () ⇒ Unit = () ⇒ ()
+  private[this] val actor: Actor[ReactorEvent] = Actor(react)
+  private[this] val onReady: Sink[Unit] = _ ⇒ actor ! NodeReady
 
-  private[control] def addSource[A](src: Source[A]): IO[Unit] =
-    IO(actor ! AddSrc(src))
+  private[control] def addSource(src: EventSource): IO[Unit] = IO {
+    if (state != Embryo) throw new IllegalStateException(
+      "Adding event source to Reactor who is not in 'Embryo' state")
 
-  private def react(st: ReactorState, ev: ReactorEvent): IO[Unit] =
-    (st,ev) match {
-      case (Embryo, AddSrc(s))        ⇒ sources.mod { s :: _ }.void
-      case (Embryo, Start)            ⇒ start
-      case (Waiting, Tick(t))         ⇒ collect(t)
-      case (Collecting, NodeReady(o)) ⇒ onReady(o)
-      case (_, Shutdown)              ⇒ shutdown
-      case _                          ⇒ IO.ioUnit
+    node connectChild src.node
+    sources += src
+  }
+
+  private[dire] def stop: IO[Unit] = IO { actor ! Shutdown }
+
+  private[dire] def start: IO[Unit] = IO { actor ! Start }
+
+  private def react(ev: ReactorEvent) = (state,ev) match {
+    case (Embryo, Start)            ⇒ {
+      state = Waiting
+      clockKill = Clock(delay, t ⇒ actor ! Tick(t))
+      sources foreach { _.start() }
     }
 
-  private def start: IO[Unit] = for {
-    _ ← state write Waiting
-    k ← Clock(delay, t ⇒ IO(actor ! Tick(t)))
-    _ = clockKill = k
-    _ ← sources.read >>= { _ foldMap { _.start } }
-  } yield ()
+    case (Waiting, Tick(t))         ⇒ {
+      state = Collecting
+      count = sources.size + 1
+      time = t
+      sources foreach { _.collect(onReady) }
+      actor ! NodeReady
+    }
 
-  private def kill: IO[Unit] = IO(actor ! Shutdown)
+    case (Collecting, NodeReady) ⇒ {
+      count -= 1
+      if (count == 0) {
+        state = Waiting
+        node.update(time)
+      }
+    }
 
-  private def collect(t: Time): IO[Unit] = for {
-    _   ← state write Collecting
-    _   ← callbacks write Nil
-    ss  ← sources.read
-    _   ← countDown write (ss.size + 1)
-    _   ← actualTime write t
-    _   ← ss foldMap { _ collect { o ⇒ IO(actor ! NodeReady(o)) } }
-    _   ← onReady(None)
-  } yield ()
+    case (s, Shutdown) if s != Zombie ⇒ {
+      state = Zombie
+      clockKill apply ()
+      sources foreach { _.stop() }
+    }
 
-  private def onReady(o: Option[Node]): IO[Unit] = for {
-    cbs ← callbacks mod { o.toList ::: _ }
-    cnt ← countDown mod { _ - 1 }
-    _   ← if (cnt ≟ 0) update(cbs) else IO.ioUnit
-  } yield ()
-
-  /** Updates the whole dependency graph
-    *
-    * This includes three phases
-    *
-    * Phase 1: Mark all changed nodes (and their child nodes etc.)
-    *          as 'dirty' meaning each of them has to be updated
-    *
-    * Phase 2: Recalculate all dirty nodes
-    *          Children are only recalculated, if all their parents have
-    *          already ben recalculated (that is, they are no longer
-    *          marked as dirty) and if at least one parent is
-    *          marked as having changed.
-    *
-    * Phase 3: Cleanup all child nodes to release resources for
-    *          garbage collection and to set them back to unchanged.
-    *          A child is only cleaned up, if it is marked as having
-    *          changed.
-    */
-  private def update(ns: List[Node]): IO[Unit] = for {
-    t ← actualTime.read
-    _ ← ns foldMap { _.setDirty }
-    _ ← ns foldMap { _ calculate t }
-    _ ← ns foldMap { _.cleanup }
-    _ ← state write Waiting
-  } yield ()
-
-  private def shutdown: IO[Unit] = 
-    IO.putStrLn("Shutting down timer") >>
-    clockKill >>
-    (sources.read >>= { _ foldMap { _.stop } } )
+    case _                          ⇒ ()
+  }
 }
 
-object Reactor {
-  def run(srcs: List[Source[_]], delay: Time)(implicit S: Strategy)
-    : IO[IO[Unit]] = for {
-      sources    ← IO newIORef srcs
-      callbacks  ← IO newIORef List.empty[Node]
-      state      ← IO.newIORef[ReactorState](Embryo)
-      countDown  ← IO newIORef 0
-      actualTime ← IO newIORef 0L
-      reactor    = new Reactor(sources, callbacks, state, countDown, actualTime, delay)
-      _          ← reactor.start
-      _          ← IO.putStrLn("Reactor started")
-    } yield reactor.kill
+private[dire] object Reactor {
+  private sealed trait ReactorState
 
-  private[control] sealed trait ReactorState
+  private case object Embryo extends ReactorState
+  private case object Collecting extends ReactorState
+  private case object Waiting extends ReactorState
+  private case object Zombie extends ReactorState
 
-  private[control] case object Embryo extends ReactorState
-  private[control] case object Collecting extends ReactorState
-  private[control] case object Waiting extends ReactorState
+  private sealed trait ReactorEvent
 
-  private[control] sealed trait ReactorEvent
-
-  private[control] case object Start extends ReactorEvent
-  private[control] case object Shutdown extends ReactorEvent
-  private[control] case class Tick(t: Time) extends ReactorEvent
-  private[control] case class NodeReady(n: Option[Node]) extends ReactorEvent
-  private[control] case class AddSrc(s: Source[_]) extends ReactorEvent
+  private case object Start extends ReactorEvent
+  private case object Shutdown extends ReactorEvent
+  private case object NodeReady extends ReactorEvent
+  private case class Tick(t: Time) extends ReactorEvent
 }
 
 // vim: set ts=2 sw=2 et:
