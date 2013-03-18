@@ -11,6 +11,7 @@ object BuildSettings {
     organization := buildOrganization,
     version := buildVersion,
     scalaVersion := sv,
+    exportJars := true,
     publishTo := Some(Resolver.file("file", 
       new File(Path.userHome.absolutePath+"/.m2/repository"))),
     scalacOptions ++= Seq ("-deprecation", "-feature",
@@ -46,13 +47,20 @@ object UtilBuild extends Build {
     "dire",
     file("."),
     settings = buildSettings
-  ) aggregate(core)
+  ) aggregate(core, example)
 
   lazy val core = Project (
     "dire-core",
     file("core"),
     settings = addDeps() :+ (OsgiKeys.exportPackage := Seq("dire"))
   )
+
+  lazy val example = Project (
+    "dire-example",
+    file("example"),
+    settings = addDeps() ++
+               com.github.retronym.SbtOneJar.oneJarSettings
+  ) dependsOn(core)
 }
 
 // vim: set ts=2 sw=2 nowrap et:
