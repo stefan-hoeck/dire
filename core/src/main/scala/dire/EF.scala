@@ -37,21 +37,24 @@ trait EFFunctions {
   def src[A](callback: Out[A] ⇒ IO[IO[Unit]]): EIn[A] =
     EF(_ ⇒ RawEvents src callback)
 
-  def ticks: EIn[Unit] = EF(_ ⇒ RawEvents.ticks)
+  private[dire] def ticks: EIn[Unit] = EF(_ ⇒ RawEvents.ticks)
 
-  def times: EIn[Time] = ticks mapEvent { case Event(t,_) ⇒ t }
+  private[dire] def times: EIn[Time] = ticks mapEvent { case Event(t,_) ⇒ t }
+
+  def timer(step: Time): EIn[Time] = EF(_ ⇒ RawEvents timer step)
 
   def runReactive[A](in: EIn[A],
                      delay: Time = 1000L,
                      proc: Int = processors): IO[IO[Unit]] = {
-      lazy val ex = java.util.concurrent.Executors.newFixedThreadPool(proc)
-      lazy val s = scalaz.concurrent.Strategy.Executor(ex)
+      //lazy val ex = java.util.concurrent.Executors.newFixedThreadPool(proc)
+      //lazy val s = scalaz.concurrent.Strategy.Executor(ex)
+      lazy val s = scalaz.concurrent.Strategy.Sequential
 
       for {
-        r ← IO(new Reactor(delay)(s))
+        r ← IO(new Reactor(delay, s))
         _ ← in run neverE apply r
         _ ← r.start
-      } yield r.stop >> IO(ex.shutdown())
+      } yield r.stop //>> IO(ex.shutdown())
     }
 }
 
@@ -66,13 +69,9 @@ trait EFHelper[-A,+B,F[+_],G[-_,+_]] {
     run(fa)(r) flatMap { _ filterIO p }
   }
 
-  def eventTo(o: Out[Event[B]]): G[A,B] = fromF { fa ⇒ r ⇒ 
-    run(fa)(r) flatMap { rawA ⇒ rawA onEvent o as rawA }
-  }
-
   def map[C](f: B ⇒ C): G[A,C] = mapEvent { case Event(_,b) ⇒ f(b) }
 
-  def mapEvent[C](f: Event[B] ⇒ C): G[A,C] =
+  private[dire] def mapEvent[C](f: Event[B] ⇒ C): G[A,C] =
     fromF[A,C] { fa ⇒ r ⇒ run(fa)(r) flatMap { _ mapEventIO f } }
 
   def merge[C<:A,D>:B](that: G[C,D]): G[C,D] = fromF { fc ⇒ r ⇒ 
@@ -83,7 +82,9 @@ trait EFHelper[-A,+B,F[+_],G[-_,+_]] {
     } yield res
   }
 
-  def to(o: Out[B]): G[A,B] = eventTo(e ⇒ o(e.v))
+  def to(o: Out[B]): G[A,B] = fromF { fa ⇒ r ⇒ 
+    run(fa)(r) flatMap { rawA ⇒ rawA onEvent o as rawA }
+  }
 
   def -->(o: Out[B]): G[A,B] = to(o)
 }

@@ -5,17 +5,19 @@ import collection.mutable.ListBuffer
 import scalaz.effect.IO
 import scalaz.concurrent.{Actor, Strategy}
 
-final private[dire] class Reactor(delay: Time)(implicit S: Strategy) {
+final private[dire] class Reactor(
+  delay: Time,
+  private[dire] val strategy: Strategy) {
+
   import Reactor._
 
   private[this] val node = new RootNode
   private[this] val sources = new ListBuffer[EventSource]
-  private[this] val readyNodes = new ListBuffer[Node]
   private[this] var state: ReactorState = Embryo
   private[this] var count = 0
   private[this] var time = T0
   private[this] var clockKill: () ⇒ Unit = () ⇒ ()
-  private[this] val actor: Actor[ReactorEvent] = Actor(react)
+  private[this] val actor: Actor[ReactorEvent] = Actor(react)(strategy)
   private[this] val onReady: Sink[Unit] = _ ⇒ actor ! NodeReady
 
   private[control] def addSource(src: EventSource): IO[Unit] = IO {

@@ -8,10 +8,11 @@ sealed trait RawEvents[+A] { self ⇒
 
   private[control] def fired: List[Event[A]]
 
-  private[dire] def onEvent(out: Out[Event[A]]): IO[Unit] = IO {
+  private[dire] def onEvent(out: Out[A]): IO[Unit] = IO {
     node connectChild (
       new ChildNode {
-        def doCalc(t: Time) = fired foldMap out as false unsafePerformIO
+        def doCalc(t: Time) =
+          fired foldMap { e ⇒ out(e.v) } as false unsafePerformIO
         def doClean() {}
       }
     )
@@ -52,16 +53,23 @@ object RawEvents {
 
   def src[A](callback: Out[A] ⇒ IO[IO[Unit]])(r: Reactor)
     : IO[RawEvents[A]] = for {
-      s   ← Source(callback)
+      s   ← Source(callback, r.strategy)
       _   ← r addSource s
       res = new RawEvents[A]{ def node = s.node; def fired = s.fired }
     } yield res
 
   def ticks(r: Reactor): IO[RawEvents[Unit]] = for {
-    s   ← Source.ticks
+    s   ← Source ticks r.strategy
     _   ← r addSource s
     res = new RawEvents[Unit]{ def node = s.node; def fired = s.fired }
   } yield res
+
+  def timer(step: Time)(r: Reactor): IO[RawEvents[Time]] =
+    src[Time](o ⇒ IO {
+      val kill = Clock(step, o(_).unsafePerformIO)
+
+      IO(kill apply ())
+    })(r)
 }
 
 // vim: set ts=2 sw=2 et:

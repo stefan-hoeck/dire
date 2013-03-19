@@ -12,7 +12,9 @@ private[control] sealed trait EventSource {
   def stop(): Unit
 }
 
-private[dire] class Source[A](starter: Out[A] ⇒ IO[IO[Unit]])
+private[dire] class Source[A](
+  starter: Out[A] ⇒ IO[IO[Unit]],
+  strategy: Strategy)
     extends EventSource {
   import Source._
 
@@ -20,7 +22,7 @@ private[dire] class Source[A](starter: Out[A] ⇒ IO[IO[Unit]])
   private[this] val collected = new ListBuffer[A]
   private[this] var raw: List[A] = Nil
   private[this] var events: List[Event[A]] = Nil
-  private[this] val actor = Actor[SourceE[A]](react)
+  private[this] val actor = Actor[SourceE[A]](react)(strategy)
 
   private[control] object node extends ChildNode {
     protected def doCalc(t: Time) = {
@@ -57,11 +59,11 @@ private[dire] class Source[A](starter: Out[A] ⇒ IO[IO[Unit]])
 }
 
 private[dire] object Source {
-  def apply[A](cb: Out[A] ⇒ IO[IO[Unit]]): IO[Source[A]] =
-    IO(new Source[A](cb))
+  def apply[A](cb: Out[A] ⇒ IO[IO[Unit]], strategy: Strategy)
+    : IO[Source[A]] = IO(new Source[A](cb, strategy))
 
-  def ticks: IO[Source[Unit]] = IO {
-    new Source[Unit](_ ⇒ IO(IO.ioUnit)) {
+  def ticks(strategy: Strategy): IO[Source[Unit]] = IO {
+    new Source[Unit](_ ⇒ IO(IO.ioUnit), strategy) {
       override protected val collectEvents = List(())
     }
   }
