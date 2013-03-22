@@ -8,6 +8,8 @@ import scalaz.concurrent.{Actor, Strategy}
 
 final private[dire] class Reactor(
   step: Time,
+  doKill: () ⇒ Boolean,
+  countDownToDeath: CountDownLatch,
   private[dire] val strategy: Strategy) {
   import Reactor._
 
@@ -38,10 +40,6 @@ final private[dire] class Reactor(
 
   private[control] def run(sink: Sink[Time]) { actor ! Run(sink) }
 
-  private[dire] def stop(onDeath: IO[Unit]): IO[Unit] = IO { 
-    actor ! Shutdown(_ ⇒ onDeath.unsafePerformIO())
-  }
-
   private[dire] def start: IO[Unit] = IO { actor ! Start }
 
   private[dire] def getTimer: IO[RawSignal[Time]] = IO(timer)
@@ -50,6 +48,20 @@ final private[dire] class Reactor(
     case (Active, Run(sink))         ⇒ {
       time += 1L
       sink(time)
+
+      if (doKill()) {
+        state = Zombie
+        //await shutdown for all sources
+        val cdl = new CountDownLatch(sources.size)
+        sources foreach { _.stop(cdl) }
+        cdl.await()
+
+        //now that sources are shutdown, fire ConfirmDeath. This
+        //will be the very last event fired to the actor, so
+        //the caller know that it is now safe to shutdown
+        //ExecutorServices
+        actor ! ConfirmDeath
+      }
     }
 
     case (Embryo, Start)            ⇒ {
@@ -57,21 +69,7 @@ final private[dire] class Reactor(
       sources foreach { _.start() }
     }
 
-    case (s, Shutdown(c)) if s != Zombie ⇒ {
-      state = Zombie
-      //await shutdown for all sources
-      val cdl = new CountDownLatch(sources.size)
-      sources foreach { _.stop(cdl) }
-      cdl.await()
-
-      //now that sources are shutdown, fire ConfirmDeath. This
-      //will be the very last event fired to the actor, so
-      //the caller know that it is now safe to shutdown
-      //ExecutorServices
-      actor ! ConfirmDeath(c)
-    }
-
-    case (Zombie,ConfirmDeath(c)) ⇒ { c() }
+    case (Zombie,ConfirmDeath)      ⇒ { countDownToDeath.countDown() }
 
     case _                          ⇒ ()
   }
@@ -87,8 +85,7 @@ private[dire] object Reactor {
   private sealed trait ReactorEvent
 
   private case object Start extends ReactorEvent
-  private case class Shutdown(onDeath: Sink[Unit]) extends ReactorEvent
-  private case class ConfirmDeath(onDeath: Sink[Unit]) extends ReactorEvent
+  private case object ConfirmDeath extends ReactorEvent
   private case class Run(sink: Sink[Time]) extends ReactorEvent
 }
 

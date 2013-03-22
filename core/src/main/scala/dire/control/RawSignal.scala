@@ -14,11 +14,11 @@ sealed trait RawSignal[+A] { self ⇒
 
   private[control] def last: Change[A]
 
-  private[dire] def onChange(out: Out[A]): IO[Unit] = 
-    last.traverse(out) >> IO {
+  private[dire] def onChange(out: Out[Change[A]]): IO[Unit] = 
+    out(last) >> IO {
       node connectChild (
         new ChildNode {
-          def doCalc(t: Time) = last traverse out as false unsafePerformIO
+          def doCalc(t: Time) = out(last) as false unsafePerformIO
           def doClean() {}
         }
       )

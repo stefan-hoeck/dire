@@ -12,7 +12,13 @@ case class SF[-A,+B](run: RS[A] ⇒ Signal[B]) {
   def andThen[C](that: SF[B,C]): SF[A,C] = that compose this
 
   /** Applies a time-changing function to the signals values */
-    def ap[C,D<:A](f: SF[D,B ⇒ C]): SF[D,C] = (f <*> this)(_ apply _)
+  def ap[C,D<:A](f: SF[D,B ⇒ C]): SF[D,C] = (f <*> this)(_ apply _)
+
+  /** Connect a reactive branch to this signal function but
+    * return to the original branch afterwards.
+    */
+  def branch[C](that: SF[B,C]): SF[A,B] = 
+    SF { ra ⇒ r ⇒ run(ra)(r) >>= { rb ⇒ that.run(rb)(r) as rb } }
 
   /** Creates an event stream that fires whenever this signal
     * changes.
@@ -21,6 +27,9 @@ case class SF[-A,+B](run: RS[A] ⇒ Signal[B]) {
     */
   def changes[C>:B](implicit E: Equal[C]): SF[A,Event[C]] =
     sync2(this, never)(Change.changesI[C])(Change.changesN[C])
+
+  private[dire] def changeTo(out: Out[Change[B]]): SF[A,B] =
+    SF { ra ⇒ r ⇒ run(ra)(r) >>= { rb ⇒ rb onChange out as rb } }
 
   /** Sequentially combines two signal functions */
   def compose[C](that: SF[C,A]): SF[C,B] =
@@ -34,8 +43,7 @@ case class SF[-A,+B](run: RS[A] ⇒ Signal[B]) {
     *
     * The side effect is also performed with the signals initial value
     */
-  def to(out: Out[B]): SF[A,B] =
-    SF { ra ⇒ r ⇒ run(ra)(r) >>= { rb ⇒ rb onChange out as rb } }
+  def to(out: Out[B]): SF[A,B] = changeTo(c ⇒ out(c.v))
 
   /** Combines two signals via a pure function */
   def <*>[C,D,E<:A](that: SF[E,C])(f: (B,C) ⇒ D): SF[E,D] =
@@ -142,20 +150,21 @@ trait SFFunctions {
     }
 
   def runReactive[A](in: SIn[A],
-                     stop: A ⇒ Boolean,
                      step: Time = 1000L,
-                     proc: Int = processors): IO[Unit] = {
+                     proc: Int = processors)
+                    (stop: A ⇒ Boolean): IO[Unit] = {
       lazy val ex = java.util.concurrent.Executors.newFixedThreadPool(proc)
       lazy val s = scalaz.concurrent.Strategy.Executor(ex)
       //lazy val s = scalaz.concurrent.Strategy.Sequential
 
+      var doKill = false
       val cdl = new java.util.concurrent.CountDownLatch(1)
-      def kill = IO { cdl.countDown() }
 
       for {
-        r   ← IO(new Reactor(step, s))
-        end = { a: A ⇒ stop(a) ? r.stop(kill) | IO.ioUnit }
-        _ ← in to end run RS.Const(()) apply r
+        r ← IO(new Reactor(step, () ⇒ doKill, cdl, s))
+        _ ← in.to { stop(_) ? IO(doKill = true) | IO.ioUnit }
+              .run(RS Const () )
+              .apply(r)
         _ ← r.start
         _ ← IO { cdl.await()
                  ex.awaitTermination(10L, MS)
