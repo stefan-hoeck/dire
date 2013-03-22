@@ -2,64 +2,76 @@ package dire.control
 
 import dire.{Time, T0}
 import collection.mutable.ListBuffer
+import java.util.concurrent.CountDownLatch
 import scalaz.effect.IO
 import scalaz.concurrent.{Actor, Strategy}
 
 final private[dire] class Reactor(
-  delay: Time,
+  step: Time,
   private[dire] val strategy: Strategy) {
-
   import Reactor._
 
-  private[this] val node = new RootNode
   private[this] val sources = new ListBuffer[EventSource]
   private[this] var state: ReactorState = Embryo
-  private[this] var count = 0
   private[this] var time = T0
-  private[this] var clockKill: () ⇒ Unit = () ⇒ ()
   private[this] val actor: Actor[ReactorEvent] = Actor(react)(strategy)
-  private[this] val onReady: Sink[Unit] = _ ⇒ actor ! NodeReady
+
+  private[this] lazy val timer: RawSignal[Time] =
+    RawSignal.signal[Time](T0, this)(o ⇒
+      IO {
+        val kill = Clock(step, o(_).unsafePerformIO)
+
+        IO {
+          val cdl = new CountDownLatch(1)
+          kill apply cdl
+          cdl.await()
+        }
+      }
+    ).unsafePerformIO
 
   private[control] def addSource(src: EventSource): IO[Unit] = IO {
     if (state != Embryo) throw new IllegalStateException(
-      "Adding event source to Reactor who is not in 'Embryo' state")
+      "Adding event source to Reactor which is not in 'Embryo' state")
 
-    node connectChild src.node
     sources += src
   }
 
-  private[dire] def stop: IO[Unit] = IO { actor ! Shutdown }
+  private[control] def run(sink: Sink[Time]) { actor ! Run(sink) }
+
+  private[dire] def stop(onDeath: IO[Unit]): IO[Unit] = IO { 
+    actor ! Shutdown(_ ⇒ onDeath.unsafePerformIO())
+  }
 
   private[dire] def start: IO[Unit] = IO { actor ! Start }
 
+  private[dire] def getTimer: IO[RawSignal[Time]] = IO(timer)
+
   private def react(ev: ReactorEvent) = (state,ev) match {
+    case (Active, Run(sink))         ⇒ {
+      time += 1L
+      sink(time)
+    }
+
     case (Embryo, Start)            ⇒ {
-      state = Waiting
-      clockKill = Clock(delay, t ⇒ actor ! Tick(t))
+      state = Active
       sources foreach { _.start() }
     }
 
-    case (Waiting, Tick(t))         ⇒ {
-      state = Collecting
-      count = sources.size + 1
-      time = t
-      sources foreach { _.collect(onReady) }
-      actor ! NodeReady
-    }
-
-    case (Collecting, NodeReady) ⇒ {
-      count -= 1
-      if (count == 0) {
-        state = Waiting
-        node.update(time)
-      }
-    }
-
-    case (s, Shutdown) if s != Zombie ⇒ {
+    case (s, Shutdown(c)) if s != Zombie ⇒ {
       state = Zombie
-      clockKill apply ()
-      sources foreach { _.stop() }
+      //await shutdown for all sources
+      val cdl = new CountDownLatch(sources.size)
+      sources foreach { _.stop(cdl) }
+      cdl.await()
+
+      //now that sources are shutdown, fire ConfirmDeath. This
+      //will be the very last event fired to the actor, so
+      //the caller know that it is now safe to shutdown
+      //ExecutorServices
+      actor ! ConfirmDeath(c)
     }
+
+    case (Zombie,ConfirmDeath(c)) ⇒ { c() }
 
     case _                          ⇒ ()
   }
@@ -69,16 +81,15 @@ private[dire] object Reactor {
   private sealed trait ReactorState
 
   private case object Embryo extends ReactorState
-  private case object Collecting extends ReactorState
-  private case object Waiting extends ReactorState
+  private case object Active extends ReactorState
   private case object Zombie extends ReactorState
 
   private sealed trait ReactorEvent
 
   private case object Start extends ReactorEvent
-  private case object Shutdown extends ReactorEvent
-  private case object NodeReady extends ReactorEvent
-  private case class Tick(t: Time) extends ReactorEvent
+  private case class Shutdown(onDeath: Sink[Unit]) extends ReactorEvent
+  private case class ConfirmDeath(onDeath: Sink[Unit]) extends ReactorEvent
+  private case class Run(sink: Sink[Time]) extends ReactorEvent
 }
 
 // vim: set ts=2 sw=2 et:

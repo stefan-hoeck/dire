@@ -3,7 +3,7 @@ import Keys._
 import com.typesafe.sbt.osgi.SbtOsgi._
 
 object BuildSettings {
-  val sv = "2.10.0"
+  val sv = "2.10.1"
   val buildOrganization = "dire"
   val buildVersion = "0.1.0-SNAPSHOT"
 
@@ -22,7 +22,7 @@ object BuildSettings {
 
 object Dependencies {
   val scalaz = "org.scalaz"
-  val scalazV = "7.0.0-M8"
+  val scalazV = "7.0.0-M9"
 
   val scalaz_core = scalaz %% "scalaz-core" % scalazV
   val scalaz_effect = scalaz %% "scalaz-effect" % scalazV

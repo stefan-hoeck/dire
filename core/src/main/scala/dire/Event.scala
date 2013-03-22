@@ -1,71 +1,41 @@
 package dire
 
-import scalaz._, Scalaz._
-
-/** Represents an event that happened at a certain time
-  * in a reactive system
+/** An abstract class to represent event occurences in
+  * an event stream.
   *
-  * @param at   the time at which the event happened
-  * @param v    the value of the event
+  * Clients are not supposed not access or manipulate objects of this
+  * class directly but should use the corresponding combinators
+  * defined for signals instead
   */
-final case class Event[+A](at: Time, v: A) {
-  def happenedAt(t: Time): Boolean = at ≟ t
-
-  def map[B](f: A ⇒ B): Event[B] = Event(at, f(v))
-
-  def flatMap[B](f: A ⇒ Event[B]): Event[B] = f(v) match {
-    case Event(atB, b) ⇒ Event(at max atB, b)
-  }
-}
-
-object Event extends EventInstances with EventFunctions
-
-trait EventFunctions {
-
-  /** Merges two lists of events.
-    *
-    * This function is used for merging event streams. Events will be
-    * sorted in decreasing time order. If some events in both lists
-    * happened at the same time, the ones in the first list will
-    * be closer to the list's end (later in time).
-    */
-  def merge[A](as: List[Event[A]], bs: List[Event[A]]): List[Event[A]] = {
-    type Es = List[Event[A]]
-
-    val r = new collection.mutable.ListBuffer[Event[A]]
-
-    @annotation.tailrec
-    def run(xs: Es, ys: Es): Unit = (xs,ys) match {
-      case (a::as, b::bs) if a.at >= b.at ⇒ { r += b; run(a::as, bs)}
-      case (a::as, b::bs)                 ⇒ { r += a; run(as, b::bs)}
-      case (as, bs)                       ⇒ { r ++= as; r ++= bs }
+sealed trait Event[+A] extends Any {
+  private[dire] def fold[B](once: A ⇒ B, never: ⇒ B): B =
+    this match {
+      case Never ⇒ never
+      case Once(v) ⇒ once(v)
     }
 
-    run(as, bs)
+  private[dire] def flatMap[B](f: A ⇒ Event[B]): Event[B] = 
+    fold[Event[B]](f, Never)
 
-    r.toList
-  }
+  private[dire] def map[B](f: A ⇒ B): Event[B] = flatMap(a ⇒ Once(f(a)))
+
+  private[dire] def filter(p: A ⇒ Boolean): Event[A] =
+    flatMap(a ⇒ if (p(a)) Once(a) else Never)
+
+  private[dire] def collect[B](f: A ⇒ Option[B]): Event[B] =
+    flatMap(a ⇒ f(a).fold[Event[B]](Never)(Once.apply))
+
+  private[dire] def orElse[B>:A](e: ⇒ Event[B]): Event[B] =
+    fold(Once(_), e)
 }
 
-trait EventInstances {
-  implicit def EventEqual[A:Equal]: Equal[Event[A]] =
-    Equal.equalBy(e ⇒ (e.at, e.v))
+private[dire] case object Never extends Event[Nothing]
 
-  implicit val EventMonad: Monad[Event] with
-                           Comonad[Event] with
-                           Traverse[Event] =
-    new Monad[Event] with Comonad[Event] with Traverse[Event]{
-      def point[A](a: ⇒ A) = Event(Long.MinValue, a)
-      def bind[A,B](e: Event[A])(f: A ⇒ Event[B]) = e flatMap f
-      def cobind[A,B](e: Event[A])(f: Event[A] ⇒ B) = Event(e.at, f(e))
-      def cojoin[A](e: Event[A]) = Event(e.at, e)
-      def copoint[A](e: Event[A]) = e.v
-      def traverseImpl[G[_]:Applicative,A,B](e: Event[A])(f: A ⇒ G[B])
-        : G[Event[B]] = f(e.v) map { Event(e.at, _ ) }
-    }
+private[dire] case class Once[+A](v: A) extends Event[A]
 
-  implicit def EventMonoid[A:Monoid]: Monoid[Event[A]] =
-    Monoid.liftMonoid[Event,A]
+object Event {
+  //do NOT provide implementation for type class Equal here. This guarantees,
+  //that function 'events' in 'SF' can only be called on non-events
 }
 
 // vim: set ts=2 sw=2 et:

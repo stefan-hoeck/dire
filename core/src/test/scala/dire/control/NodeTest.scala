@@ -1,115 +1,83 @@
 package dire.control
 
+import dire.{Time, T0}
 import org.scalacheck._, Prop._
 import scalaz._, Scalaz._, effect.{IO, IORef}
 
-object RNodeTest extends Properties("Node") {
+object NodeTest extends Properties("Node") {
 
-  def run(p: IO[Prop]): Prop = p.unsafePerformIO
+  class MockChild(val calcRes: Boolean, val id: Int) extends ChildNode {
+    var updateTime = T0
+    var cleaned = 0
+    var calced = 0
+    def doCalc(t: Time) = { calced += 1; updateTime = t; calcRes }
+    def doClean() { cleaned += 1 }
+  }
 
-//  property("updates self") = run(
-//    for {
-//      called  ← IO newIORef false
-//      n       ← RNode(called write true as true, IO.ioUnit)
-//      _       ← n.update
-//      updated ← called.read
-//    } yield updated :| "Updated self"
-//  )
-//
-//  property("updates child if calc returns true") = run(
-//    for {
-//      called  ← IO newIORef false
-//      p       ← RNode(IO(true), IO.ioUnit)
-//      c       ← RNode(called write true as true, IO.ioUnit)
-//      _       ← p.connectChild(c).run
-//      _       ← p.update
-//      updated ← called.read
-//    } yield updated :| "Updated child"
-//  )
-//
-//  property("does not update child if calc returns false") = run(
-//    for {
-//      called  ← IO newIORef false
-//      p       ← RNode(IO(false), IO.ioUnit)
-//      c       ← RNode(called write true as true, IO.ioUnit)
-//      _       ← p.connectChild(c).run
-//      _       ← p.update
-//      updated ← called.read
-//    } yield !updated :| "child not updated"
-//  )
-//
-//  property("does not update child if disconnected") = run(
-//    for {
-//      called  ← IO newIORef false
-//      p       ← RNode(IO(true), IO.ioUnit)
-//      c       ← RNode(called write true as true, IO.ioUnit)
-//      x       ← p.connectChild(c).run
-//      _       ← Connector disconnect x._1
-//      _       ← p.update
-//      updated ← called.read
-//    } yield !updated :| "child not updated"
-//  )
-//
-//  property("cleans self if calc returns true") = run(
-//    for {
-//      called  ← IO newIORef false
-//      n       ← RNode(IO(true), called write true)
-//      _       ← n.update
-//      cleaned ← called.read
-//    } yield cleaned :| "cleaned self"
-//  )
-//
-//  property("does not clean self if calc returns false") = run(
-//    for {
-//      called  ← IO newIORef false
-//      n       ← RNode(IO(false), called write true)
-//      _       ← n.update
-//      cleaned ← called.read
-//    } yield !cleaned :| "not cleaned self"
-//  )
-//
-//  property("cleans child if both return true") = run(
-//    for {
-//      called  ← IO newIORef false
-//      p       ← RNode(IO(true), IO.ioUnit)
-//      c       ← RNode(IO(true), called write true )
-//      _       ← p.connectChild(c).run
-//      _       ← p.update
-//      cleaned ← called.read
-//    } yield cleaned :| "cleaned child"
-//  )
-//
-//  property("does not clean child if child returns false") = run(
-//    for {
-//      called  ← IO newIORef false
-//      p       ← RNode(IO(true), IO.ioUnit)
-//      c       ← RNode(IO(false), called write true )
-//      _       ← p.connectChild(c).run
-//      _       ← p.update
-//      cleaned ← called.read
-//    } yield !cleaned :| "not cleaned child"
-//  )
-//
-//  property("does not clean child if parent returns false") = run(
-//    for {
-//      called  ← IO newIORef false
-//      p       ← RNode(IO(false), IO.ioUnit)
-//      c       ← RNode(IO(true), called write true )
-//      _       ← p.connectChild(c).run
-//      _       ← p.update
-//      cleaned ← called.read
-//    } yield !cleaned :| "not cleaned child"
-//  )
-//
-//  property("updates self only once even if cyclic") = run(
-//    for {
-//      called  ← IO newIORef 0
-//      n       ← RNode(called mod { 1 + _ } as true, IO.ioUnit)
-//      _       ← n.connectChild(n).run
-//      _       ← n.update
-//      updated ← called.read
-//    } yield (updated ≟ 1) :| s"Updated self only once: $updated"
-//  )
+  type Nodes = (RootNode, MockChild, MockChild, MockChild, MockChild)
+
+  //A simple dependency graph
+  def runGraph(res1: Boolean, res2: Boolean, res3: Boolean, res4: Boolean): Nodes = {
+    val r = new RootNode
+    val c1 = new MockChild(res1, 1)
+    val c2 = new MockChild(res2, 2)
+    val c3 = new MockChild(res3, 3)
+    val c4 = new MockChild(res4, 4)
+
+    r connectChild c1
+    r connectChild c2
+    c1 connectChild c3
+    c2 connectChild c3
+    c3 connectChild c4
+
+    r.update(1L)
+
+    (r, c1, c2, c3, c4)
+  }
+
+  val bools = List(true, false)
+
+  val allRuns: List[Nodes] = ^^^(bools, bools, bools, bools)(runGraph)
+
+  val allChildren: List[MockChild] =
+    allRuns >>= { case (r,a,b,c,d) ⇒ List(a,b,c,d)}
+
+  property("updated at most once") = allChildren ∀ { _.calced <= 1L }
+
+  property("cleaned at most once") = allChildren ∀ { _.calced <= 1L }
+
+  property("called with proper time") = allChildren ∀ { c ⇒ 
+    if (c.calced ≟ 0) c.updateTime ≟ T0
+    else c.updateTime ≟ 1L
+  }
+
+  property("cleaned iff updated and changed") = allChildren ∀ { c ⇒ 
+    ((c.calcRes) && (c.calced ≟ 1)) ≟ (c.cleaned ≟ 1)
+  }
+
+  property("updated iff at least one parent updated") = allChildren ∀ { c ⇒ 
+    ((c.calced ≟ 1) ≟ (c.getParents ∃ hasChanged))
+  }
+
+  def hasChanged(n: Node) = n match {
+    case m: MockChild ⇒ (m.calced >= 1) && m.calcRes
+    case r: RootNode  ⇒ r.hasChanged
+    case _            ⇒ sys.error("What!?")
+  }
+
+  def printError(c: MockChild) = {
+    def single(c: MockChild) = s"(${c.id}; calced: ${c.calced ≟ 1}; res: ${c.calcRes}) "
+
+    def singleN(n: Node) = n match {
+      case m: MockChild ⇒ single(m)
+      case r: RootNode  ⇒ "(Root) "
+      case _            ⇒ sys.error("What!?")
+    }
+
+    def parents = c.getParents foldMap singleN
+
+    println(s"${single(c)}; $parents")
+  }
 }
 
 // vim: set ts=2 sw=2 et:

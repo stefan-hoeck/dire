@@ -91,7 +91,9 @@ private[control] abstract class ChildNode extends Node {
   private[this] val children = new ListBuffer[ChildNode]
   private[this] val parents = new ListBuffer[Node]
 
-  protected def sourceEvents: Boolean = true
+  //for testing only
+  final private[control] def getParents = parents.toList
+
   protected def doClean()
   protected def doCalc(t: Time): Boolean
 
@@ -101,7 +103,7 @@ private[control] abstract class ChildNode extends Node {
   final def addChild(n: ChildNode) { children += n }
 
   final def setDirty() {
-    if((!dirty) && sourceEvents) {
+    if(!dirty) {
       dirty = true
       children foreach { _.setDirty() }
     }
@@ -111,13 +113,10 @@ private[control] abstract class ChildNode extends Node {
     if (dirty &&
         (! parents.exists(_.isDirty)) &&
         parents.exists(_.hasChanged)) {
-
       dirty = false
+      changed = doCalc(t)
 
-      if (doCalc(t)) {
-        changed = true
-        children foreach { _.calculate(t) }
-      }
+      children foreach { _.calculate(t) }
     }
   }
 

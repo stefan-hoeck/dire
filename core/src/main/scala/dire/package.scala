@@ -11,13 +11,22 @@ package object dire {
 
   type Out[-A] = A ⇒ IO[Unit]
 
-  /** Type alias for a function that creates a
-    * stream of events.
+  /** Type alias for signals */
+  type Signal[+A] = Reactor ⇒ IO[RawSignal[A]]
+
+  /** Type alias for event streams
     *
-    * In dire, you do not work with even streams
-    * directly but with stream functions.
+    * In dire, an event stream is a signal
+    * of [[dire.Event]]s. Class 'Event' is isomorphic to 'Option'
+    * but it is not possible to create instances of 'Event' in
+    * client code. This is to make sure that clients do not
+    * create event streams that are not well behaved.
     */
-  type Events[+A] = Reactor ⇒ IO[RawEvents[A]]
+  type Events[+A] = Signal[Event[A]]
+
+  type EF[-A,+B] = SF[A,Event[B]]
+
+  type SIn[+A] = SF[Any,A]
 
   type EIn[+A] = EF[Any,A]
 }

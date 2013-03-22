@@ -1,79 +1,63 @@
 package dire.control
 
-import dire.{Event, Time, Out}
+import dire._
 import collection.mutable.ListBuffer
+import java.util.concurrent.CountDownLatch
 import scalaz.effect.IO
 import scalaz.concurrent.{Actor, Strategy}
 
 private[control] sealed trait EventSource {
-  private[control] def node: ChildNode
-  def collect(cb: Sink[Unit]): Unit
   def start(): Unit
-  def stop(): Unit
+  def stop(cdl: CountDownLatch): Unit
 }
 
 private[dire] class Source[A](
-  starter: Out[A] ⇒ IO[IO[Unit]],
-  strategy: Strategy)
+  initial: A,
+  reactor: Reactor,
+  starter: Out[A] ⇒ IO[IO[Unit]])
     extends EventSource {
   import Source._
 
+  private[control] val node = new RootNode
   private[this] var onStop: IO[Unit] = IO.ioUnit
-  private[this] val collected = new ListBuffer[A]
-  private[this] var raw: List[A] = Nil
-  private[this] var events: List[Event[A]] = Nil
-  private[this] val actor = Actor[SourceE[A]](react)(strategy)
-
-  private[control] object node extends ChildNode {
-    protected def doCalc(t: Time) = {
-      events = raw map { Event(t, _) }
-      events.nonEmpty
-    }
-
-    protected def doClean() { raw = Nil; events = Nil }
-
-    override protected def sourceEvents: Boolean = raw.nonEmpty
-  }
+  private[this] val actor = Actor[SourceE[A]](react)(reactor.strategy)
+  private[control] var last: Change[A] = Change(T0, initial)
+  private[this] var stopped = false
 
   private def react(e: SourceE[A]): Unit = e match {
-    case Start               ⇒ {
-      onStop = starter(a ⇒ IO(actor ! Fired(a))).unsafePerformIO()
+    case Fired(a)             ⇒ if (! stopped) reactor.run(doFire(a))
+    case Stop(cdl)            ⇒ {
+      stopped = true
+      onStop.unsafePerformIO()
+      cdl.countDown()
     }
-
-    case Stop                ⇒ onStop.unsafePerformIO()
-    case Fired(a)            ⇒ collected += a
-    case Collect(cb)         ⇒ {
-      collected ++= collectEvents
-      raw = collected.toList
-      collected.clear()
-      cb apply ()
-    }
+    case Start                ⇒ 
+      onStop = starter(as ⇒ IO(actor ! Fired(as))).unsafePerformIO()
   }
 
-  def fired: List[Event[A]] = events
-  def collect(cb: Sink[Unit]) { actor ! Collect(cb) }
   def start() { actor ! Start }
-  def stop() { actor ! Stop }
+  def stop(cdl: CountDownLatch) { actor ! Stop(cdl) }
 
-  protected def collectEvents: List[A] = Nil
+  private[this] def doFire(a: A)(t: Time) {
+    last = Change(t, a)
+    node.update(t)
+  }
 }
 
 private[dire] object Source {
-  def apply[A](cb: Out[A] ⇒ IO[IO[Unit]], strategy: Strategy)
-    : IO[Source[A]] = IO(new Source[A](cb, strategy))
+  def signalSource[A](initial: ⇒ A, r: Reactor)
+                     (cb: Out[A] ⇒ IO[IO[Unit]]): IO[Source[A]] =
+    IO(new Source[A](initial, r, cb))
 
-  def ticks(strategy: Strategy): IO[Source[Unit]] = IO {
-    new Source[Unit](_ ⇒ IO(IO.ioUnit), strategy) {
-      override protected val collectEvents = List(())
-    }
-  }
+  def eventSource[A](cb: Out[A] ⇒ IO[IO[Unit]])
+                    (r: Reactor): IO[Source[Event[A]]] =
+    IO(new Source[Event[A]](Never, r, oe ⇒ cb(a ⇒ oe(Once(a)))))
 
   private sealed trait SourceE[+A]
 
   private case object Start extends SourceE[Nothing]
-  private case object Stop extends SourceE[Nothing]
-  private case class Fired[+A](v: A) extends SourceE[A]
-  private case class Collect(cb: Sink[Unit]) extends SourceE[Nothing]
+  private case class Stop(cdl: CountDownLatch) extends SourceE[Nothing]
+  private case class Fired[+A](a: A) extends SourceE[A]
 }
 
 // vim: set ts=2 sw=2 et:

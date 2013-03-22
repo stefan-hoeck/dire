@@ -5,7 +5,7 @@ import java.util.concurrent._, TimeUnit.{MICROSECONDS ⇒ MS}
 
 private[control] object Clock {
 
-  def apply(step: Time, out: Time ⇒ Unit): () ⇒ Unit = {
+  def apply(step: Time, out: Time ⇒ Unit): Sink[CountDownLatch] = {
     var time = T0
 
     def clock = new Runnable{
@@ -15,7 +15,11 @@ private[control] object Clock {
     val timerEx = Executors.newSingleThreadScheduledExecutor
     val handle = timerEx.scheduleAtFixedRate(clock, step, step, MS)
     
-    () ⇒ { handle.cancel(true); timerEx.shutdownNow() }
+    cdl ⇒ {
+      handle.cancel(true)
+      timerEx.shutdownNow()
+      cdl.countDown()
+    }
   }
 
 }
