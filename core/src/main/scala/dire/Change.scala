@@ -8,8 +8,6 @@ import scalaz._, Scalaz._
   * @param v    the value of the event
   */
 final case class Change[+A](at: Time, v: A) {
-  def happenedAt(t: Time): Boolean = at ≟ t
-
   def map[B](f: A ⇒ B): Change[B] = Change(at, f(v))
 
   def flatMap[B](f: A ⇒ Change[B]): Change[B] = f(v) match {
@@ -29,7 +27,7 @@ object Change extends ChangeInstances with ChangeFunctions {
   type NextS[-A,-B,C] = (Change[A], Change[B], Change[C]) ⇒ Change[C]
 
   /** The most general function needed to calculate the
-    * initial change of a signal from two input signals.
+    * initial value of a signal from two input signals.
     *
     * All primitive functions that create a new signal from
     * one or two input signals that is synchronously updated
@@ -62,13 +60,13 @@ trait ChangeInstances {
 /** Lots of helper functions to create new signals from one or two
   * input signals.
   *
-  * This functions are used to implement most of the functions defined
+  * These functions are used to implement most of the functions defined
   * on [[dire.Signal]]. See there for proper documentation.
   */
 trait ChangeFunctions {
   import Change.{ChangeMonoid, ChangeMonad, ChangeEqual, NextS, InitialS}
 
-  // All functions here are pure, so they can be properly tested.
+  // All functions here are pure so they can be properly tested.
 
   def applyI[A,B,C](f: (A,B) ⇒ C): InitialS[A,B,C] =
     (ca,cb) ⇒ ^(ca,cb)(f)
@@ -108,6 +106,16 @@ trait ChangeFunctions {
   def mapI[A,B](f: A ⇒ B): InitialS[A,Any,B] = (ca,_) ⇒ ca map f
 
   def mapN[A,B](f: A ⇒ B): NextS[A,Any,B] = (ca,_,cc) ⇒ ca map f
+
+  def scanI[A,B](ini: ⇒ B)(f: (A,B) ⇒ B): InitialS[Event[A],Any,B] = {
+    case (Change(t, Once(a)), _) ⇒ Change(t, f(a, ini))
+    case (Change(t, Never), _)   ⇒ Change(t, ini)
+  }
+
+  def scanN[A,B](ini: ⇒ B)(f: (A,B) ⇒ B): NextS[Event[A],Any,B] = {
+    case (Change(t, Once(a)), _, Change(t2, b)) ⇒ Change(t max t2, f(a, b))
+    case (_, _, cb)                             ⇒ cb
+  }
 }
 
 // vim: set ts=2 sw=2 et:

@@ -3,9 +3,9 @@ package dire
 /** An abstract class to represent event occurences in
   * an event stream.
   *
-  * Clients are not supposed not access or manipulate objects of this
+  * Clients are not supposed to access or manipulate objects of this
   * class directly but should use the corresponding combinators
-  * defined for signals instead
+  * defined for signal functions instead
   */
 sealed trait Event[+A] extends Any {
   private[dire] def fold[B](once: A ⇒ B, never: ⇒ B): B =
@@ -34,8 +34,8 @@ private[dire] case object Never extends Event[Nothing]
 private[dire] case class Once[+A](v: A) extends Event[A]
 
 object Event {
-  //do NOT provide implementation for type class Equal here. This guarantees,
-  //that function 'events' in 'SF' can only be called on non-events
+  //do NOT provide an implementation for type class Equal here. This guarantees,
+  //that function 'changes' in 'SF' can only be called on non-events
 }
 
 // vim: set ts=2 sw=2 et:

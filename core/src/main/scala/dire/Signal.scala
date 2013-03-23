@@ -1,9 +1,17 @@
 package dire
 
+//@TODO: I'm not sure whether signals should directly be available
+//       Once one gets used to it, most operations just feels more
+//       natural with signal functions
+
+
+
+
 //import dire.control.{RawSignal, Reactor}
 //import Change.{InitialS, NextS}
 //import scalaz._, Scalaz._, effect.IO
 //
+
 //final case class Signal[+A](run: Reactor ⇒ IO[RawSignal[A]]) {
 //  import Signal.{sync2, never}
 //

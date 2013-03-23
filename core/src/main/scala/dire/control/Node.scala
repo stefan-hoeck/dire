@@ -19,6 +19,11 @@ import dire.Time
   * being asked to clean themselves up.
   * The cleanup phase is needed for event streams to release intermediary
   * results of calculations for garbage collection
+  *
+  * @TODO: With the new implementation of event streams we
+  *        probably can get rid of the cleanup phase altogether.
+  *        I think, I'll keep it here for some time but if no
+  *        use case shows up, it can be safely removed.
   */
 private[control] trait Node {
 
@@ -45,7 +50,7 @@ private[control] trait Node {
 
   /** Adds a child `Node` to this `Node`
     *
-    * This `Node` as automatically added as a parent to the 
+    * This `Node` is automatically added as a parent to the 
     * child's list of parents
     */
   def connectChild(n: ChildNode) { n.addParent(this); addChild(n) }
@@ -53,6 +58,15 @@ private[control] trait Node {
   protected def addChild(n: ChildNode): Unit
 }
 
+/** `RootNode`s represent external event sources in the reactive
+  * network.
+  *
+  * A root node has no parents and therefore will never react
+  * on the event of another node. At any given time, only one
+  * root node will be able to fire an event. Simultaneous events
+  * of distinct root node's will be handled sequentially by the
+  * controlling actor (see `Reactor`).
+  */
 private[control] final class RootNode extends Node {
   private[this] val children = new ListBuffer[ChildNode]
 
@@ -84,6 +98,13 @@ private[control] final class RootNode extends Node {
   def update(t: Time) { setDirty(); calculate(t); cleanup() }
 }
 
+/** A child node in a reactive network
+  *
+  * Child nodes can have an arbitrary number of parents and
+  * children. They represent signals that
+  * synchronuously react on changes in one or more other
+  * signal.
+  */
 private[control] abstract class ChildNode extends Node {
   
   private[this] var dirty = false
@@ -129,6 +150,12 @@ private[control] abstract class ChildNode extends Node {
   }
 }
 
+/** An isolated node in a reactive network
+  *
+  * This node has no parents nor children and is
+  * never updated. It is used for constant signals and
+  * the empty event stream
+  */
 case object Isolated extends Node {
   def calculate(t: Time) {}
   def cleanup() {}

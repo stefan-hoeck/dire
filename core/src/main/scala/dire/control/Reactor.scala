@@ -1,7 +1,7 @@
 package dire.control
 
 import dire.{Time, T0}
-import collection.mutable.ListBuffer
+import collection.mutable.{ListBuffer, HashMap ⇒ MMap}
 import java.util.concurrent.CountDownLatch
 import scalaz.effect.IO
 import scalaz.concurrent.{Actor, Strategy}
@@ -13,6 +13,7 @@ final private[dire] class Reactor(
   private[dire] val strategy: Strategy) {
   import Reactor._
 
+  private[this] val sourceMap = new MMap[Any,Any]
   private[this] val sources = new ListBuffer[EventSource]
   private[this] var state: ReactorState = Embryo
   private[this] var time = T0
@@ -21,13 +22,9 @@ final private[dire] class Reactor(
   private[this] lazy val timer: RawSignal[Time] =
     RawSignal.signal[Time](T0, this)(o ⇒
       IO {
-        val kill = Clock(step, o(_).unsafePerformIO)
+        val kill = Clock(T0, step, o(_).unsafePerformIO)
 
-        IO {
-          val cdl = new CountDownLatch(1)
-          kill apply cdl
-          cdl.await()
-        }
+        IO { kill apply () }
       }
     ).unsafePerformIO
 

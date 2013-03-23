@@ -6,7 +6,7 @@ import scalaz._, Scalaz._, effect.IO
 /** The inner workings of signals
   *
   * A signal consists of a node that represents its dependencies
-  * in the reactive graph, and a method to request the latest
+  * in the reactive graph and a method to request the latest
   * change that happened in the signal
   */
 sealed trait RawSignal[+A] { self ⇒ 

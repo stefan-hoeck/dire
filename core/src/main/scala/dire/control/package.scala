@@ -9,7 +9,7 @@ package dire
   */
 package object control {
   /** An impure data sink */
-  private[control] type Sink[-A] = A ⇒ Unit
+  private[dire] type Sink[-A] = A ⇒ Unit
 }
 
 // vim: set ts=2 sw=2 et:
