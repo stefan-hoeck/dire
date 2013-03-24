@@ -3,6 +3,7 @@ package dire
 import Change.{InitialS, NextS}
 import dire.control.{RawSignal ⇒ RS, Reactor}
 import java.util.concurrent.TimeUnit.{MILLISECONDS ⇒ MS}
+import scala.reflect.runtime.universe.TypeTag
 import scalaz._, Scalaz._, effect.IO
 
 /** Represents a signal transformation.
@@ -164,6 +165,8 @@ trait SFInstances {
 }
 
 trait SFFunctions {
+  import SourceSignal._
+
   private lazy val processors =
     Runtime.getRuntime.availableProcessors
 
@@ -171,10 +174,19 @@ trait SFFunctions {
     *
     * In every isolated reactive system there is only one such signal
     */
-  val time: SIn[Time] = SF(_ ⇒ _.getTimer)
+  def time(step: Time): SIn[Time] = 
+    cached(src[Time,Time](step), "DireCoreTime")
+
+  def ticks(step: Time): EIn[Unit] = src[Time,Event[Unit]](step)
+
+  def src[S,V](s: S)(implicit Src: SourceSignal[S,V]): SIn[V] =
+    SF(_ ⇒ _.sourceSignal(s))
 
   /** The event stream that never fires */
   def never[A]: EF[A,Nothing] = const(Never)
+
+  def cached[A:TypeTag,B:TypeTag](sf: SF[A,B], tag: Any): SF[A,B] =
+    SF(ra ⇒ _.cached[A,B](sf run ra, tag))
 
   /** A constant signal that never changes */
   def const[A,B](b: ⇒ B): SF[A,B] = SF(_ ⇒ _ ⇒ RS const b)
@@ -234,10 +246,9 @@ trait SFFunctions {
     *             but that this final event that lead to abortion
     *             is still copletely processed
     */
-  def runReactive[A](in: SIn[A],
-                     step: Time = 1000L,
-                     proc: Int = processors)
-                    (stop: A ⇒ Boolean): IO[Unit] = {
+  def runS[A](in: SIn[A],
+              proc: Int = processors)
+              (stop: A ⇒ Boolean): IO[Unit] = {
 
       lazy val ex = java.util.concurrent.Executors.newFixedThreadPool(proc)
       lazy val s = scalaz.concurrent.Strategy.Executor(ex)
@@ -245,7 +256,7 @@ trait SFFunctions {
       val cdl = new java.util.concurrent.CountDownLatch(1)
 
       for {
-        r ← IO(new Reactor(step, () ⇒ doKill, cdl, s))
+        r ← IO(new Reactor(() ⇒ doKill, cdl, s))
         _ ← in.to { stop(_) ? IO(doKill = true) | IO.ioUnit }
               .run(RS Const ())
               .apply(r)
@@ -255,6 +266,11 @@ trait SFFunctions {
                  ex.shutdown() }
       } yield ()
     }
+
+  def runE[A](in: EIn[A],
+              proc: Int = processors)
+             (stop: A ⇒ Boolean): IO[Unit] =
+    runS[Event[A]](in, proc)(_ fold (stop, false))
 }
 
 // vim: set ts=2 sw=2 et:

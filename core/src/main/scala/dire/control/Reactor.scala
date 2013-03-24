@@ -1,45 +1,56 @@
 package dire.control
 
-import dire.{Time, T0}
+import dire.{Time, T0, SourceSignal}
 import collection.mutable.{ListBuffer, HashMap ⇒ MMap}
 import java.util.concurrent.CountDownLatch
+import scala.reflect.runtime.universe._
 import scalaz.effect.IO
 import scalaz.concurrent.{Actor, Strategy}
 
 final private[dire] class Reactor(
-  step: Time,
   doKill: () ⇒ Boolean,
   countDownToDeath: CountDownLatch,
   private[dire] val strategy: Strategy) {
   import Reactor._
 
-  private[this] val sourceMap = new MMap[Any,Any]
+  private[this] val cache = new ListBuffer[(Type,Type,Any,Any)]
   private[this] val sources = new ListBuffer[EventSource]
   private[this] var state: ReactorState = Embryo
   private[this] var time = T0
   private[this] val actor: Actor[ReactorEvent] = Actor(react)(strategy)
 
-  private[this] lazy val timer: RawSignal[Time] =
-    RawSignal.signal[Time](T0, this)(o ⇒
-      IO {
-        val kill = Clock(T0, step, o(_).unsafePerformIO)
-
-        IO { kill apply () }
-      }
-    ).unsafePerformIO
-
-  private[control] def addSource(src: EventSource): IO[Unit] = IO {
+  private[dire] def sourceSignal[S,V](src: S)
+                                     (implicit E: SourceSignal[S,V])
+                                     : IO[RawSignal[V]] = IO {
     if (state != Embryo) throw new IllegalStateException(
       "Adding event source to Reactor which is not in 'Embryo' state")
 
-    sources += src
+    val s = new Source[V](E ini src unsafePerformIO, this, E cb src)
+    sources += s
+
+    RawSignal src s
+  }
+
+  private[dire] def cached[In:TypeTag,Out:TypeTag](
+    sig: Reactor ⇒ IO[RawSignal[Out]], tag: Any): IO[RawSignal[Out]] = {
+    val in = typeOf[In]
+    val out = typeOf[Out]
+
+    //SF[Any,Nothing] should match SF[Int,Int] but not vice verca
+    cache find { case (i,o,t,_) ⇒ (i <:< in) &&
+                                  (out <:< o) &&
+                                  (t == tag) } match {
+      case None    ⇒ for {
+                       res ← sig(this)
+                       _   ← IO(cache += ((in, out, tag, res)))
+                     } yield res
+      case Some(t) ⇒ IO(t._4.asInstanceOf[RawSignal[Out]])
+    }
   }
 
   private[control] def run(sink: Sink[Time]) { actor ! Run(sink) }
 
   private[dire] def start: IO[Unit] = IO { actor ! Start }
-
-  private[dire] def getTimer: IO[RawSignal[Time]] = IO(timer)
 
   private def react(ev: ReactorEvent) = (state,ev) match {
     case (Active, Run(sink))         ⇒ {

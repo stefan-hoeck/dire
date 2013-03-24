@@ -24,6 +24,8 @@ object Dependencies {
   val scalaz = "org.scalaz"
   val scalazV = "7.0.0-M9"
 
+  val scala_reflect = "org.scala-lang" % "scala-reflect" % BuildSettings.sv
+
   val scalaz_core = scalaz %% "scalaz-core" % scalazV
   val scalaz_effect = scalaz %% "scalaz-effect" % scalazV
   val scalaz_concurrent = scalaz %% "scalaz-concurrent" % scalazV
@@ -52,13 +54,13 @@ object UtilBuild extends Build {
   lazy val core = Project (
     "dire-core",
     file("core"),
-    settings = addDeps() :+ (OsgiKeys.exportPackage := Seq("dire"))
+    settings = addDeps(scala_reflect) :+ (OsgiKeys.exportPackage := Seq("dire"))
   )
 
   lazy val example = Project (
     "dire-example",
     file("example"),
-    settings = addDeps() ++
+    settings = addDeps(scala_reflect) ++
                com.github.retronym.SbtOneJar.oneJarSettings
   ) dependsOn(core)
 }

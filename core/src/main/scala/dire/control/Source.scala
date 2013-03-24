@@ -26,13 +26,17 @@ private[dire] class Source[A](
 
   private def react(e: SourceE[A]): Unit = e match {
     case Fired(a)             ⇒ if (! stopped) reactor.run(doFire(a))
+
     case Stop(cdl)            ⇒ {
       stopped = true
       onStop.unsafePerformIO()
-      cdl.countDown()
+      actor ! Dead(cdl)
     }
+
     case Start                ⇒ 
       onStop = starter(as ⇒ IO(actor ! Fired(as))).unsafePerformIO()
+
+    case Dead(cdl)            ⇒ cdl.countDown()
   }
 
   def start() { actor ! Start }
@@ -57,6 +61,7 @@ private[dire] object Source {
 
   private case object Start extends SourceE[Nothing]
   private case class Stop(cdl: CountDownLatch) extends SourceE[Nothing]
+  private case class Dead(cdl: CountDownLatch) extends SourceE[Nothing]
   private case class Fired[+A](a: A) extends SourceE[A]
 }
 

@@ -1,6 +1,6 @@
 package dire.control
 
-import dire.{Out, Time, Change, Event, T0}, Change.{NextS, InitialS}
+import dire._, Change.{NextS, InitialS}
 import scalaz._, Scalaz._, effect.IO
 
 /** The inner workings of signals
@@ -35,13 +35,8 @@ object RawSignal {
 
   def const[A](a: ⇒ A): IO[RawSignal[A]] = IO(Const(a))
 
-  def signal[A](initial: ⇒ A, r: Reactor)
-               (callback: Out[A] ⇒ IO[IO[Unit]])
-               : IO[RawSignal[A]] = for {
-      s   ← IO(new Source[A](initial, r, callback))
-      _   ← r addSource s
-      res = new RawSignal[A]{ def node = s.node; def last = s.last }
-    } yield res
+  private[control] def src[A](s: Source[A]): RawSignal[A] =
+    new RawSignal[A]{ def node = s.node; def last = s.last }
 
   /** Combines two signals to create a new signal that is
     * updated synchronously whenever one or both of the
