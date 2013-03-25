@@ -28,6 +28,8 @@ package object dire {
 
   type SIn[+A] = SF[Any,A]
 
+  type SOut[-A] = EF[A,Nothing]
+
   type EIn[+A] = EF[Any,A]
 }
 

@@ -1,6 +1,6 @@
 package dire.control
 
-import dire.{Time, T0, SourceSignal}
+import dire.{Time, T0, DataSource, DataSink, Event}
 import collection.mutable.{ListBuffer, HashMap ⇒ MMap}
 import java.util.concurrent.CountDownLatch
 import scala.reflect.runtime.universe._
@@ -14,21 +14,43 @@ final private[dire] class Reactor(
   import Reactor._
 
   private[this] val cache = new ListBuffer[(Type,Type,Any,Any)]
-  private[this] val sources = new ListBuffer[EventSource]
+  private[this] val reactives = new ListBuffer[Reactive]
   private[this] var state: ReactorState = Embryo
   private[this] var time = T0
   private[this] val actor: Actor[ReactorEvent] = Actor(react)(strategy)
 
-  private[dire] def sourceSignal[S,V](src: S)
-                                     (implicit E: SourceSignal[S,V])
-                                     : IO[RawSignal[V]] = IO {
+  private[dire] def source[S,V](src: S)
+                               (implicit E: DataSource[S,V])
+                               : IO[RawSignal[V]] = IO {
     if (state != Embryo) throw new IllegalStateException(
       "Adding event source to Reactor which is not in 'Embryo' state")
 
-    val s = new Source[V](E ini src unsafePerformIO, this, E cb src)
-    sources += s
+    val s = new RSource[V](E ini src unsafePerformIO, this, E cb src)
+    reactives += s
 
-    RawSignal src s
+    new RawSource(s)
+  }
+
+  private[dire] def sink[S,O](src: S, r: RawSignal[O])
+                             (implicit E: DataSink[S,O])
+                             : IO[RawSignal[O]] = IO {
+    if (state != Embryo) throw new IllegalStateException(
+      "Adding event sink to Reactor which is not in 'Embryo' state")
+
+    val s = new RSink[O](E.strategy getOrElse strategy,
+                         r.last,
+                         E out src,
+                         E cleanSink src)
+    reactives += s
+
+    val n = new ChildNode {
+      def doCalc(t: Time) = { s.output(r.last); false }
+      def doClean() {}
+    }
+
+    r.node connectChild n
+
+    r
   }
 
   private[dire] def cached[In:TypeTag,Out:TypeTag](
@@ -60,8 +82,8 @@ final private[dire] class Reactor(
       if (doKill()) {
         state = Zombie
         //await shutdown for all sources
-        val cdl = new CountDownLatch(sources.size)
-        sources foreach { _.stop(cdl) }
+        val cdl = new CountDownLatch(reactives.size)
+        reactives foreach { _.stop(cdl) }
         cdl.await()
 
         //now that sources are shutdown, fire ConfirmDeath. This
@@ -74,7 +96,7 @@ final private[dire] class Reactor(
 
     case (Embryo, Start)            ⇒ {
       state = Active
-      sources foreach { _.start() }
+      reactives foreach { _.start() }
     }
 
     case (Zombie,ConfirmDeath)      ⇒ { countDownToDeath.countDown() }

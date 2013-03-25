@@ -14,6 +14,7 @@ sealed trait RawSignal[+A] { self ⇒
 
   private[control] def last: Change[A]
 
+  @deprecated("0.1.0", "use sinks instead")
   private[dire] def onChange(out: Out[Change[A]]): IO[Unit] = 
     out(last) >> IO {
       node connectChild (
@@ -25,18 +26,20 @@ sealed trait RawSignal[+A] { self ⇒
     }
 }
 
+/** Represents a signal that never changes */
+private[dire] case class Const[+A](a: A) extends RawSignal[A] {
+  val node = Isolated
+  val last = Change(T0, a)
+}
+
+private[dire] class RawSource[A](s: RSource[A]) extends RawSignal[A] {
+  def node = s.node
+  def last = s.last
+}
+
 object RawSignal {
 
-  /** Represents a signal that never changes */
-  private[dire] case class Const[+A](a: A) extends RawSignal[A] {
-    val node = Isolated
-    val last = Change(T0, a)
-  }
-
   def const[A](a: ⇒ A): IO[RawSignal[A]] = IO(Const(a))
-
-  private[control] def src[A](s: Source[A]): RawSignal[A] =
-    new RawSignal[A]{ def node = s.node; def last = s.last }
 
   /** Combines two signals to create a new signal that is
     * updated synchronously whenever one or both of the

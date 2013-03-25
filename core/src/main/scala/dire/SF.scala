@@ -1,7 +1,7 @@
 package dire
 
 import Change.{InitialS, NextS}
-import dire.control.{RawSignal ⇒ RS, Reactor}
+import dire.control.{RawSignal ⇒ RS, Reactor, Const}
 import java.util.concurrent.TimeUnit.{MILLISECONDS ⇒ MS}
 import scala.reflect.runtime.universe.TypeTag
 import scalaz._, Scalaz._, effect.IO
@@ -20,6 +20,24 @@ case class SF[-A,+B](run: RS[A] ⇒ Signal[B]) {
   /** Applies a time-changing function to the signals values */
   def ap[C,D<:A](f: SF[D,B ⇒ C]): SF[D,C] = (f <*> this)(_ apply _)
 
+  /** Like `to` but performs the side effects asynchronuously
+    * that is, the main reactor thread is not blocked.
+    *
+    * The reactive system guarantees that, as long as the given
+    * `out` is not used as a data sink for other signals, it will
+    * only be accessed sequentially from this signal, i.e. it
+    * need not be thread safe. It is for instance possible to thus
+    * write all values of this signal to a file without being
+    * afraid of race conditions or other ugliness. If the same
+    * file is used to monitor several distinct signals or
+    * event streams they should either be merged in a single
+    * signal (event stream) instance, or function `to` should
+    * be used which guarantees that all access from a given
+    * reactive graph will be sequential.
+    */
+  def asynchTo(out: Out[B]): SF[A,B] =
+    toSink(())(DataSink.create[Unit,B](_ ⇒  out, _ ⇒ IO.ioUnit))
+
   /** Connect a reactive branch to this signal function but
     * return to the original branch afterwards.
     */
@@ -35,7 +53,7 @@ case class SF[-A,+B](run: RS[A] ⇒ Signal[B]) {
     sync2(this, never)(Change.changesI[C])(Change.changesN[C])
 
   private[dire] def changeTo(out: Out[Change[B]]): SF[A,B] =
-    SF { ra ⇒ r ⇒ run(ra)(r) >>= { rb ⇒ rb onChange out as rb } }
+    toSink(())(DataSink synchC out)
 
   /** Sequentially combines two signal functions */
   def compose[C](that: SF[C,A]): SF[C,B] =
@@ -45,11 +63,25 @@ case class SF[-A,+B](run: RS[A] ⇒ Signal[B]) {
   def map[C](f: B ⇒ C): SF[A,C] =
     sync2(this, never)(Change mapI f)(Change mapN f)
 
-  /** Performs the given side-effect whenever this signal changes.
+  /** Performs the given with this signal's initial value
+    * and whenever this signal changes.
     *
-    * The side effect is also performed with the signals initial value
+    * Note that `out` will be called by the running thread that updates
+    * the main reactive graph. Therefore the side effects performed
+    * by `out` need to be fast if the system should stay reactive.
+    * Consider using `asynchTo` instead for fully asynchronuous
+    * side effects or when side effects have to be performed in a
+    * special type of thread (the Swing event dispatch thread for instance).
     */
   def to(out: Out[B]): SF[A,B] = changeTo(c ⇒ out(c.v))
+
+  /** Asynchronuously output the values of this Signal to a data sink
+    *
+    * How the data sink operates and what concurrency strategy should
+    * be applied is defined in the [[dire.DataSink]] type class.
+    */
+  def toSink[S](s: S)(implicit SS: DataSink[S,B]): SF[A,B] = 
+    SF { ra ⇒ r ⇒ run(ra)(r) >>= { r.sink(s, _) } }
 
   /** Combines two signals via a pure function */
   def <*>[C,D,E<:A](that: SF[E,C])(f: (B,C) ⇒ D): SF[E,D] =
@@ -136,7 +168,7 @@ trait SFInstances {
     def id[A]: SF[A,A] = SF { ra ⇒ _ ⇒ IO(ra) }
 
     def arr[A,B](f: A ⇒ B): SF[A,B] = SF { ra ⇒ r ⇒ 
-      RS.sync2(ra, RS.Const(()))(Change mapI f)(Change mapN f) }
+      RS.sync2(ra, Const(()))(Change mapI f)(Change mapN f) }
 
     def compose[A,B,C](f: SF[B,C], g: SF[A,B]) = f compose g
 
@@ -165,7 +197,7 @@ trait SFInstances {
 }
 
 trait SFFunctions {
-  import SourceSignal._
+  import DataSource._
 
   private lazy val processors =
     Runtime.getRuntime.availableProcessors
@@ -179,8 +211,10 @@ trait SFFunctions {
 
   def ticks(step: Time): EIn[Unit] = src[Time,Event[Unit]](step)
 
-  def src[S,V](s: S)(implicit Src: SourceSignal[S,V]): SIn[V] =
-    SF(_ ⇒ _.sourceSignal(s))
+  def src[S,V](s: S)(implicit Src: DataSource[S,V]): SIn[V] =
+    SF(_ ⇒ _.source(s))
+
+  def sink[S,O](s: S)(implicit Sin: DataSink[S,O]): SOut[O] = ???
 
   /** The event stream that never fires */
   def never[A]: EF[A,Nothing] = const(Never)
@@ -258,7 +292,7 @@ trait SFFunctions {
       for {
         r ← IO(new Reactor(() ⇒ doKill, cdl, s))
         _ ← in.to { stop(_) ? IO(doKill = true) | IO.ioUnit }
-              .run(RS Const ())
+              .run(Const(()))
               .apply(r)
         _ ← r.start
         _ ← IO { cdl.await()
