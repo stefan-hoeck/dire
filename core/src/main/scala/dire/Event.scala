@@ -4,7 +4,7 @@ package dire
   * an event stream.
   *
   * Clients are not supposed to access or manipulate objects of this
-  * class directly but should use the corresponding combinators
+  * type directly but should use the corresponding combinators
   * defined for signal functions instead
   */
 sealed trait Event[+A] extends Any {
