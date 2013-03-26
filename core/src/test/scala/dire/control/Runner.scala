@@ -21,7 +21,7 @@ trait Runner {
     * they produce the same events at the same times.
     *
     * Note: Since signal functions may contain asynchronous
-    * components, the cannot be compared across different runs.
+    * components, they cannot be compared across different runs.
     * Strictly synchronous SF can be compared across different
     * runs.
     */

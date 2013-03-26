@@ -54,7 +54,12 @@ object UtilBuild extends Build {
   lazy val core = Project (
     "dire-core",
     file("core"),
-    settings = addDeps(scala_reflect) :+ (OsgiKeys.exportPackage := Seq("dire"))
+    settings = addDeps(scala_reflect) :+
+               (OsgiKeys.exportPackage := Seq("dire")) :+
+               //the following line can be removed once
+               //scala.reflection is thread safe (we use some
+               //TypeTags in our tests)
+               (parallelExecution in Test := false)
   )
 
   lazy val example = Project (

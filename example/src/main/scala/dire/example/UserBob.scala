@@ -19,7 +19,7 @@ object UserBob {
 
   private def user(p: (String,Long,Double)): SIn[Int] = p match {
     case (name, seed, freq) ⇒ {
-      val accesses = Random noise (10000L, seed) filter { _ >= freq } count
+      val accesses = Random noise (1000000L, seed) filter { freq <= } count
 
       SF cached (accesses to printAccess(name), name)
     }
