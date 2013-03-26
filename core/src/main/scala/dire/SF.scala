@@ -198,7 +198,16 @@ object SF extends SFInstances with SFFunctions {
   }
 }
 
-trait SFInstances {
+trait SFInstances extends SFInstances0 {
+
+  implicit def EFFunctor[R]: Functor[({type λ[α]=EF[R,α]})#λ] =
+    new Functor[({type λ[α]=EF[R,α]})#λ] {
+      def map[A,B](a: EF[R,A])(f: A ⇒ B) = a mapE f
+    }
+
+}
+
+trait SFInstances0 {
   //Type class implementations
 
   implicit val SFArrow: Arrow[SF] = new Arrow[SF] {
