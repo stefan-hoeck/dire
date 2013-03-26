@@ -69,12 +69,13 @@ trait ChangeFunctions {
   // All functions here are pure so they can be properly tested.
 
   def applyI[A,B,C](f: (A,B) ⇒ C): InitialS[A,B,C] =
-    (ca,cb) ⇒ ^(ca,cb)(f)
+    (ca,cb) ⇒ Change(ca.at max cb.at, f(ca.v, cb.v))
 
   def applyN[A,B,C](f: (A,B) ⇒ C): NextS[A,B,C] =
-    (ca,cb,_) ⇒ ^(ca,cb)(f)
+    (ca,cb,_) ⇒ Change(ca.at max cb.at, f(ca.v, cb.v))
 
-  def changesI[A:Equal]: InitialS[A,Any,Event[A]] = (ca,_) ⇒ ca as Never
+  def changesI[A:Equal]: InitialS[A,Any,Event[A]] = 
+    (ca,_) ⇒ ca map Once.apply
 
   def changesN[A:Equal]: NextS[A,Any,Event[A]] = {
     case (Change(_,a1),_, c2@Change(_,Once(a2))) if a1 ≟ a2 ⇒ c2
@@ -87,6 +88,12 @@ trait ChangeFunctions {
   def collectN[A,B](f: A ⇒ Option[B]): NextS[Event[A],Any,Event[B]] = {
     case (Change(t, ea),_,ceb) ⇒ 
       ea collect f fold (b ⇒ Change(t, Once(b)), ceb)
+  }
+
+  def eventsI[A]: InitialS[A,Any,Event[A]] = (ca,_) ⇒ ca map Once.apply
+
+  def eventsN[A]: NextS[A,Any,Event[A]] = {
+    case (ca,_,_) ⇒ ca map Once.apply
   }
 
   def mergeI[A]: InitialS[Event[A],Event[A],Event[A]] = (c1,c2) ⇒ 

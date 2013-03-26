@@ -54,7 +54,9 @@ object RawSignal {
 
       private[control] val node: ChildNode = new ChildNode {
         protected def doCalc(t: Time) = {
+          //print(s"Time: $t; a: ${a.last}; b: ${b.last}; last: $last; ")
           last = next(a.last, b.last, last)
+          //println(s"new value: $last; changed: ${last.at == t}")
           last.at == t
         }
 

@@ -131,11 +131,9 @@ private[control] abstract class ChildNode extends Node {
   }
 
   final def calculate(t: Time) {
-    if (dirty &&
-        (! parents.exists(_.isDirty)) &&
-        parents.exists(_.hasChanged)) {
+    if (dirty && (! parents.exists(_.isDirty))) {
       dirty = false
-      changed = doCalc(t)
+      changed = parents.exists(_.hasChanged) && doCalc(t)
 
       children foreach { _.calculate(t) }
     }

@@ -44,16 +44,23 @@ case class SF[-A,+B](run: RS[A] ⇒ Signal[B]) {
   def branch[C](that: SF[B,C]): SF[A,B] = 
     SF { ra ⇒ r ⇒ run(ra)(r) >>= { rb ⇒ that.run(rb)(r) as rb } }
 
-  /** Creates an event stream that fires whenever this signal
-    * changes.
-    *
-    * No event is fired when the signal is initialized.
+  /** Creates an event stream that fires whenever this signal's
+    * value changes (inluding when the signal is initialized).
     */
   def changes[C>:B](implicit E: Equal[C]): SF[A,Event[C]] =
     sync2(this, never)(Change.changesI[C])(Change.changesN[C])
 
   private[dire] def changeTo(out: Out[Change[B]]): SF[A,B] =
     toSink(())(DataSink synchC out)
+
+  /** Creates an event stream that fires whenever this signal
+    * fires an event.
+    *
+    * This is similar to `changes` but fires even if the signal's
+    * new value is not distinct from its old value
+    */
+  def events: SF[A,Event[B]] =
+    sync2(this, never)(Change.eventsI[B])(Change.eventsN[B])
 
   /** Sequentially combines two signal functions */
   def compose[C](that: SF[C,A]): SF[C,B] =
@@ -354,7 +361,7 @@ trait SFFunctions {
 
       for {
         r ← IO(new Reactor(() ⇒ doKill, cdl, s))
-        _ ← in.to { stop(_) ? IO(doKill = true) | IO.ioUnit }
+        _ ← in.to { stop(_) ? IO{doKill = true} | IO.ioUnit }
               .run(Const(()))
               .apply(r)
         _ ← r.start
