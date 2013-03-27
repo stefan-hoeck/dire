@@ -27,23 +27,9 @@ object SFTest extends Properties("SF") with dire.control.Runner {
 
   val tickCountC = SF.cached(tickCount, "tickCount")
 
-  implicit def EventEqual[A:Equal]: Equal[Event[A]] = new Equal[Event[A]] {
-    def equal(a: Event[A], b: Event[A]) = (a,b) match {
-      case (Never,Never)              ⇒ true
-      case (Once(x),Once(y)) if x ≟ y ⇒ true
-      case _                          ⇒ false
-    }
-  }
-
   implicit def TSFEqual[A:Equal]: Equal[TSF[A]] = new Equal[TSF[A]] {
-    def equal(a: TSF[A], b: TSF[A]) = compare(a, 20L)(b)
+    def equal(a: TSF[A], b: TSF[A]) = compare(a, 100L)(b)
   }
-
-  implicit def TEFEqual[A:Equal]: Equal[TEF[A]] = new Equal[TEF[A]] {
-    def equal(a: TEF[A], b: TEF[A]) = compare(a, 20L)(b)
-  }
-
-  val tGen = Gen choose (1L, 100L)
 
   //Basic tests
   property("idTime") =

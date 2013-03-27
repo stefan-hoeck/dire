@@ -5,21 +5,21 @@ import scalaz._, Scalaz._, effect.IO
 
 object UserBob {
 
-  def run = SF.runS(ratio.events.count)(_ >= 100)
+  def run = SF.runS(ratio.events.count)(_ >= 10000)
 
   implicit def SMonoid[A:Monoid] = Monoid.liftMonoid[SIn,A]
 
-  private def bob = user("Bob", 992L, 0.95D)
+  private def bob = user("Bob", 992L, 0.995D)
 
-  private def others = List(("Troll", 0L, 0.93D),
-                            ("Percy", 512L, 0.91D),
-                            ("Tim", 1135L, 0.925D),
-                            ("Gundi", 4012L, 0.98D),
-                            ("Mary", 2113L, 0.92D))
+  private def others = List(("Troll", 0L, 0.993D),
+                            ("Percy", 512L, 0.991D),
+                            ("Tim", 1135L, 0.9925D),
+                            ("Gundi", 4012L, 0.998D),
+                            ("Mary", 2113L, 0.992D))
 
   private def user(p: (String,Long,Double)): SIn[Int] = p match {
     case (name, seed, freq) ⇒ {
-      val accesses = Random noise (1000000L, seed) filter { freq <= } count
+      val accesses = Random noise (1000L, seed) filter { freq <= } count
 
       SF cached (accesses to printAccess(name), name)
     }

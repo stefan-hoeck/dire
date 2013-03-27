@@ -72,7 +72,7 @@ trait ChangeFunctions {
     (ca,cb) ⇒ Change(ca.at max cb.at, f(ca.v, cb.v))
 
   def applyN[A,B,C](f: (A,B) ⇒ C): NextS[A,B,C] =
-    (ca,cb,_) ⇒ Change(ca.at max cb.at, f(ca.v, cb.v))
+    (ca,cb,_) ⇒ applyI(f)(ca,cb)
 
   def changesI[A:Equal]: InitialS[A,Any,Event[A]] = 
     (ca,_) ⇒ ca map Once.apply
@@ -80,6 +80,13 @@ trait ChangeFunctions {
   def changesN[A:Equal]: NextS[A,Any,Event[A]] = {
     case (Change(_,a1),_, c2@Change(_,Once(a2))) if a1 ≟ a2 ⇒ c2
     case (ca,_,_) ⇒ ca map Once.apply
+  }
+
+  def distinctI[A:Equal]: InitialS[A,Any,A] = (ca,_) ⇒ ca
+
+  def distinctN[A:Equal]: NextS[A,Any,A] = {
+    case (ca,_,cb) if ca.v ≟ cb.v ⇒ cb
+    case (ca,_,_)                 ⇒ ca
   }
 
   def collectI[A,B](f: A ⇒ Option[B]): InitialS[Event[A],Any,Event[B]] =
@@ -92,9 +99,7 @@ trait ChangeFunctions {
 
   def eventsI[A]: InitialS[A,Any,Event[A]] = (ca,_) ⇒ ca map Once.apply
 
-  def eventsN[A]: NextS[A,Any,Event[A]] = {
-    case (ca,_,_) ⇒ ca map Once.apply
-  }
+  def eventsN[A]: NextS[A,Any,Event[A]] = (ca,n,_) ⇒ eventsI(ca,n)
 
   def mergeI[A]: InitialS[Event[A],Event[A],Event[A]] = (c1,c2) ⇒ 
     later(c1, c2) | ^(c1, c2)(_ orElse _)
@@ -112,7 +117,7 @@ trait ChangeFunctions {
 
   def mapI[A,B](f: A ⇒ B): InitialS[A,Any,B] = (ca,_) ⇒ ca map f
 
-  def mapN[A,B](f: A ⇒ B): NextS[A,Any,B] = (ca,_,cc) ⇒ ca map f
+  def mapN[A,B](f: A ⇒ B): NextS[A,Any,B] = (ca,_,_) ⇒ ca map f
 
   def scanI[A,B](ini: ⇒ B)(f: (A,B) ⇒ B): InitialS[Event[A],Any,B] = {
     case (Change(t, Once(a)), _) ⇒ Change(t, f(a, ini))

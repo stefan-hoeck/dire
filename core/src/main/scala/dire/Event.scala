@@ -1,5 +1,7 @@
 package dire
 
+import scalaz._, Scalaz._
+
 /** An abstract class to represent event occurences in
   * an event stream.
   *
@@ -34,8 +36,15 @@ private[dire] case object Never extends Event[Nothing]
 private[dire] case class Once[+A](v: A) extends Event[A]
 
 object Event {
-  //do NOT provide an implementation for type class Equal here. This guarantees,
-  //that function 'changes' in 'SF' can only be called on non-events
+
+  implicit def EventEqual[A:Equal]: Equal[Event[A]] = new Equal[Event[A]] {
+    def equal(a: Event[A], b: Event[A]) = (a,b) match {
+      case (Never,Never)              ⇒ true
+      case (Once(a),Once(b)) if a ≟ b ⇒ true
+      case _                          ⇒ false
+    }
+  }
+
 }
 
 // vim: set ts=2 sw=2 et:

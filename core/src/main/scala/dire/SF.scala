@@ -44,11 +44,17 @@ case class SF[-A,+B](run: RS[A] ⇒ Signal[B]) {
   def branch[C](that: SF[B,C]): SF[A,B] = 
     SF { ra ⇒ r ⇒ run(ra)(r) >>= { rb ⇒ that.run(rb)(r) as rb } }
 
-  /** Creates an event stream that fires whenever this signal's
-    * value changes (inluding when the signal is initialized).
+  /** Returns a signal that only fires an event if its new
+    * value is different from its old one
     */
-  def changes[C>:B](implicit E: Equal[C]): SF[A,Event[C]] =
-    sync2(this, never)(Change.changesI[C])(Change.changesN[C])
+  def distinct[C>:B:Equal]: SF[A,C] =
+    sync2(this, never)(Change.distinctI[C])(Change.distinctN[C])
+
+  /** Creates an event stream that fires whenever this signal's
+    * value changes to a new one that is distinct from the old
+    * value.
+    */
+  def changes[C>:B:Equal]: SF[A,Event[C]] = distinct[C].events
 
   private[dire] def changeTo(out: Out[Change[B]]): SF[A,B] =
     toSink(())(DataSink synchC out)
@@ -88,7 +94,7 @@ case class SF[-A,+B](run: RS[A] ⇒ Signal[B]) {
     * How the data sink operates and what concurrency strategy is
     * applied is defined in the [[dire.DataSink]] type class.
     */
-  def toSink[S](s: S)(implicit SS: DataSink[S,B]): SF[A,B] = 
+  def toSink[S](s: S)(implicit D: DataSink[S,B]): SF[A,B] = 
     SF { ra ⇒ r ⇒ run(ra)(r) >>= { r.sink(s, _) } }
 
   /** Combines two signals with a pure function */
@@ -265,13 +271,17 @@ trait SFFunctions {
   /** An asynchronous event source that fires at regular
     * intervals.
     *
-    * This is very useful a a basic source of events to simulate
+    * This is very useful as a basic source of events to simulate
     * all kinds of real time applications.
     * Note that an arbitrary number of completely independant
     * event streams can thus be created. 
     */
   def ticks(step: Time): EIn[Unit] = src[Time,Event[Unit]](step)
 
+  /** Creates an input Signal from an external data source
+    *
+    * See the [[dire.DataSource]] type class for more details
+    */
   def src[S,V](s: S)(implicit Src: DataSource[S,V]): SIn[V] =
     SF(_ ⇒ _.source(s))
 
@@ -281,8 +291,8 @@ trait SFFunctions {
   /** Sometimes, part of a reactive graph appears in several
     * places in the description of the reactive graph.
     *
-    * Caching such a sub-graph using the given `tag`, guarantees,
-    * that the result of the given signal function with they
+    * Caching such a sub-graph using the given `tag` guarantees,
+    * that the result of the given signal function with the
     * same type of input and output parameters and the same `tag`
     * is only created once when setting up the reactive graph.
     * Additional calls to the resulting signal-functions `run`
