@@ -4,7 +4,10 @@ import SF.EventsOps
 import org.scalacheck._, Prop._
 import scalaz._, Scalaz._, effect.IO
 
-object SFTest extends Properties("SF") with dire.control.Runner {
+object SFTest
+   extends Properties("SF")
+   with dire.control.Runner 
+   with SFArbitrary {
 
   //Signal function from Time to A
   type TSF[+A] = SF[Time,A]
@@ -16,7 +19,9 @@ object SFTest extends Properties("SF") with dire.control.Runner {
 
   val funLaw = Functor[TEF].functorLaw
 
-  val monLaw = Monoid[TEF[Int]].monoidLaw
+  val monLaw = Monoid[EFTT].monoidLaw
+
+  val arrLaw = Arrow[SF].categoryLaw
 
   // the main time signal
   val idTime = Arrow[SF].id[Time]
@@ -42,62 +47,77 @@ object SFTest extends Properties("SF") with dire.control.Runner {
   }
 
   //Applicative Laws: Signals
-  property("functor_identity") = appLaw identity idTime
-
-  property("functor_comp") = forAll { p: (Time ⇒ String, String ⇒ Int) ⇒  
-    appLaw.composite(idTime, p._1, p._2)
+  property("functor_identity") = forAll { t: SFTT ⇒ 
+    appLaw identity SF.cached(t, "first")
   }
 
-  property("applicative_identity") = appLaw identityAp idTime
+  property("functor_comp") = forAll { t: (Time ⇒ String, String ⇒ Int, SFTT) ⇒  
+    appLaw.composite(SF.cached(t._3, "first"), t._1, t._2)
+  }
+
+  property("applicative_identity") = forAll { t: SFTT ⇒ 
+    appLaw identityAp SF.cached(t, "first")
+  }
 
   property("applicative_comp") = forAll {
-    p: (Time ⇒ (Time ⇒ String), Time ⇒ (String ⇒ Int)) ⇒  
-    val sfString = idTime map p._1
-    val sfInt = idTime map p._2
+    p: (Time ⇒ (Time ⇒ String), Time ⇒ (String ⇒ Int), SFTT, SFTT, SFTT) ⇒  
+    val sfString = SF.cached(p._3 map p._1, "first")
+    val sfInt = SF.cached(p._4 map p._2, "second")
 
-    appLaw.composition(sfInt, sfString, idTime)
+    appLaw.composition(sfInt, sfString, SF.cached(p._5, "third"))
   }
 
-  property("applicative_comp_async") = forAll {
-    p: (Time ⇒ (Time ⇒ String), Int ⇒ (String ⇒ Int)) ⇒  
-    val sfString = idTime map p._1
-
-    //Caching needed, otherwise TWO distinct asynchronous signals
-    //will be generated. Those would of course not be equal
-    val sfInt = SF.cached(tickCount map p._2, "count")
-
-    appLaw.composition(sfInt, sfString, idTime)
-  }
-
-  property("applicative_homomorphism") = forAll { p: (Time ⇒ String, Time) ⇒  
+  property("applicative_homomorphism") = forAll { 
+    p: (Time ⇒ String, Time) ⇒  
     appLaw.homomorphism(p._1, p._2)
   }
 
   property("applicative_interchange") = forAll {
-    p: (Time ⇒ (Int ⇒ String), Int) ⇒  
-    appLaw.interchange(idTime map p._1, p._2)
+    p: (Time ⇒ (Int ⇒ String), Int, SFTT) ⇒  
+    appLaw.interchange(SF.cached(p._3 map p._1, "first"), p._2)
   }
 
   //Functor Laws: EventStreams
-  property("functor_identity_events") = funLaw identity tickCountC.events
+  property("functor_identity_events") = forAll { t: EFTT ⇒ 
+    funLaw identity SF.cached(t, "first")
+  }
 
   property("functor_comp_events") = forAll {
-    p: (Int ⇒ String, String ⇒ Int) ⇒  
+    p: (Time ⇒ String, String ⇒ Int, EFTT) ⇒  
 
-    funLaw.composite(tickCountC.events, p._1, p._2)
+    funLaw.composite(SF.cached(p._3, "first"), p._1, p._2)
   }
 
   //Monoid Laws: EventStreams
-  property("monoid_left_identity") =
-    monLaw.leftIdentity(idTime.map(_.toInt).events ⊹ tickCountC.events)
+  property("monoid_left_identity") = forAll { t: EFTT ⇒ 
+    monLaw.leftIdentity(SF.cached(t, "first"))
+  }
 
-  property("monoid_right_identity") =
-    monLaw.rightIdentity(idTime.map(_.toInt).events ⊹ tickCountC.events)
+  property("monoid_right_identity") = forAll { t: EFTT ⇒ 
+    monLaw.rightIdentity(SF.cached(t, "first"))
+  }
 
-  property("monoid_associative") = forAll { i: Int ⇒ 
-    monLaw.associative(idTime map { _.toInt } events,
-                       tickCountC.events mapE (i*),
-                       SF cached (tickCount, "tickCount2") events)
+  property("monoid_associative") = forAll { t: (EFTT, EFTT, EFTT) ⇒ 
+    val (a, b, c) = t
+
+    monLaw.associative(SF.cached(a, "first"),
+                       SF.cached(b, "second"),
+                       SF.cached(c, "third"))
+  }
+
+  //Category Laws
+  property("category_right_identity") = forAll { t: SFTT ⇒ 
+    arrLaw.rightIdentity(SF.cached(t, "first"))
+  }
+
+  property("category_left_identity") = forAll { t: SFTT ⇒ 
+    arrLaw.leftIdentity(SF.cached(t, "first"))
+  }
+
+  property("compose_associative") = forAll { t: (SFTT, SFTT, SFTT) ⇒ 
+    arrLaw.associative(SF.cached(t._1, "first"),
+                       SF.cached(t._2, "second"),
+                       SF.cached(t._3, "third"))
   }
     
 }
