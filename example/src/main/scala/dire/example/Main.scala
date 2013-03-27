@@ -5,5 +5,5 @@ import java.util.concurrent._
 import scalaz._, Scalaz._, effect._
 
 object Main extends SafeApp {
-  override def runc: IO[Unit] = UserBob.run
+  override def runc: IO[Unit] = Looping.run
 }

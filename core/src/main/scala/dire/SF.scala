@@ -288,6 +288,20 @@ trait SFFunctions {
   /** The event stream that never fires */
   def never[A]: EF[A,Nothing] = const(Never)
 
+  /** Asynchronuously fires the given event once */
+  def once[A](a: ⇒ A): EIn[A] = src(())(DataSource once a)
+
+  /** Asynchronuously loops back the output of the given
+    * signal function to its input
+    */
+  def loop[A](sf: SF[A,A])(ini: ⇒ A): SIn[A] = 
+    SF { _ ⇒ r ⇒ r.loop(ini)(sf) }
+
+  /** Asynchronuously loops back the output of the given
+    * event stream to its input
+    */
+  def loopE[A](ef: EF[Event[A],A]): EIn[A] = loop(ef)(Never)
+
   /** Sometimes, part of a reactive graph appears in several
     * places in the description of the reactive graph.
     *
@@ -303,6 +317,10 @@ trait SFFunctions {
 
   /** A constant signal that never changes */
   def const[A,B](b: ⇒ B): SF[A,B] = SF(_ ⇒ _ ⇒ RS const b)
+
+  def sTrans[A,B,S](s: S)(implicit Si: DataSink[S,A],
+                                   So: DataSource[S,B]): SF[A,B] =
+    Arrow[SF].id[A] toSink s andThen src(s)
 
   /** Creates a derrived signal depending on two input signals
     * that is synchronously updated whenever one of the two

@@ -13,17 +13,6 @@ sealed trait RawSignal[+A] { self ⇒
   private[control] def node: Node
 
   private[control] def last: Change[A]
-
-  @deprecated("0.1.0", "use sinks instead")
-  private[dire] def onChange(out: Out[Change[A]]): IO[Unit] = 
-    out(last) >> IO {
-      node connectChild (
-        new ChildNode {
-          def doCalc(t: Time) = out(last) as false unsafePerformIO
-          def doClean() {}
-        }
-      )
-    }
 }
 
 /** Represents a signal that never changes */

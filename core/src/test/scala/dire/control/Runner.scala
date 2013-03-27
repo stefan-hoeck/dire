@@ -1,10 +1,23 @@
 package dire.control
 
-import dire.{SF, Time, Change}
+import dire.{SF, SIn, Time, Change}
 import org.scalacheck._, Prop._
 import scalaz._, Scalaz._, effect.IO
 
 trait Runner {
+
+  /** Builds a reactive graph and runs it until an event is fired
+    * that fullfills the given predicate
+    */
+  def runUntil[A](in: SIn[A], stop: A ⇒ Boolean): List[Change[A]] = {
+    val as = new collection.mutable.ListBuffer[Change[A]]
+    val coll = in changeTo (a ⇒ IO(as += a))
+
+    SF.runS(coll)(stop).unsafePerformIO
+
+    as.toList
+  }
+
   /** Builds a reactive graph and runs it for t microseconds
     * while collecting change events of type A.
     */

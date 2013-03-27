@@ -120,6 +120,12 @@ object SFTest
                        SF.cached(t._3, "third"))
   }
     
+  //Once
+  property("once") = forAll { i: Int ⇒ 
+    val res = runUntil[Event[Int]](SF once i, Once(i) ≟ _)
+    
+    res ≟ List(Change(T0, Never), Change(1L, Once(i)))
+  }
 }
 
 // vim: set ts=2 sw=2 et:

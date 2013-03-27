@@ -84,6 +84,9 @@ trait DataSourceInstances {
 
   private[dire] implicit val time: DataSource[Time,Time] = 
     signalSrcInpure[Time,Time](_ ⇒ T0)(t ⇒ su ⇒ Clock(T0, t, su))
+
+  private[dire] def once[A](a: ⇒ A): DataSource[Unit,Event[A]] =
+    eventSrcInpure[Unit,A](_ ⇒ su ⇒ {su(a); identity})
 }
 
 // vim: set ts=2 sw=2 et:

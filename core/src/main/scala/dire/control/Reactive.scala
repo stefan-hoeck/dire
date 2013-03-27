@@ -24,6 +24,8 @@ private[control] class RSource[A](
   private[control] var last: Change[A] = Change(T0, initial)
   private[this] var stopped = false
 
+  private[control] def fire(a: A) { actor ! Fired(a) }
+
   private def react(e: SourceE[A]): Unit = e match {
     case Fired(a)             ⇒ if (! stopped) reactor.run(doFire(a))
 
@@ -34,7 +36,7 @@ private[control] class RSource[A](
     }
 
     case Start                ⇒ 
-      onStop = starter(as ⇒ IO(actor ! Fired(as))).unsafePerformIO()
+      onStop = starter(a ⇒ IO(fire(a))).unsafePerformIO()
 
     case Dead(cdl)            ⇒ cdl.countDown()
   }
@@ -48,13 +50,13 @@ private[control] class RSource[A](
   }
 }
 
-private[control] object RSource {
-  private sealed trait SourceE[+A]
+private object RSource {
+  sealed trait SourceE[+A]
 
-  private case object Start extends SourceE[Nothing]
-  private case class Stop(cdl: CountDownLatch) extends SourceE[Nothing]
-  private case class Dead(cdl: CountDownLatch) extends SourceE[Nothing]
-  private case class Fired[+A](a: A) extends SourceE[A]
+  case object Start extends SourceE[Nothing]
+  case class Stop(cdl: CountDownLatch) extends SourceE[Nothing]
+  case class Dead(cdl: CountDownLatch) extends SourceE[Nothing]
+  case class Fired[+A](a: A) extends SourceE[A]
 }
 
 private[control] class RSink[A](
@@ -85,14 +87,14 @@ private[control] class RSink[A](
   def stop(cdl: CountDownLatch) = { actor ! Stop(cdl) }
 }
 
-private[control] object RSink {
+private object RSink {
 
-  private sealed trait SinkE[+A]
+  sealed trait SinkE[+A]
 
-  private case object Start extends SinkE[Nothing]
-  private case class Stop(cdl: CountDownLatch) extends SinkE[Nothing]
-  private case class Dead(cdl: CountDownLatch) extends SinkE[Nothing]
-  private case class Changed[+A](c: Change[A]) extends SinkE[A]
+  case object Start extends SinkE[Nothing]
+  case class Stop(cdl: CountDownLatch) extends SinkE[Nothing]
+  case class Dead(cdl: CountDownLatch) extends SinkE[Nothing]
+  case class Changed[+A](c: Change[A]) extends SinkE[A]
 }
 
 // vim: set ts=2 sw=2 et:
