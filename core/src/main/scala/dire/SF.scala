@@ -318,9 +318,15 @@ trait SFFunctions {
   /** A constant signal that never changes */
   def const[A,B](b: ⇒ B): SF[A,B] = SF(_ ⇒ _ ⇒ RS const b)
 
-  def sTrans[A,B,S](s: S)(implicit Si: DataSink[S,A],
-                                   So: DataSource[S,B]): SF[A,B] =
-    Arrow[SF].id[A] toSink s andThen src(s)
+  def id[A]: SF[A,A] = Arrow[SF].id[A]
+
+  def sf[A,B,S](s: S)(implicit Si: DataSink[S,A],
+                               So: DataSource[S,B]): SF[A,B] =
+    id[A] toSink s andThen src(s)
+
+  def sfCached[A:TypeTag,B:TypeTag,S]
+    (s: S)(implicit Si: DataSink[S,A], So: DataSource[S,B]): SF[A,B] =
+    cached(sf(s), s)
 
   /** Creates a derrived signal depending on two input signals
     * that is synchronously updated whenever one of the two

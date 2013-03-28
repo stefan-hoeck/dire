@@ -49,7 +49,7 @@ object UtilBuild extends Build {
     "dire",
     file("."),
     settings = buildSettings
-  ) aggregate(core, example)
+  ) aggregate(core, example, swing)
 
   lazy val core = Project (
     "dire-core",
@@ -67,6 +67,17 @@ object UtilBuild extends Build {
     file("example"),
     settings = addDeps(scala_reflect) ++
                com.github.retronym.SbtOneJar.oneJarSettings
+  ) dependsOn(core, swing)
+
+  lazy val swing = Project (
+    "dire-swing",
+    file("swing"),
+    settings = addDeps(scala_reflect) :+
+               (OsgiKeys.exportPackage := Seq("dire.swing")) :+
+               //the following line can be removed once
+               //scala.reflection is thread safe (we use some
+               //TypeTags in our tests)
+               (parallelExecution in Test := false)
   ) dependsOn(core)
 }
 
