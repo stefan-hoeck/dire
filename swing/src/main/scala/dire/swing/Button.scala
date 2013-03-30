@@ -6,9 +6,7 @@ import scalaz._, Scalaz._, effect.IO
 
 case class ButtonV(text: String)
 
-class Button private(
-    ini: ButtonV,
-    private val peer: JButton) {
+class Button private(ini: ButtonV, private val peer: JButton) {
   import Button._
 
   private def display(bv: ButtonV): IO[Unit] =
@@ -20,7 +18,7 @@ class Button private(
 }
 
 object Button {
-  def apply: IO[Button] = apply("")
+  def apply(): IO[Button] = apply("")
 
   def apply(text: String): IO[Button] = apply(ButtonV(text))
 
@@ -36,6 +34,8 @@ object Button {
     b.peer.addActionListener(a)
     _ ⇒ b.peer.removeActionListener(a)
   }
+
+  implicit val ButtonElem: AsElem[Button] = Elem hFill { _.peer }
 }
 
 // vim: set ts=2 sw=2 et:
