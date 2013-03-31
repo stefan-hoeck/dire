@@ -1,6 +1,6 @@
 package dire
 
-import SF.EventsOps
+import SF.EFOps, EF._
 import org.scalacheck._, Prop._
 import scalaz._, Scalaz._, effect.IO
 
@@ -24,11 +24,11 @@ object SFTest
   val arrLaw = Arrow[SF].categoryLaw
 
   // the main time signal
-  val idTime = Arrow[SF].id[Time]
+  val idTime = SF.id[Time]
 
   // a second signal that runs asynchronuously to time
   // this is used to test combinations of two signals / event streams
-  val tickCount = (SF ticks 1L count) compose idTime
+  val tickCount = (EF ticks 1L count) compose idTime
 
   val tickCountC = SF.cached(tickCount, "tickCount")
 
@@ -122,7 +122,7 @@ object SFTest
     
   //Once
   property("once") = forAll { i: Int ⇒ 
-    val res = runUntil[Event[Int]](SF once i, Once(i) ≟ _)
+    val res = runUntil[Event[Int]](EF once i, Once(i) ≟ _)
     
     res ≟ List(Change(T0, Never), Change(1L, Once(i)))
   }

@@ -14,10 +14,7 @@ trait SwingApp extends SafeApp {
     frame   ← Frame()
     _       ← frame addElem e
     _       ← frame.show
-    _       ← SF.runE(SF loopE (sf andThen frame.sf)){ e ⇒ 
-                println(e)
-                Frame.Closing == e
-              }
+    _       ← EF.run(EF loop (sf andThen frame.sf)){ Frame.Closing == _ }
     _       ← IO(System.exit(0))
   } yield ()
 }

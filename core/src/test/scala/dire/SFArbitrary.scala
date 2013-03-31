@@ -1,6 +1,6 @@
 package dire
 
-import SF.EventsOps
+import SF.EFOps, EF._
 import org.scalacheck._ 
 import Arbitrary.{arbitrary ⇒ arb}
 import scalaz._, Scalaz._
@@ -15,7 +15,7 @@ trait SFArbitrary {
   
   val idTT: SFTT = Arrow[SF].id[Time]
 
-  val asyncTT: SFTT = (SF ticks 1L scan 0L)((_,c) ⇒ c + 1L)
+  val asyncTT: SFTT = (EF ticks 1L scan 0L)((_,c) ⇒ c + 1L)
 
   val square: SFTT = Arrow[SF].arr[Time,Time] { x ⇒ x * x }
 

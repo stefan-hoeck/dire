@@ -12,31 +12,13 @@ import scalaz._, Scalaz._, effect.IO
   * reactive networks.
   */
 case class SF[-A,+B](run: RS[A] ⇒ Signal[B]) {
-  import SF.{sync2, never}
+  import SF.sync2, EF.never
 
   /** Sequentially combines two signal functions */
   def andThen[C](that: SF[B,C]): SF[A,C] = that compose this
 
   /** Applies a time-changing function to the signals values */
   def ap[C,D<:A](f: SF[D,B ⇒ C]): SF[D,C] = (f <*> this)(_ apply _)
-
-  /** Like `to` but performs side effects asynchronuously,
-    * that is, the main `Reactor` thread is not blocked.
-    *
-    * The reactive system guarantees that, as long as the given
-    * `out` is not used as a data sink for other signals, it will
-    * only be accessed sequentially from this signal, i.e. it
-    * need not be thread safe. It is for instance possible to
-    * write all values of this signal to a file without being
-    * afraid of race conditions or other ugliness. If the same
-    * file is used to monitor several distinct signals or
-    * event streams they should either be merged in a single
-    * signal (event stream) first, or function `to` should
-    * be used which guarantees that all access from a given
-    * reactive graph will be sequential.
-    */
-  def asyncTo(out: Out[B]): SF[A,B] =
-    toSink(())(DataSink.create[Unit,B](_ ⇒  out, _ ⇒ IO.ioUnit))
 
   /** Returns a signal that only fires an event if its new
     * value is different from its old one
@@ -67,27 +49,8 @@ case class SF[-A,+B](run: RS[A] ⇒ Signal[B]) {
     SF { rc ⇒ r ⇒ that.run(rc)(r) >>= { run(_)(r) } }
    
   /** Functor map */
-  def map[C](f: B ⇒ C): SF[A,C] =
+  def mapS[C](f: B ⇒ C): SF[A,C] =
     sync2(this, never)(Change mapI f)(Change mapN f)
-
-  /** Performs the given IO-action with this signal's initial value
-    * and whenever this signal changes.
-    *
-    * Note that `out` will be called by the `Reactor`'s
-    * running thread that updates
-    * the main reactive graph. Therefore, side effects performed
-    * by `out` need to be fast if the system should stay reactive.
-    * Consider using `asyncTo` instead for fully asynchronuous
-    * side effects or when side effects have to be performed in a
-    * special type of thread (the Swing event dispatch thread for instance).
-    */
-  def syncTo(out: Out[B]): SF[A,B] = changeTo(c ⇒ out(c.v))
-
-  /** Connect a reactive branch to this signal function but
-    * return to the original branch afterwards.
-    */
-  def to[C](that: SF[B,C]): SF[A,B] = 
-    SF { ra ⇒ r ⇒ run(ra)(r) >>= { rb ⇒ that.run(rb)(r) as rb } }
 
   /** Asynchronuously output the values of this Signal to a data sink
     *
@@ -100,19 +63,59 @@ case class SF[-A,+B](run: RS[A] ⇒ Signal[B]) {
   /** Combines two signals with a pure function */
   def <*>[C,D,E<:A](that: SF[E,C])(f: (B,C) ⇒ D): SF[E,D] =
     sync2(this, that)(Change applyI f)(Change applyN f)
-
-  /** Alias for `syncTo` */
-  def -->(out: Out[B]): SF[A,B] = syncTo(out)
-
-  /** Alias for `to` */
-  def >|>[C](that: SF[B,C]): SF[A,B] = to(that)
-
 }
 
 object SF extends SFInstances with SFFunctions {
+  import EF.never
+
+  implicit class SFOps[A,B](val s: SF[A,B]) extends AnyVal {
+
+    /** Like `syncTo` but performs side effects asynchronuously,
+      * that is, the main `Reactor` thread is not blocked.
+      *
+      * The reactive system guarantees that, as long as the given
+      * `out` is not used as a data sink for other signals, it will
+      * only be accessed sequentially from this signal, i.e. it
+      * need not be thread safe. It is for instance possible to
+      * write all values of this signal to a file without being
+      * afraid of race conditions or other ugliness. If the same
+      * file is used to monitor several distinct signals or
+      * event streams they should either be merged in a single
+      * signal (event stream) first, or function `to` should
+      * be used which guarantees that all access from a given
+      * reactive graph will be sequential.
+      */
+    def asyncTo(out: Out[B]): SF[A,B] =
+      s.toSink(())(DataSink.create[Unit,B](_ ⇒  out, _ ⇒ IO.ioUnit))
+
+    /** Performs the given IO-action with this signal's initial value
+      * and whenever this signal changes.
+      *
+      * Note that `out` will be called by the `Reactor`'s
+      * running thread that updates
+      * the main reactive graph. Therefore, side effects performed
+      * by `out` need to be fast if the system should stay reactive.
+      * Consider using `asyncTo` instead for fully asynchronuous
+      * side effects or when side effects have to be performed in a
+      * special type of thread (the Swing event dispatch thread for instance).
+      */
+    def syncTo(out: Out[B]): SF[A,B] = s.changeTo(c ⇒ out(c.v))
+
+    /** Connect a reactive branch to this signal function but
+      * return to the original branch afterwards.
+      */
+    def to[C](that: SF[B,C]): SF[A,B] = 
+      SF { ra ⇒ r ⇒ s.run(ra)(r) >>= { rb ⇒ that.run(rb)(r) as rb } }
+
+    /** Alias for `syncTo` */
+    def -->(out: Out[B]): SF[A,B] = syncTo(out)
+
+    /** Alias for `to` */
+    def >|>[C](that: SF[B,C]): SF[A,B] = to(that)
+  }
 
   /** Operations that work only on event streams */
-  implicit class EventsOps[R,A](val s: EF[R,A]) extends AnyVal {
+  implicit class EFOps[R,A](val s: EF[R,A]) extends AnyVal {
 
     /** Map and filter an event stream in one run */
     def collect[B](f: A ⇒ Option[B]): EF[R,B] =
@@ -122,16 +125,6 @@ object SF extends SFInstances with SFFunctions {
       * stores the results in a signal
       */
     def count: SF[R,Int] = scanMap { _ ⇒ 1 }
-
-    /** Performs the given side-effect whenever this event stream
-      * fires an event 
-      *
-      * This is similar to `SF.to`, i.e. side effects are performed
-      * in the `Reactor`'s main worker thread, thus blocking the
-      * reactive system.
-      */
-    def eventTo(out: Out[A]): EF[R,A] =
-      s syncTo { _ fold (out, IO.ioUnit) }
 
     /** Filters an event stream according to the given predicate */
     def filter(p: A ⇒ Boolean): EF[R,A] =
@@ -209,21 +202,55 @@ object SF extends SFInstances with SFFunctions {
     /** Accumulates events using a Monoid */
     def sum(implicit M: Monoid[A]): SF[R,A] = scanMap(identity)
 
-    /** Alias for 'eventTo' */
-    def --?>(out: Out[A]): EF[R,A] = eventTo(out)
+    /** Like `syncTo` but performs side effects asynchronuously,
+      * that is, the main `Reactor` thread is not blocked.
+      *
+      * The reactive system guarantees that, as long as the given
+      * `out` is not used as a data sink for other signals, it will
+      * only be accessed sequentially from this signal, i.e. it
+      * need not be thread safe. It is for instance possible to
+      * write all values of this signal to a file without being
+      * afraid of race conditions or other ugliness. If the same
+      * file is used to monitor several distinct signals or
+      * event streams they should either be merged in a single
+      * signal (event stream) first, or function `to` should
+      * be used which guarantees that all access from a given
+      * reactive graph will be sequential.
+      */
+    def asyncTo(out: Out[A]): EF[R,A] = {
+      val o: Out[Event[A]] = _.fold(out, IO.ioUnit)
+
+      s.toSink(())(DataSink.create[Unit,Event[A]](_ ⇒  o, _ ⇒ IO.ioUnit))
+    }
+
+    /** Performs the given IO-action with this signal's initial value
+      * and whenever this signal changes.
+      *
+      * Note that `out` will be called by the `Reactor`'s
+      * running thread that updates
+      * the main reactive graph. Therefore, side effects performed
+      * by `out` need to be fast if the system should stay reactive.
+      * Consider using `asyncTo` instead for fully asynchronuous
+      * side effects or when side effects have to be performed in a
+      * special type of thread (the Swing event dispatch thread for instance).
+      */
+    def syncTo(out: Out[A]): EF[R,A] = s.changeTo(_.v.fold(out, IO.ioUnit))
+
+    /** Connect a reactive branch to this signal function but
+      * return to the original branch afterwards.
+      */
+    def to[B](that: SF[Event[A],B]): EF[R,A] = 
+      SF { ra ⇒ r ⇒ s.run(ra)(r) >>= { rb ⇒ that.run(rb)(r) as rb } }
+
+    /** Alias for `syncTo` */
+    def -->(out: Out[A]): EF[R,A] = syncTo(out)
+
+    /** Alias for `to` */
+    def >|>[B](that: SF[Event[A],B]): EF[R,A] = to(that)
   }
 }
 
-trait SFInstances extends SFInstances0 {
-
-  implicit def EFFunctor[R]: Functor[({type λ[α]=EF[R,α]})#λ] =
-    new Functor[({type λ[α]=EF[R,α]})#λ] {
-      def map[A,B](a: EF[R,A])(f: A ⇒ B) = a mapE f
-    }
-
-}
-
-trait SFInstances0 {
+trait SFInstances extends EFInstances {
   //Type class implementations
 
   implicit val SFArrow: Arrow[SF] = new Arrow[SF] {
@@ -248,20 +275,12 @@ trait SFInstances0 {
       def point[A](a: ⇒ A) = SF const a
       def ap[A,B](a: ⇒ SF[R,A])(f: ⇒ SF[R,A ⇒ B]) = a ap f
     }
-
-  implicit def EFPlus[R]: PlusEmpty[({type λ[α]=EF[R,α]})#λ] =
-    new PlusEmpty[({type λ[α]=EF[R,α]})#λ] {
-      def empty[A] = SF.never
-      def plus[A](a: EF[R,A], b: ⇒ EF[R,A]) = a merge b
-    }
-
-  implicit def EFMonoid[A,B]: Monoid[EF[A,B]] = EFPlus[A].monoid
 }
 
 trait SFFunctions {
-  import DataSource._
+  import DataSource._, EF.never
 
-  private lazy val processors =
+  private[dire] lazy val processors =
     Runtime.getRuntime.availableProcessors
 
   /** The time signal
@@ -270,16 +289,6 @@ trait SFFunctions {
     */
   def time(step: Time): SIn[Time] = 
     cached(src[Time,Time](step), "DireCoreTime")
-
-  /** An asynchronous event source that fires at regular
-    * intervals.
-    *
-    * This is very useful as a basic source of events to simulate
-    * all kinds of real time applications.
-    * Note that an arbitrary number of completely independant
-    * event streams can thus be created. 
-    */
-  def ticks(step: Time): EIn[Unit] = src[Time,Event[Unit]](step)
 
   /** Creates an input Signal from an external data source
     *
@@ -294,22 +303,11 @@ trait SFFunctions {
   def sink[S,A](s: S)(implicit D: DataSink[S,A]): EF[A,Nothing] = 
     id[A] toSink s andThen never
 
-  /** The event stream that never fires */
-  def never[A]: EF[A,Nothing] = const(Never)
-
-  /** Asynchronuously fires the given event once */
-  def once[A](a: ⇒ A): EIn[A] = src(())(DataSource once a)
-
   /** Asynchronuously loops back the output of the given
     * signal function to its input
     */
   def loop[A](sf: SF[A,A])(ini: ⇒ A): SIn[A] = 
     SF { _ ⇒ r ⇒ r.loop(ini)(sf) }
-
-  /** Asynchronuously loops back the output of the given
-    * event stream to its input
-    */
-  def loopE[A](ef: EF[Event[A],A]): EIn[A] = loop(ef)(Never)
 
   /** Sometimes, part of a reactive graph appears in several
     * places in the description of the reactive graph.
@@ -328,8 +326,6 @@ trait SFFunctions {
   def const[A,B](b: ⇒ B): SF[A,B] = SF(_ ⇒ _ ⇒ RS const b)
 
   def id[A]: SF[A,A] = Arrow[SF].id[A]
-
-  def idE[A]: EF[Event[A],A] = id
 
   def sf[A,B,S](s: S)(implicit Si: DataSink[S,A],
                                So: DataSource[S,B]): SF[A,B] =
@@ -395,9 +391,9 @@ trait SFFunctions {
     *             is still processed and passed to all
     *             registered data sinks.
     */
-  def runS[A](in: SIn[A],
-              proc: Int = processors)
-              (stop: A ⇒ Boolean): IO[Unit] = {
+  def run[A](in: SIn[A],
+             proc: Int = processors)
+            (stop: A ⇒ Boolean): IO[Unit] = {
 
       lazy val ex = java.util.concurrent.Executors.newFixedThreadPool(proc)
       lazy val s = scalaz.concurrent.Strategy.Executor(ex)
@@ -415,11 +411,6 @@ trait SFFunctions {
                  ex.shutdown() }
       } yield ()
     }
-
-  def runE[A](in: EIn[A],
-              proc: Int = processors)
-             (stop: A ⇒ Boolean): IO[Unit] =
-    runS[Event[A]](in, proc)(_ fold (stop, false))
 }
 
 // vim: set ts=2 sw=2 et:

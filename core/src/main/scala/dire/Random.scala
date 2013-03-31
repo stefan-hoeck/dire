@@ -10,6 +10,8 @@ import scalaz._, Scalaz._
   * in Scala: http://manning.com/bjarnason/
   */
 object Random {
+  import SF.EFOps, EF._
+
   type RNG[+A] = State[Long,A]
 
   /** Implementation of a linear congruential generator */
@@ -34,7 +36,7 @@ object Random {
     * at regular intervals
     */
   def noise(interval: Time, seed: Long): EIn[Double] =
-    SF ticks interval as dbl01 scanStV seed
+    EF ticks interval as dbl01 scanStV seed
 }
 
 // vim: set ts=2 sw=2 et:

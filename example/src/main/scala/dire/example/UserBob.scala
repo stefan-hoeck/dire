@@ -1,11 +1,11 @@
 package dire.example
 
-import dire._, SF.EventsOps
+import dire._, SF.EFOps
 import scalaz._, Scalaz._, effect.IO
 
 object UserBob {
 
-  def run = SF.runS(ratio.events.count)(_ >= 10000)
+  def run = SF.run(ratio.events.count)(_ >= 10000)
 
   implicit def SMonoid[A:Monoid] = Monoid.liftMonoid[SIn,A]
 

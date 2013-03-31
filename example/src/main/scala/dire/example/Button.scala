@@ -1,6 +1,6 @@
 package dire.example
 
-import dire._, SF.{loop, const, EventsOps, time}
+import dire._, SF._
 import dire.swing._
 import scalaz._, Scalaz._
 
