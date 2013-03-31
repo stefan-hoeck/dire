@@ -1,2 +1,11 @@
 # vim:sw=4:ts=4:syntax=todo:nowrap
 
+0001  #High		Change how time is implemented. The signal should be
+                registered directly at the Reactor 
+
+0002  #Medium   Add several typical Time signals like 'seconds',
+                'minutes', 'hours' and so on
+
+0003  #Medium   Check once more the methods that create source signals
+                defined in class Reactor. Can they be unified further?
+
