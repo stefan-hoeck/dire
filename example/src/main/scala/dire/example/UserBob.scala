@@ -21,7 +21,7 @@ object UserBob {
     case (name, seed, freq) ⇒ {
       val accesses = Random noise (1000L, seed) filter { freq <= } count
 
-      SF cached (accesses to printAccess(name), name)
+      SF cached (accesses --> printAccess(name), name)
     }
   }
 
@@ -31,9 +31,9 @@ object UserBob {
   }
 
 
-  private def total: SIn[Int] = (bob ⊹ others.foldMap(user)) to printTotal
+  private def total: SIn[Int] = (bob ⊹ others.foldMap(user)) --> printTotal
 
-  private def ratio = ^(bob, total)(calcRatio) to printRatio
+  private def ratio = ^(bob, total)(calcRatio) --> printRatio
 
   private def printAccess(name: String)(count: Int) =
     IO putStr s"$name accessed server (count: $count); "

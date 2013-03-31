@@ -38,12 +38,6 @@ case class SF[-A,+B](run: RS[A] ⇒ Signal[B]) {
   def asyncTo(out: Out[B]): SF[A,B] =
     toSink(())(DataSink.create[Unit,B](_ ⇒  out, _ ⇒ IO.ioUnit))
 
-  /** Connect a reactive branch to this signal function but
-    * return to the original branch afterwards.
-    */
-  def branch[C](that: SF[B,C]): SF[A,B] = 
-    SF { ra ⇒ r ⇒ run(ra)(r) >>= { rb ⇒ that.run(rb)(r) as rb } }
-
   /** Returns a signal that only fires an event if its new
     * value is different from its old one
     */
@@ -87,7 +81,13 @@ case class SF[-A,+B](run: RS[A] ⇒ Signal[B]) {
     * side effects or when side effects have to be performed in a
     * special type of thread (the Swing event dispatch thread for instance).
     */
-  def to(out: Out[B]): SF[A,B] = changeTo(c ⇒ out(c.v))
+  def syncTo(out: Out[B]): SF[A,B] = changeTo(c ⇒ out(c.v))
+
+  /** Connect a reactive branch to this signal function but
+    * return to the original branch afterwards.
+    */
+  def to[C](that: SF[B,C]): SF[A,B] = 
+    SF { ra ⇒ r ⇒ run(ra)(r) >>= { rb ⇒ that.run(rb)(r) as rb } }
 
   /** Asynchronuously output the values of this Signal to a data sink
     *
@@ -101,8 +101,11 @@ case class SF[-A,+B](run: RS[A] ⇒ Signal[B]) {
   def <*>[C,D,E<:A](that: SF[E,C])(f: (B,C) ⇒ D): SF[E,D] =
     sync2(this, that)(Change applyI f)(Change applyN f)
 
-  /** Alias for 'to' */
-  def -->(out: Out[B]): SF[A,B] = to(out)
+  /** Alias for `syncTo` */
+  def -->(out: Out[B]): SF[A,B] = syncTo(out)
+
+  /** Alias for `to` */
+  def >|>[C](that: SF[B,C]): SF[A,B] = to(that)
 
 }
 
@@ -128,7 +131,7 @@ object SF extends SFInstances with SFFunctions {
       * reactive system.
       */
     def eventTo(out: Out[A]): EF[R,A] =
-      s to { _ fold (out, IO.ioUnit) }
+      s syncTo { _ fold (out, IO.ioUnit) }
 
     /** Filters an event stream according to the given predicate */
     def filter(p: A ⇒ Boolean): EF[R,A] =
@@ -285,6 +288,12 @@ trait SFFunctions {
   def src[S,V](s: S)(implicit Src: DataSource[S,V]): SIn[V] =
     SF(_ ⇒ _.source(s))
 
+  /** Creates a data sink, that consumes data but never fires
+    * an event.
+    */
+  def sink[S,A](s: S)(implicit D: DataSink[S,A]): EF[A,Nothing] = 
+    id[A] toSink s andThen never
+
   /** The event stream that never fires */
   def never[A]: EF[A,Nothing] = const(Never)
 
@@ -319,6 +328,8 @@ trait SFFunctions {
   def const[A,B](b: ⇒ B): SF[A,B] = SF(_ ⇒ _ ⇒ RS const b)
 
   def id[A]: SF[A,A] = Arrow[SF].id[A]
+
+  def idE[A]: EF[Event[A],A] = id
 
   def sf[A,B,S](s: S)(implicit Si: DataSink[S,A],
                                So: DataSource[S,B]): SF[A,B] =
@@ -395,7 +406,7 @@ trait SFFunctions {
 
       for {
         r ← IO(new Reactor(() ⇒ doKill, cdl, s))
-        _ ← in.to { stop(_) ? IO{doKill = true} | IO.ioUnit }
+        _ ← in.syncTo { stop(_) ? IO{doKill = true} | IO.ioUnit }
               .run(Const(()))
               .apply(r)
         _ ← r.start

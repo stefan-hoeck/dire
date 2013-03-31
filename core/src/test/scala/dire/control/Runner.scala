@@ -23,7 +23,7 @@ trait Runner {
     */
   def runFor[A](sf: SF[Time,A], t: Time): List[Change[A]] = {
     val as = new collection.mutable.ListBuffer[Change[A]]
-    val time = SF.time(1L) branch sf.changeTo(a ⇒ IO(as += a))
+    val time = SF.time(1L) to sf.changeTo(a ⇒ IO(as += a))
 
     SF.runS(time)(t <= _).unsafePerformIO
 
@@ -43,8 +43,8 @@ trait Runner {
     val as1 = new collection.mutable.ListBuffer[Change[A]]
     val as2 = new collection.mutable.ListBuffer[Change[A]]
     val time = SF.time(1L)
-                 .branch(sf1.changeTo(a ⇒ IO(as1 += a)))
-                 .branch(sf2.changeTo(a ⇒ IO(as2 += a)))
+                 .to(sf1.changeTo(a ⇒ IO(as1 += a)))
+                 .to(sf2.changeTo(a ⇒ IO(as2 += a)))
 
     SF.runS(time)(t <= _).unsafePerformIO
 
