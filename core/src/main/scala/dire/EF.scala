@@ -28,7 +28,7 @@ trait EFFunctions {
     * See the [[dire.DataSource]] type class for more details
     */
   def src[S,V](s: S)(implicit Src: DataSource[S,Event[V]]): EIn[V] =
-    SF(_ ⇒ _.source(s))
+    SF src s
 
   /** An asynchronous event source that fires at regular
     * intervals.

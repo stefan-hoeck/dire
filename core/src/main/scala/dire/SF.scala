@@ -278,7 +278,15 @@ trait SFInstances extends EFInstances {
 }
 
 trait SFFunctions {
-  import DataSource._, EF.never
+  import DataSource._, EF.never, SF.EFOps
+
+  lazy val ms = 1000L
+
+  lazy val s = ms * 1000L
+
+  lazy val min = s * 60L
+
+  lazy val h = min * 60L
 
   private[dire] lazy val processors =
     Runtime.getRuntime.availableProcessors
@@ -287,15 +295,20 @@ trait SFFunctions {
     *
     * In every isolated reactive system there is only one such signal
     */
-  def time(step: Time): SIn[Time] = 
-    cached(src[Time,Time](step), "DireCoreTime")
+  def time: SIn[Time] = SF { _ ⇒ _.timeSignal }
+
+  def seconds: SIn[Int] = time.events filter { _ % s == 0L } count
+
+  def minutes: SIn[Int] = time.events filter { _ % min == 0L } count
+
+  def hours: SIn[Int] = time.events filter { _ % h == 0L } count
 
   /** Creates an input Signal from an external data source
     *
     * See the [[dire.DataSource]] type class for more details
     */
   def src[S,V](s: S)(implicit Src: DataSource[S,V]): SIn[V] =
-    SF(_ ⇒ _.source(s))
+    SF(_ ⇒ _.source(Src ini s)(Src cb s))
 
   /** Creates a data sink, that consumes data but never fires
     * an event.
@@ -392,7 +405,8 @@ trait SFFunctions {
     *             registered data sinks.
     */
   def run[A](in: SIn[A],
-             proc: Int = processors)
+             proc: Int = processors,
+             step: Time = 1000L)
             (stop: A ⇒ Boolean): IO[Unit] = {
 
       lazy val ex = java.util.concurrent.Executors.newFixedThreadPool(proc)
@@ -401,7 +415,7 @@ trait SFFunctions {
       val cdl = new java.util.concurrent.CountDownLatch(1)
 
       for {
-        r ← IO(new Reactor(() ⇒ doKill, cdl, s))
+        r ← IO(new Reactor(step, () ⇒ doKill, cdl, s))
         _ ← in.syncTo { stop(_) ? IO{doKill = true} | IO.ioUnit }
               .run(Const(()))
               .apply(r)

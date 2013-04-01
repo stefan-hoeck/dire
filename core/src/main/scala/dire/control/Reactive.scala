@@ -51,6 +51,12 @@ private[control] class RSource[A](
 }
 
 private object RSource {
+  def apply[A](ini: IO[A], r: Reactor)(cb: Out[A] ⇒ IO[IO[Unit]])
+    :IO[RSource[A]] = for {
+      a   ← ini
+      res ← IO(new RSource[A](a, r, cb))
+    } yield res
+
   sealed trait SourceE[+A]
 
   case object Start extends SourceE[Nothing]

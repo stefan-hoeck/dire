@@ -8,11 +8,11 @@ object TimeExample {
 
   val stopAbove: Time = 100000L //Microseconds
 
-  val timeOnly = SF.time(1000L) --> printTime
+  val timeOnly = SF.time --> printTime
 
-  val timeFiltered = SF.time(1000L).changes
-                                   .filter { _ % 7L == 0L }
-                                   .syncTo(printTime)
+  val timeFiltered = SF.time.changes
+                            .filter { _ % 7L == 0L }
+                            .syncTo(printTime)
 
   def runTimeOnly: IO[Unit] = SF.run(timeOnly)(_ >= stopAbove)
 

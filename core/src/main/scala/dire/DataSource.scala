@@ -77,13 +77,10 @@ trait DataSourceFunctions {
 
 trait DataSourceInstances {
   import dire.control.Clock
-  import DataSource.{eventSrcInpure, signalSrcInpure}
+  import DataSource.{eventSrcInpure, eventSrc}
 
   private[dire] implicit val ticks: DataSource[Time,Event[Unit]] = 
-    eventSrcInpure[Time,Unit](t ⇒ su ⇒ Clock(T0, t, _ ⇒ su(())))
-
-  private[dire] implicit val time: DataSource[Time,Time] = 
-    signalSrcInpure[Time,Time](_ ⇒ T0)(t ⇒ su ⇒ Clock(T0, t, su))
+    eventSrc[Time,Unit](t ⇒ o ⇒ Clock(T0, t, _ ⇒ o apply ()))
 
   private[dire] def once[A](a: ⇒ A): DataSource[Unit,Event[A]] =
     eventSrcInpure[Unit,A](_ ⇒ su ⇒ {su(a); identity})

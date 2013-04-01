@@ -13,7 +13,7 @@ trait Runner {
     val as = new collection.mutable.ListBuffer[Change[A]]
     val coll = in changeTo (a ⇒ IO(as += a))
 
-    SF.run(coll)(stop).unsafePerformIO
+    SF.run(coll, step = 1L)(stop).unsafePerformIO
 
     as.toList
   }
@@ -23,9 +23,9 @@ trait Runner {
     */
   def runFor[A](sf: SF[Time,A], t: Time): List[Change[A]] = {
     val as = new collection.mutable.ListBuffer[Change[A]]
-    val time = SF.time(1L) to sf.changeTo(a ⇒ IO(as += a))
+    val time = SF.time to sf.changeTo(a ⇒ IO(as += a))
 
-    SF.run(time)(t <= _).unsafePerformIO
+    SF.run(time, step = 1L)(t <= _).unsafePerformIO
 
     as.toList
   }
@@ -42,11 +42,11 @@ trait Runner {
     : Boolean = {
     val as1 = new collection.mutable.ListBuffer[Change[A]]
     val as2 = new collection.mutable.ListBuffer[Change[A]]
-    val time = SF.time(1L)
+    val time = SF.time
                  .to(sf1.changeTo(a ⇒ IO(as1 += a)))
                  .to(sf2.changeTo(a ⇒ IO(as2 += a)))
 
-    SF.run(time)(t <= _).unsafePerformIO
+    SF.run(time, step = 1L)(t <= _).unsafePerformIO
 
     //println(as1.toList take 3)
 

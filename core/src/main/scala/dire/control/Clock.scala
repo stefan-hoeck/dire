@@ -1,7 +1,8 @@
 package dire.control
 
-import dire.{Time, T0}
+import dire.{Time, T0, Out}
 import java.util.concurrent._, TimeUnit.{MICROSECONDS ⇒ MS}
+import scalaz.effect.IO
 
 /** An independent source of time events.
   *
@@ -10,17 +11,17 @@ import java.util.concurrent._, TimeUnit.{MICROSECONDS ⇒ MS}
   */
 private[dire] object Clock {
 
-  def apply(start: Time, step: Time, out: Time ⇒ Unit): Sink[Unit] = {
+  def apply(start: Time, step: Time, out: Out[Time]): IO[IO[Unit]] = IO {
     var time = start
 
     def clock = new Runnable{
-      def run { time += step; out(time) }
+      def run { time += step; out(time).unsafePerformIO }
     }
 
     val timerEx = Executors.newSingleThreadScheduledExecutor
     val handle = timerEx.scheduleAtFixedRate(clock, step, step, MS)
     
-    _ ⇒ { handle.cancel(true); timerEx.shutdownNow() }
+    IO { handle.cancel(true); timerEx.shutdownNow() }
   }
 }
 

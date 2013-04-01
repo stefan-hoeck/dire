@@ -1,6 +1,6 @@
 package dire.control
 
-import dire.{SF, Time, T0, DataSource, DataSink, Event}
+import dire.{Out, SF, Time, T0, DataSource, DataSink, Event}
 import collection.mutable.{ListBuffer, HashMap ⇒ MMap}
 import java.util.concurrent.CountDownLatch
 import scala.reflect.runtime.universe._
@@ -8,6 +8,7 @@ import scalaz.effect.IO
 import scalaz.concurrent.{Actor, Strategy}
 
 final private[dire] class Reactor(
+  private[dire] val step: Time,
   doKill: () ⇒ Boolean,
   countDownToDeath: CountDownLatch,
   private[dire] val strategy: Strategy) {
@@ -33,14 +34,12 @@ final private[dire] class Reactor(
   //creates a new source of events
   //must only be called when initializing the reactive graph
   //or (probably) when processing a signal's update event
-  private[dire] def source[S,V](src: S)
-                               (implicit E: DataSource[S,V])
-                               : IO[RawSignal[V]] = IO {
-    val s = new RSource[V](E ini src unsafePerformIO, this, E cb src)
-    reactives += s
-
-    new RawSource(s)
-  }
+  private[dire] def source[A]
+    (ini: IO[A])
+    (cb: Out[A] ⇒ IO[IO[Unit]]): IO[RawSignal[A]] = for {
+      s ← RSource(ini, this)(cb)
+      _ ← IO(reactives += s)
+    } yield new RawSource(s)
 
   //creates a new anychronous data sink
   //must only be called when initializing the reactive graph
@@ -63,6 +62,9 @@ final private[dire] class Reactor(
 
     r
   }
+
+  private[dire] def timeSignal: IO[RawSignal[Time]] =
+    cached[Unit,Time](_ ⇒ source[Time](IO(T0))(Clock(T0, step, _)), "DireTime")
 
   //lookup a cached RawSignal for the given input and output
   //type. 
@@ -125,7 +127,7 @@ final private[dire] class Reactor(
         cdl.await()
 
         //now that all sources are shutdown, fire ConfirmDeath. This
-        //will be the very last event fired to the actor so
+        //will be the very last event fired to the actor
         actor ! ConfirmDeath
       }
     }
