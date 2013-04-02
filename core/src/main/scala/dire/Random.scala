@@ -35,7 +35,7 @@ object Random {
   /** Generates random noise (values between 0 and 1)
     * at regular intervals
     */
-  def noise(interval: Time, seed: Long): EIn[Double] =
+  def noise(seed: Long, interval: Time = 1000L): EIn[Double] =
     EF ticks interval as dbl01 scanStV seed
 }
 

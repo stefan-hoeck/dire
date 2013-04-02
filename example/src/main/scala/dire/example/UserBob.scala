@@ -5,35 +5,47 @@ import scalaz._, Scalaz._, effect.IO
 
 object UserBob {
 
-  def run = SF.run(ratio.events.count)(_ >= 10000)
-
   implicit def SMonoid[A:Monoid] = Monoid.liftMonoid[SIn,A]
 
-  private def bob = user("Bob", 992L, 0.995D)
+  //numer of user accesses after which the application stops
+  private val stopAfter = 100
 
-  private def others = List(("Troll", 0L, 0.993D),
-                            ("Percy", 512L, 0.991D),
-                            ("Tim", 1135L, 0.9925D),
-                            ("Gundi", 4012L, 0.998D),
-                            ("Mary", 2113L, 0.992D))
+  //increase this number to reduce the number of noise events that
+  //lead to a server access.
+  private val slowdownFactor = 1000L
+
+  //a user consists of three parameters: a name, a seed for the random
+  //number generator, and a server access rate, which is a number
+  //between 0 and 1. higher numbers means more frequent server
+  //accesses
+  private val bob = ("Bob", -992L, 0.5)
+
+  private val others = List(("Troll", 0L, 0.7),
+                            ("Percy", 512L, 0.9),
+                            ("Tim", 1135L, 0.75),
+                            ("Gundi", 4012L, 0.2),
+                            ("Mary", 2113L, 0.8))
+
+  def run = SF.run(ratio.events.count)(_ >= stopAfter)
 
   private def user(p: (String,Long,Double)): SIn[Int] = p match {
-    case (name, seed, freq) ⇒ {
-      val accesses = Random noise (1000L, seed) filter { freq <= } count
+    case (name, seed, rate) ⇒ {
+      val freq = 1.0 - rate / slowdownFactor
+      val accesses = Random noise seed filter { freq <= } count
 
       SF cached (accesses --> printAccess(name), name)
     }
   }
 
   private def calcRatio(bob: Int, all: Int): Double = (bob, all) match {
-    case (0,0) ⇒ 0D
+    case (0,0) ⇒ 0.0
     case (b,t) ⇒ b.toDouble / t.toDouble
   }
 
 
-  private def total: SIn[Int] = (bob ⊹ others.foldMap(user)) --> printTotal
+  private def total: SIn[Int] = (bob :: others).foldMap(user) --> printTotal
 
-  private def ratio = ^(bob, total)(calcRatio) --> printRatio
+  private def ratio = ^(user(bob), total)(calcRatio) --> printRatio
 
   private def printAccess(name: String)(count: Int) =
     IO putStr s"$name accessed server (count: $count); "
