@@ -7,7 +7,7 @@ import scalaz._, Scalaz._, effect.IO
 object Animation {
   
   class Scene private(c: Color) {
-    private[this] var actual: Shape = Blank
+    private[this] var actual: Shape = blank
 
     private[dire] def display(s: Shape): IO[Unit] = IO {
       actual = s
@@ -46,18 +46,33 @@ object Animation {
     private[swing] def paint(g: Graphics2D)
   }
 
-  case object Blank extends Shape {
+  lazy val blank: Shape = new Shape {
     private[swing] def paint(g: Graphics2D) {}
   }
 
-  case class Circle(center: Point, r: Int, color: Color) extends Shape {
-    private[swing] def paint(g: Graphics2D) {
-      g.setColor(color)
-      g.fillOval(center._1.toInt, center._2.toInt, r, r)
-    }
-  }
+  def circle(x: Double, y: Double, r: Double, c: Color): Shape =
+    oval(x, y, r, r, c)
 
-  case class Combo(a: Shape, b: Shape) extends Shape {
+  def rectangle(x: Double, y: Double, rx: Double, ry: Double, c: Color)
+    : Shape = new Shape {
+      private[swing] def paint(g: Graphics2D) {
+        g.setColor(c)
+        g.fillRect(x.toInt, y.toInt, rx.toInt, ry.toInt)
+      }
+    }
+
+  def oval(x: Double, y: Double, rx: Double, ry: Double, c: Color): Shape =
+    new Shape {
+      private[swing] def paint(g: Graphics2D) {
+        g.setColor(c)
+        g.fillOval(x.toInt, y.toInt, rx.toInt, ry.toInt)
+      }
+    }
+
+  def square(x: Double, y: Double, s: Double, c: Color) = 
+    rectangle(x, y, s, s, c)
+
+  def combine(a: Shape, b: Shape): Shape  = new Shape {
     private[swing] def paint(g: Graphics2D) {
       a.paint(g)
       b.paint(g)
@@ -66,8 +81,8 @@ object Animation {
 
   object Shape {
     implicit val ShapeMonoid: Monoid[Shape] = new Monoid[Shape] {
-      val zero = Blank
-      def append(a: Shape, b: ⇒ Shape): Shape = Combo(a, b)
+      val zero = blank
+      def append(a: Shape, b: ⇒ Shape): Shape = combine(a, b)
     }
   }
 }
