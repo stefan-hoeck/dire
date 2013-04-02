@@ -11,6 +11,8 @@ package object swing {
   type ESource[S,A] = Source[S,Event[A]]
   type Callback[-S,+A] = S ⇒ (A ⇒ Unit) ⇒ (Unit ⇒ Unit)
 
+  type Dim = (Int, Int)
+
   private[swing] def sink[S,A](out: S ⇒ Out[A]): Sink[S,A] =
     DataSink.create[S,A](out, _ ⇒ IO.ioUnit, Some(SwingInvokeLater))
 

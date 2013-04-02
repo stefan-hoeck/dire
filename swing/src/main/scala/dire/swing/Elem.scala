@@ -19,7 +19,23 @@ import scalaz._, Scalaz._, effect.IO
   * Elements are based on the `java.awt.GridBagLayout` but offer
   * a much nicer syntax to arrange complex user interfaces
   */
-sealed trait Elem {
+sealed trait Elem { self ⇒ 
+  def prefSize(d: Dim): Dim = identity(d)
+
+  def adjustSize(f: Dim ⇒ Dim): Elem = new Elem {
+    override def prefSize(d: Dim) = f(d)
+    def height = self.height
+    def width = self.width
+    private[swing] def add(x: Int, y: Int, p: Panel) =
+      self.add(x, y, p)
+  }
+
+  def setHeight(h: Int): Elem = adjustSize { case (w, _) ⇒ (w, h) }
+
+  def setWidth(w: Int): Elem = adjustSize { case (_, h) ⇒ (w, h) }
+
+  def setDim(w: Int, h: Int): Elem = adjustSize { _ ⇒ (w, h) }
+
   def height: Int
   def width: Int
 

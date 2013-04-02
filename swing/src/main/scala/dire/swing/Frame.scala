@@ -1,7 +1,7 @@
 package dire.swing
 
 import dire._
-import java.awt.BorderLayout
+import java.awt.{BorderLayout, Color, Dimension}
 import java.awt.event.{WindowListener, WindowEvent}
 import javax.swing.JFrame
 import scalaz._, Scalaz._, effect.IO
@@ -19,11 +19,16 @@ class Frame private(ini: FrameV, private[swing] val peer: JFrame) {
   def events: EIn[FrameEvent] = SF const ini andThen sf
 
   def addElem(e: Elem): IO[Unit] = for {
-    p ← e.panel
-    _ ← IO(peer.add(p.peer, BorderLayout.NORTH))
+    p  ← e.panel
+    _  ← IO(peer.add(p.peer, BorderLayout.CENTER))
+    d  ← IO(peer.getSize)
+    nd = e prefSize ((d.width, d.height))
+    _  ← IO(peer.setSize(new Dimension(nd._1, nd._2)))
   } yield ()
 
-  def show: IO[Unit] = IO(peer.setVisible(true))
+  def show: IO[Unit] = IO {
+    peer.setVisible(true)
+  }
 }
 
 object Frame {
