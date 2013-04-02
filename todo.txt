@@ -9,3 +9,7 @@
 0003  #Done     Check once more the methods that create source signals
                 defined in class Reactor. Can they be unified further?
 
+0004  #High		Create a SF from signal to event stream that skips the
+                signal's initial value. Use this to implement signals
+                'seconds' and so on as well as the final counter in the
+                user bob example.
