@@ -7,6 +7,12 @@ import math.{Pi, sin, cos}
 import java.awt.Color
 import scalaz._, Scalaz._
 
+/** A combination of simple animations
+  *
+  * To run, modify [[dire.example.Main]] like so:
+  *
+  * `def runc = Animation.run`
+  */
 object Animation extends SwingApp {
 
   implicit def SMonoid[A:Monoid] = Monoid.liftMonoid[SIn,A]

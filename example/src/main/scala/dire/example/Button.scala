@@ -4,6 +4,12 @@ import dire._, SF.EFOps
 import dire.swing._
 import scalaz._, Scalaz._
 
+/** A simple user inteface with a button that counts its own clicks
+  *
+  * To run, modify [[dire.example.Main]] like so:
+  *
+  * `def runc = ButtonApp.run`
+  */
 object ButtonApp extends SwingApp {
   def behavior = for {
     btn ← Button()

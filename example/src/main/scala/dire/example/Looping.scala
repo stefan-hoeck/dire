@@ -3,6 +3,14 @@ package dire.example
 import dire._, SF.EFOps, EF.{id, loop, once}
 import scalaz._, Scalaz._, effect.IO
 
+/** An event stream that uses its own output as input
+  *
+  * To run, modify [[dire.example.Main]] like so:
+  *
+  * `def runc = Looping.run`
+  *
+  * The application will have to be forcibly terminated
+  */
 object Looping {
   def run = EF.run(looping)(_ ⇒ false)
 

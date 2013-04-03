@@ -3,6 +3,13 @@ package dire.example
 import dire._, SF.EFOps
 import scalaz._, Scalaz._, effect.IO
 
+/** Very basic example of a signal and an event stream
+  *
+  * To run, modify [[dire.example.Main]] like so:
+  *
+  * `def runc = TimexExample.runTimeOnly` or
+  * `def runc = TimexExample.runTimeFiltered`
+  */
 object TimeExample {
   def printTime(t: Time) = IO putStrLn s"Time is at $t microseconds"
 

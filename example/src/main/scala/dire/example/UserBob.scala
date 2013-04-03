@@ -3,6 +3,12 @@ package dire.example
 import dire._, SF.EFOps
 import scalaz._, Scalaz._, effect.IO
 
+/** Simulation of asynchronuous client accesses to a server
+  *
+  * To run, modify [[dire.example.Main]] like so:
+  *
+  * `def runc = UserBob.run`
+  */
 object UserBob {
 
   implicit def SMonoid[A:Monoid] = Monoid.liftMonoid[SIn,A]
@@ -18,6 +24,8 @@ object UserBob {
   //number generator, and a server access rate, which is a number
   //between 0 and 1. higher numbers means more frequent server
   //accesses
+  type UserData = (String, Long, Double)
+
   private val bob = ("Bob", -992L, 0.5)
 
   private val others = List(("Troll", 0L, 0.7),
@@ -28,7 +36,7 @@ object UserBob {
 
   def run = SF.run(ratio.events.count)(_ >= stopAfter)
 
-  private def user(p: (String,Long,Double)): SIn[Int] = p match {
+  private def user(d: UserData): SIn[Int] = d match {
     case (name, seed, rate) ⇒ {
       val freq = 1.0 - rate / slowdownFactor
       val accesses = Random noise seed filter { freq <= } count
@@ -41,7 +49,6 @@ object UserBob {
     case (0,0) ⇒ 0.0
     case (b,t) ⇒ b.toDouble / t.toDouble
   }
-
 
   private def total: SIn[Int] = (bob :: others).foldMap(user) --> printTotal
 
