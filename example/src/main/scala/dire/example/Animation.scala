@@ -4,7 +4,7 @@ import dire._, SF.{EFOps, const}
 import dire.swing.{Elem, SwingApp, FrameV}
 import dire.swing.Animation._
 import math.{Pi, sin, cos}
-import java.awt.Color
+import java.awt.Color._
 import scalaz._, Scalaz._
 
 /** A combination of simple animations
@@ -19,10 +19,10 @@ object Animation extends SwingApp {
 
   def behavior = for {
     scene ← Scene()
-    sf    = (s1 ⊹ s2 ⊹ s3) toSink scene
+    sf    = (s1 ⊹ s2 ⊹ s3 ⊹ s4) toSink scene
   } yield (Elem(scene) setDim (1000, 600), sf >>> const(FrameV("Animation")))
 
-  val ticks = EF ticks 10000L count
+  val ticks = SF.cached(EF ticks 10000L count, "ticks")
 
   // sine wave:
   // f: Frequency [Hz]
@@ -33,23 +33,22 @@ object Animation extends SwingApp {
     ticks map { t ⇒ sin(t * 2 * Pi * f / 100 + phi) * a + offset }
 
   def s1: SIn[Shape] = ^(
-    wave(1, 100, 200),
-    wave(1, 100, 200, Pi / 2)
-  ) { circle(_, _, 50, red) }
+    wave(0.7, 100, 200),
+    wave(0.7, 100, 200, Pi / 2)
+  ) { circle(_, _, 50, RED) }
 
   def s2: SIn[Shape] =
-    wave(0.2, 300, 500) ∘ { square(_, 75.0, 100, green) }
+    wave(0.2, 300, 500) ∘ { square(_, 75.0, 100, GREEN) }
 
   def s3: SIn[Shape]= ^(
     wave(0.5, 200, 200, Pi / 2),
-    wave(0.5, 200, 0)
-  ){ (y,r) ⇒ circle(420.0, y, r.abs.toInt, blue) }
+    wave(0.5, 100, 150)
+  ){ (y,r) ⇒ circle(420.0, y, r.toInt, BLUE) }
 
-  val green = Color.GREEN
-
-  val red = Color.RED
-
-  val blue = Color.BLUE
+  def s4: SIn[Shape]= ^(
+    wave(0.3, 300, 400, Pi / 2),
+    wave(0.3, 200, 0)
+  ){ (y,r) ⇒ square(y, y, r.abs.toInt, YELLOW) }
 }
 
 // vim: set ts=2 sw=2 et:
