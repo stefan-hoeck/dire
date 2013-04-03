@@ -4,30 +4,18 @@ import dire._
 import javax.swing.JButton
 import scalaz._, Scalaz._, effect.IO
 
-case class ButtonV(text: String)
-
-class Button private(ini: ButtonV, private val peer: JButton) {
+case class Button(peer: JButton) extends Wrapped[JButton] {
   import Button._
 
-  private def display(bv: ButtonV): IO[Unit] =
-    IO(peer.setText(bv.text))
+  def clicks: EIn[Unit] = SF cachedSrc this
 
-  def sf: EF[ButtonV,Unit] = SF sfCached this
-
-  def clicks: EIn[Unit] = SF const ini andThen sf
+  def text: EF[Event[String],Nothing] = sink(this){ peer.setText }
 }
 
 object Button {
   def apply(): IO[Button] = apply("")
 
-  def apply(text: String): IO[Button] = apply(ButtonV(text))
-
-  def apply(bv: ButtonV): IO[Button] = for {
-    b ← IO(new Button(bv, new JButton))
-    _ ← b display bv
-  } yield b
-
-  implicit val ButtonSink: Sink[Button,ButtonV] = sink(_.display)
+  def apply(text: String): IO[Button] = IO(Button(new JButton(text)))
 
   implicit val ButtonSource: ESource[Button,Unit] = eventSrc { b ⇒ o ⇒ 
     val a = ali(o)

@@ -1,6 +1,7 @@
 package dire
 
 import java.awt.event.{ActionListener, ActionEvent}
+import scala.reflect.runtime.universe.TypeTag
 import scalaz._, Scalaz._, effect.IO
 import scalaz.concurrent.Strategy.SwingInvokeLater
 
@@ -13,8 +14,16 @@ package object swing {
 
   type Dim = (Int, Int)
 
-  private[swing] def sink[S,A](out: S ⇒ Out[A]): Sink[S,A] =
-    DataSink.create[S,A](out, _ ⇒ IO.ioUnit, Some(SwingInvokeLater))
+  type Position = (Int, Int)
+
+  private[swing] def sink[S,A:TypeTag](s: S)(out: A ⇒ Unit)
+    : EF[Event[A],Nothing] = {
+      implicit val sink = DataSink.createE[S,A](s ⇒ a ⇒ IO(out(a)),
+                                                _ ⇒ IO.ioUnit,
+                                                Some(SwingInvokeLater))
+
+      SF.cached(SF sink s, s)
+    }
 
   private[swing] def eventSrc[S,A](out: Callback[S,A]): ESource[S,A] =
     DataSource eventSrcInpure out

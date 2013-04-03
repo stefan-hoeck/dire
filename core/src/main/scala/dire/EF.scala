@@ -1,6 +1,7 @@
 package dire
 
-import SF.sync2
+import SF.{sync2, EFOps}
+import scala.reflect.runtime.universe.TypeTag
 import scalaz._, Scalaz._, effect.IO
 
 trait EFFunctions {
@@ -14,6 +15,9 @@ trait EFFunctions {
 
   /** The event stream that never fires */
   def never[A]: EF[A,Nothing] = SF const Never
+
+  /** An event stream that fires only once at time zero */
+  def now[A](a: ⇒ A): EIn[A] = SF const Once(a)
 
   /** Asynchronuously fires the given event once */
   def once[A](a: ⇒ A): EIn[A] = src(())(DataSource once a)
@@ -29,6 +33,16 @@ trait EFFunctions {
     */
   def src[S,V](s: S)(implicit Src: DataSource[S,Event[V]]): EIn[V] =
     SF src s
+
+  /** Creates an input Signal from an external data source
+    *
+    * Unlike src, the resulting signal function is cached using `s`
+    * as a key.
+    */
+  def cachedSrc[S,V:TypeTag]
+    (s: S)
+    (implicit Src: DataSource[S,Event[V]]): EIn[V] =
+    SF.cached(src[S,V](s), s)
 
   /** An asynchronous event source that fires at regular
     * intervals.

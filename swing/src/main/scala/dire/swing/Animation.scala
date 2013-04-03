@@ -1,20 +1,21 @@
 package dire.swing
 
+import dire.{EF, Event}
 import java.awt.{Graphics, Color, Graphics2D, Toolkit}
 import javax.swing.JPanel
 import scalaz._, Scalaz._, effect.IO
 
 object Animation {
   
-  class Scene private(c: Color) {
+  class Scene private (c: Color) extends Component[JPanel] {
     private[this] var actual: Shape = blank
 
-    private[dire] def display(s: Shape): IO[Unit] = IO {
+    def display: EF[Event[Shape],Nothing] = sink(this){ s ⇒ 
       actual = s
-      comp.repaint()
+      peer.repaint()
     }
 
-    private final object comp extends JPanel {
+    final object peer extends JPanel {
       setBackground(c)
 
       override protected def paintComponent(g: Graphics) {
@@ -35,9 +36,7 @@ object Animation {
   object Scene {
     def apply(c: Color = Color.BLACK): IO[Scene] = IO(new Scene(c))
 
-    implicit val SceneAsElem: AsElem[Scene] = Elem vhFill { _.comp }
-
-    implicit val SceneSink: Sink[Scene,Shape] = sink(_.display)
+    implicit val SceneAsElem: AsElem[Scene] = Elem vhFill { _.peer }
   }
 
   type Point = (Double, Double)

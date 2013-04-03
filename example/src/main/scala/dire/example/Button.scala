@@ -11,15 +11,15 @@ import scalaz._, Scalaz._
   * `def runc = ButtonApp.run`
   */
 object ButtonApp extends SwingApp {
-  def behavior = for {
+  def behavior(f: Frame) = for {
     btn ← Button()
-    bs  = SF.loop(btn.sf.count ∘ formatClicks)(ButtonV("0 clicks"))
-    fs  = SF.seconds ∘ formatTime
-  } yield (Elem(btn) setDim (200, 100), bs >>> fs)
+    sf  = (btn.clicks.count map clicksStr toE btn.text) >>>
+          (SF.seconds map timeStr toE f.title)
+  } yield (Elem(btn) setDim (200, 100), sf)
 
-  private def formatClicks(c: Int) = ButtonV(s"$c clicks")
+  private def clicksStr(c: Int) = s"$c clicks"
 
-  private def formatTime(s: Int) = FrameV(s"Hello World (running for $s s)")
+  private def timeStr(s: Int) = s"Hello World (running for $s s)"
 }
 
 // vim: set ts=2 sw=2 et:

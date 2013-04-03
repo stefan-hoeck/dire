@@ -6,15 +6,15 @@ import scalaz._, Scalaz._, effect.{IO, SafeApp}
 trait SwingApp {
   import Frame.FrameEvent
 
-  protected def behavior: IO[(Elem, SF[Event[FrameEvent],FrameV])]
+  protected def behavior(f: Frame): IO[(Elem, SIn[Any])]
 
   def run = for {
-    p       ← behavior
-    (e, sf) = p
     frame   ← Frame()
+    p       ← behavior(frame)
+    (e, sf) = p
     _       ← frame addElem e
     _       ← frame.show
-    _       ← EF.run(EF loop (sf >>> frame.sf)){ Frame.Closing == _ }
+    _       ← EF.run(sf >>> frame.events){ Frame.Closing == _ }
     _       ← IO(System.exit(0))
   } yield ()
 }

@@ -33,6 +33,11 @@ trait DataSinkFunctions {
                   cl: S ⇒ IO[Unit],
                   st: Option[Strategy] = None): DataSink[S,A] =
     createC[S,A](s ⇒ ca ⇒ o(s)(ca.v), cl, st)
+
+  def createE[S,A](o: S ⇒ Out[A], 
+                   cl: S ⇒ IO[Unit],
+                   st: Option[Strategy] = None): DataSink[S,Event[A]] =
+    create[S,Event[A]](s ⇒ ea ⇒ ea.fold(o(s), IO.ioUnit), cl, st)
 }
 
 // vim: set ts=2 sw=2 et:

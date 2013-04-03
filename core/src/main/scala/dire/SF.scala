@@ -20,6 +20,8 @@ case class SF[-A,+B](run: RS[A] ⇒ Signal[B]) {
   /** Applies a time-changing function to the signals values */
   def ap[C,D<:A](f: SF[D,B ⇒ C]): SF[D,C] = (f <*> this)(_ apply _)
 
+  def contramap[C](f: C ⇒ A): SF[C,B] = compose(SF.id[C] mapS f)
+
   /** Returns a signal that only fires an event if its new
     * value is different from its old one
     */
@@ -63,6 +65,9 @@ case class SF[-A,+B](run: RS[A] ⇒ Signal[B]) {
   /** Combines two signals with a pure function */
   def <*>[C,D,E<:A](that: SF[E,C])(f: (B,C) ⇒ D): SF[E,D] =
     sync2(this, that)(Change applyI f)(Change applyN f)
+
+  /** Alias for `contramap` */
+  def ∙ [C](f: C ⇒ A): SF[C,B] = contramap(f)
 }
 
 object SF extends SFInstances with SFFunctions {
@@ -106,6 +111,12 @@ object SF extends SFInstances with SFFunctions {
       */
     def to[C](that: SF[B,C]): SF[A,B] = 
       SF { ra ⇒ r ⇒ s.run(ra)(r) >>= { rb ⇒ that.run(rb)(r) as rb } }
+
+    /** Connect a reactive branch that consumes events
+      * to this signal function but
+      * return to the original branch afterwards.
+      */
+    def toE[C](that: SF[Event[B],C]): SF[A,B] = to(that ∙ Once.apply)
 
     /** Alias for `syncTo` */
     def -->(out: Out[B]): SF[A,B] = syncTo(out)
@@ -309,6 +320,14 @@ trait SFFunctions {
     */
   def src[S,V](s: S)(implicit Src: DataSource[S,V]): SIn[V] =
     SF(_ ⇒ _.source(Src ini s)(Src cb s))
+
+  /** Creates an input Signal from an external data source
+    *
+    * Unlike src, the resulting signal function is cached using `s`
+    * as a key.
+    */
+  def cachedSrc[S,V:TypeTag](s: S)(implicit Src: DataSource[S,V]): SIn[V] =
+    cached(src[S,V](s), s)
 
   /** Creates a data sink, that consumes data but never fires
     * an event.

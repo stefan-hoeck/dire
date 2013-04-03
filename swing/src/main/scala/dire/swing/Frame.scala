@@ -6,17 +6,12 @@ import java.awt.event.{WindowListener, WindowEvent}
 import javax.swing.JFrame
 import scalaz._, Scalaz._, effect.IO
 
-case class FrameV(title: String)
-
-class Frame private(ini: FrameV, private[swing] val peer: JFrame) {
+case class Frame(peer: JFrame) extends Wrapped[JFrame] {
   import Frame._
 
-  private def display(fv: FrameV): IO[Unit] =
-    IO(peer.setTitle(fv.title))
+  def events: EIn[FrameEvent] = SF cachedSrc this
 
-  def sf: EF[FrameV,FrameEvent] = SF sfCached this
-
-  def events: EIn[FrameEvent] = SF const ini andThen sf
+  def title: EF[Event[String],Nothing] = sink(this) { peer.setTitle }
 
   def addElem(e: Elem): IO[Unit] = for {
     p  ← e.panel
@@ -34,14 +29,7 @@ class Frame private(ini: FrameV, private[swing] val peer: JFrame) {
 object Frame {
   def apply(): IO[Frame] = apply("")
 
-  def apply(title: String): IO[Frame] = apply(FrameV(title))
-
-  def apply(fv: FrameV): IO[Frame] = for {
-    f ← IO(new Frame(fv, new JFrame))
-    _ ← f display fv
-  } yield f
-
-  implicit val FrameSink: Sink[Frame,FrameV] = sink(_.display)
+  def apply(title: String): IO[Frame] = IO(Frame(new JFrame(title)))
 
   implicit val FrameSource: ESource[Frame,FrameEvent] = eventSrc { f ⇒ o ⇒ 
     val l = listener(o)
