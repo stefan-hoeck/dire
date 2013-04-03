@@ -36,12 +36,15 @@ https://efasckenoth.wordpress.com/
 
 The development of *dire* is strongly influenced by the following articles and projects:
 
-*Deprecating the Observer Pattern* by I. Maier and M. Odersky
+*Deprecating the Observer Pattern* by I. Maier and M. Odersky:
+
 http://infoscience.epfl.ch/record/176887/files/DeprecatingObservers2012.pdf
 
-The *reactive* project by N. Gugenheim
+The *reactive* project by N. Gugenheim:
+
 https://github.com/nafg/reactive
 
-H. Apfelmus's blog
+H. Apfelmus's blog:
+
 http://apfelmus.nfshost.com/blog.html#functional-reactive-programming-frp
 
