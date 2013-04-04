@@ -128,6 +128,14 @@ trait ChangeFunctions {
     case (Change(t, Once(a)), _, Change(t2, b)) ⇒ Change(t max t2, f(a, b))
     case (_, _, cb)                             ⇒ cb
   }
+
+  def uponI[A,B,C](f: (A,B) ⇒ C): InitialS[A,Event[B],Event[C]] =
+  (ca,ceb) ⇒ if (ceb.at >= ca.at) ceb map { _ map { f(ca.v, _) } }
+             else ceb as Never
+
+  def uponN[A,B,C](f: (A,B) ⇒ C): NextS[A,Event[B],Event[C]] =
+  (ca,ceb,cec) ⇒ if (ceb.at >= ca.at) ceb map { _ map { f(ca.v, _) } }
+                 else cec
 }
 
 // vim: set ts=2 sw=2 et:

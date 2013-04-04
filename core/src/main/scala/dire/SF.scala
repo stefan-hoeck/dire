@@ -41,7 +41,7 @@ case class SF[-A,+B](run: RS[A] ⇒ Signal[B]) {
     * fires an event.
     *
     * This is similar to `changes` but fires even if the signal's
-    * new value is not distinct from its old value
+    * new value is not distinct from the old one
     */
   def events: SF[A,Event[B]] =
     sync2(this, never)(Change.eventsI[B])(Change.eventsN[B])
@@ -54,6 +54,11 @@ case class SF[-A,+B](run: RS[A] ⇒ Signal[B]) {
   def mapS[C](f: B ⇒ C): SF[A,C] =
     sync2(this, never)(Change mapI f)(Change mapN f)
 
+  /** Returns an event stream that fires this signals actual value
+    * whenever the given event stream fires
+    */
+  def on[C,E<:A](ef: EF[E,C]): EF[E,B] = upon(ef)((b,_) ⇒ b)
+
   /** Asynchronuously output the values of this Signal to a data sink
     *
     * How the data sink operates and what concurrency strategy is
@@ -61,6 +66,15 @@ case class SF[-A,+B](run: RS[A] ⇒ Signal[B]) {
     */
   def toSink[S](s: S)(implicit D: DataSink[S,B]): SF[A,B] = 
     SF { ra ⇒ r ⇒ run(ra)(r) >>= { r.sink(s, _) } }
+
+  /** Combines a signal with an event stream through a
+    * function of arity two.
+    *
+    * The resulting event stream fires only, when the given
+    * event stream fires.
+    */
+  def upon[C,D,E<:A](ef: EF[E,C])(f: (B,C) ⇒ D): EF[E,D] =
+    sync2(this, ef)(Change uponI f)(Change uponN f)
 
   /** Combines two signals with a pure function */
   def <*>[C,D,E<:A](that: SF[E,C])(f: (B,C) ⇒ D): SF[E,D] =
