@@ -30,27 +30,29 @@ trait Runner {
     as.toList
   }
 
-  /** Two signal functions are equal if in the same reactive run
-    * they produce the same events at the same times.
-    *
-    * Note: Since signal functions may contain asynchronous
-    * components, they cannot be compared across different runs.
-    * Strictly synchronous SF can be compared across different
-    * runs.
+  /** Compares the events fired by two signal functions
     */
-  def compare[A:Equal](sf1: SF[Time,A], t: Time)(sf2: SF[Time,A])
-    : Boolean = {
-    val as1 = new collection.mutable.ListBuffer[Change[A]]
-    val as2 = new collection.mutable.ListBuffer[Change[A]]
+  def compare[A,B:Equal]
+    (sfA: SF[Time,A], sfB: SF[Time,B], t: Time)
+    (exp: List[Change[A]] ⇒ List[Change[B]]): Boolean = {
+    val as = new collection.mutable.ListBuffer[Change[A]]
+    val bs = new collection.mutable.ListBuffer[Change[B]]
     val time = SF.time
-                 .to(sf1.changeTo(a ⇒ IO(as1 += a)))
-                 .to(sf2.changeTo(a ⇒ IO(as2 += a)))
+                 .to(sfA.changeTo(a ⇒ IO(as += a)))
+                 .to(sfB.changeTo(b ⇒ IO(bs += b)))
 
     SF.run(time, step = 1L)(t <= _).unsafePerformIO
 
     //println(as1.toList take 3)
 
-    (as1.toList ≟ as2.toList)
+    val should = exp(as.toList)
+    val was = bs.toList
+
+    val res = should ≟ was
+
+    if (! res) println(s"Exp: $should, but was: $was")
+
+    res
   }
 }
 

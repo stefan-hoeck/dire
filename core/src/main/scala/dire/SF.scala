@@ -20,6 +20,7 @@ case class SF[-A,+B](run: RS[A] ⇒ Signal[B]) {
   /** Applies a time-changing function to the signals values */
   def ap[C,D<:A](f: SF[D,B ⇒ C]): SF[D,C] = (f <*> this)(_ apply _)
 
+  /** Contravariant mapping */
   def contramap[C](f: C ⇒ A): SF[C,B] = compose(SF.id[C] mapS f)
 
   /** Returns a signal that only fires an event if its new

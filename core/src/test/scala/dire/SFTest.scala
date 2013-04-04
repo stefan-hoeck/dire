@@ -33,7 +33,7 @@ object SFTest
   val tickCountC = SF.cached(tickCount, "tickCount")
 
   implicit def TSFEqual[A:Equal]: Equal[TSF[A]] = new Equal[TSF[A]] {
-    def equal(a: TSF[A], b: TSF[A]) = compare(a, 100L)(b)
+    def equal(a: TSF[A], b: TSF[A]) = compare(a, b, 100L)(identity)
   }
 
   //Basic tests
@@ -126,6 +126,71 @@ object SFTest
     
     res ≟ List(Change(T0, Never), Change(1L, Once(i)))
   }
+
+  //distinct
+  property("distinct") = forAll { t: SFTT ⇒ 
+    val cached = SF.cached(t, "distinct")
+    compare(cached, cached.distinct, 100L)(collectDistinct)
+  }
+
+  //events
+  property("changes") = forAll { t: SFTT ⇒ 
+    val cached = SF.cached(t, "changes")
+    compare(cached, cached.changes, 100L){
+      ts ⇒ collectDistinct(ts) map { _ map Once.apply }
+    }
+  }
+
+  //events
+  property("events") = forAll { t: SFTT ⇒ 
+    val cached = SF.cached(t, "events")
+    compare(cached, cached.events, 100L)(_ map { _ map Once.apply })
+  }
+
+  //upon
+  //property("upon") = forAll { p: (SFTT, EFTT) ⇒ 
+  //  val (sf, ef) = p
+  //  val sfCached: TSF[Time] = SF.cached(sf, "upon_sf")
+  //  val efCached: TSF[Event[Time]] = SF.cached(ef.distinct, "upon_ef")
+
+  //  val pairs = ^(sfCached, efCached)(Pair.apply)
+  //  val upon = sfCached.upon(efCached){ _ + _ }
+
+  //  compare(pairs, upon, 100L)(collectUpon)
+  //}
+  
+  type Changes[+A] = List[Change[A]]
+
+  private def collectDistinct(cs: Changes[Time]): Changes[Time] = {
+    val res = new collection.mutable.ListBuffer[Change[Time]]
+
+    def run(rem: Changes[Time]): Unit = rem match {
+      case ca::cb::rest if(ca.v ≟ cb.v) ⇒ run(ca::rest)
+      case ca::rest                     ⇒ { res += ca; run(rest) }
+      case Nil                          ⇒ ()
+    }
+
+    run(cs)
+
+    res.toList
+  }
+
+  //private def collectUpon(cs: Changes[(Time,Event[Time])])
+  //  : Changes[Event[Time]] = {
+  //  val res = new collection.mutable.ListBuffer[Change[Event[Time]]]
+
+  //  def run(rem: Changes[(Time,Event[Time])]): Unit = rem match {
+  //    case ca::cb::rest if(ca.v._2 ≟ cb.v._2) ⇒ run(ca::rest)
+  //    case ca::rest                           ⇒ {
+  //      res += (ca map { case (t,et) ⇒ et map {_ ⇒  t } }); run(rest)
+  //    }
+  //    case Nil                          ⇒ ()
+  //  }
+
+  //  run(cs)
+
+  //  res.toList
+  //}
 }
 
 // vim: set ts=2 sw=2 et:
