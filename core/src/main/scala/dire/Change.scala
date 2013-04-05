@@ -97,9 +97,9 @@ trait ChangeFunctions {
       ea collect f fold (b ⇒ Change(t, Once(b)), ceb)
   }
 
-  def eventsI[A]: InitialS[A,Any,Event[A]] = (ca,_) ⇒ ca map Once.apply
+  def eventsI[A]: InitialS[A,Any,Event[A]] = (ca,_) ⇒ ca as Never
 
-  def eventsN[A]: NextS[A,Any,Event[A]] = (ca,n,_) ⇒ eventsI(ca,n)
+  def eventsN[A]: NextS[A,Any,Event[A]] = (ca,_,_) ⇒ ca map Once.apply
 
   def mergeI[A]: InitialS[Event[A],Event[A],Event[A]] = (c1,c2) ⇒ 
     later(c1, c2) | ^(c1, c2)(_ orElse _)

@@ -40,9 +40,9 @@ object TextFieldsValidated extends SwingApp {
 
   
   private def validate(prop: String)(sin: SIn[String]): VSIn[String] =
-    sin map {
-      s ⇒ if (s.isEmpty) s"$prop must not be an empty string".failureNel
-          else s.success
+    sin map { s ⇒
+      if (s.isEmpty) s"$prop must not be an empty string".failureNel
+      else s.success
     }
 
   private val id = SF.id[ValRes[String]]
@@ -55,7 +55,7 @@ object TextFieldsValidated extends SwingApp {
     id mapS { _.fold(_.head, _ ⇒ "") } toE l.text
 
   //collects valid inputs and displays them in label
-  private def display(l: Label) = id.events collect { _.toOption } to l.text
+  private def display(l: Label) = id.ef collect { _.toOption } to l.text
 }
 
 // vim: set ts=2 sw=2 et:

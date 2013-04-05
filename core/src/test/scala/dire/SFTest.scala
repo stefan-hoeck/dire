@@ -133,7 +133,7 @@ object SFTest
     compare(cached, cached.distinct, 100L)(collectDistinct)
   }
 
-  //events
+  //changes
   property("changes") = forAll { t: SFTT ⇒ 
     val cached = SF.cached(t, "changes")
     compare(cached, cached.changes, 100L){
@@ -141,10 +141,22 @@ object SFTest
     }
   }
 
+  //ef
+  property("ef") = forAll { t: SFTT ⇒ 
+    val cached = SF.cached(t, "ef")
+    compare(cached, cached.ef, 100L)(_ map { _ map Once.apply })
+  }
+
   //events
   property("events") = forAll { t: SFTT ⇒ 
     val cached = SF.cached(t, "events")
-    compare(cached, cached.events, 100L)(_ map { _ map Once.apply })
+
+    def calc(ts: Changes[Time]): Changes[Event[Time]] = ts match {
+      case Nil   ⇒ Change(T0,Never) :: Nil
+      case c::cs ⇒ Change(T0,Never) :: (cs map { _ map Once.apply })
+    }
+
+    compare(cached, cached.events, 100L)(calc)
   }
 
   //upon

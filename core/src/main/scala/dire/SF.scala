@@ -33,7 +33,7 @@ case class SF[-A,+B](run: RS[A] ⇒ Signal[B]) {
     * value changes to a new one that is distinct from the old
     * value.
     */
-  def changes[C>:B:Equal]: SF[A,Event[C]] = distinct[C].events
+  def changes[C>:B:Equal]: SF[A,Event[C]] = distinct[C].ef
 
   private[dire] def changeTo(out: Out[Change[B]]): SF[A,B] =
     toSink(())(DataSink synchC out)
@@ -42,7 +42,17 @@ case class SF[-A,+B](run: RS[A] ⇒ Signal[B]) {
     * fires an event.
     *
     * This is similar to `changes` but fires even if the signal's
-    * new value is not distinct from the old one
+    * new value is not distinct from the old one. Note that unlike
+    * `events` the first event will be fired at `T0` with the
+    * signal's initial value.
+    */
+  def ef: SF[A,Event[B]] = mapS(Once.apply)
+
+  /** Creates an event stream that fires whenever this signal
+    * fires an event.
+    *
+    * Note that unlike with function `ef`, the resulting event stream
+    * will skip the signal's initial value.
     */
   def events: SF[A,Event[B]] =
     sync2(this, never)(Change.eventsI[B])(Change.eventsN[B])

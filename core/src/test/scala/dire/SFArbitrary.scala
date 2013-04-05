@@ -48,6 +48,8 @@ trait SFArbitrary {
 
   lazy val allSF: Gen[SFTT] = Gen oneOf (single, composed, applied, mapped)
 
+  lazy val ef: Gen[EFTT] = allSF map { _.ef }
+
   lazy val events: Gen[EFTT] = allSF map { _.events }
 
   lazy val changes: Gen[EFTT] = allSF map { _.changes }
@@ -60,7 +62,7 @@ trait SFArbitrary {
   implicit lazy val sfttArb: Arbitrary[SFTT] = Arbitrary(allSF)
 
   implicit lazy val efttArb: Arbitrary[EFTT] =
-    Arbitrary(Gen oneOf (events, changes, merged))
+    Arbitrary(Gen oneOf (ef, events, changes, merged))
 }
 
 // vim: set ts=2 sw=2 et:
