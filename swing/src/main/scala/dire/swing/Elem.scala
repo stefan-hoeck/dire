@@ -167,8 +167,6 @@ trait AsElemFunctions {
 }
 
 trait AsElemInstances extends AsElemFunctions {
-  implicit val SingleAsElem: AsSingleElem[Elem.Single] = asSingle(identity)
-
   implicit val ElemAsElem: AsElem[Elem] = asElem(identity)
 
   implicit val StringAsElem: AsSingleElem[String] = noFill(new JLabel(_))

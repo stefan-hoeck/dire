@@ -28,7 +28,7 @@ object TextField {
       _ ⇒ t.peer.getDocument.removeDocumentListener(l)
     }
 
-  implicit val TextFieldElem: AsElem[TextField] = Elem hFill { _.peer }
+  implicit val TextFieldElem: AsSingleElem[TextField] = Elem hFill { _.peer }
 
   private def listener(t: TextField, o: String ⇒ Unit) =
     new DocumentListener {

@@ -23,7 +23,7 @@ object Button {
     _ ⇒ b.peer.removeActionListener(a)
   }
 
-  implicit val ButtonElem: AsElem[Button] = Elem hFill { _.peer }
+  implicit val ButtonElem: AsSingleElem[Button] = Elem hFill { _.peer }
 }
 
 // vim: set ts=2 sw=2 et:

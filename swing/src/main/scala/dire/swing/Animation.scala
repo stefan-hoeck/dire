@@ -36,7 +36,7 @@ object Animation {
   object Scene {
     def apply(c: Color = Color.BLACK): IO[Scene] = IO(new Scene(c))
 
-    implicit val SceneAsElem: AsElem[Scene] = Elem vhFill { _.peer }
+    implicit val SceneAsElem: AsSingleElem[Scene] = Elem vhFill { _.peer }
   }
 
   type Point = (Double, Double)

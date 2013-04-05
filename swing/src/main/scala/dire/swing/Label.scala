@@ -14,7 +14,7 @@ object Label {
   def apply(text: String): IO[Label] =
     IO(Label(new JLabel(text)))
 
-  implicit val LabelElem: AsElem[Label] = Elem noFill { _.peer }
+  implicit val LabelElem: AsSingleElem[Label] = Elem noFill { _.peer }
 }
 
 // vim: set ts=2 sw=2 et:
