@@ -6,13 +6,11 @@ import scalaz._, Scalaz._, effect.{IO, SafeApp}
 trait SwingApp {
   import Frame.FrameEvent
 
-  protected def behavior(f: Frame): IO[(Elem, SIn[Any])]
+  protected def behavior(f: Frame): IO[SIn[Any]]
 
   def run = for {
     frame   ← Frame()
-    p       ← behavior(frame)
-    (e, sf) = p
-    _       ← frame addElem e
+    sf      ← behavior(frame)
     _       ← frame.show
     _       ← EF.run(sf >>> frame.events){ Frame.Closing == _ }
     _       ← IO(System.exit(0))

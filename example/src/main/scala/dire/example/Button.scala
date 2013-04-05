@@ -1,7 +1,7 @@
 package dire.example
 
 import dire._, SF.EFOps
-import dire.swing._
+import dire.swing._, Frame.North, Elem._
 import scalaz._, Scalaz._
 
 /** A simple user inteface with a button that counts its own clicks
@@ -11,11 +11,18 @@ import scalaz._, Scalaz._
   * `def runc = ButtonApp.run`
   */
 object ButtonApp extends SwingApp {
-  def behavior(f: Frame) = for {
+  override def behavior(f: Frame) = for {
     btn ← Button()
+
+    //Layout (available through class Elem and its implicit syntax classes)
+    _   ← "Click me" beside btn prefDim (200, 100) addToFrame (f, North)
+
+    //Behavior:
+    //Count number of button clicks and output to button's actual text >>>
+    //Keep track of time for which application ran and output to frame's title
     sf  = (btn.clicks.count map clicksStr toE btn.text) >>>
           (SF.seconds map timeStr toE f.title)
-  } yield (Elem(btn) setDim (200, 100), sf)
+  } yield sf
 
   private def clicksStr(c: Int) = s"$c clicks"
 

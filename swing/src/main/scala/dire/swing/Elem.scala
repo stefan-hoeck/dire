@@ -1,5 +1,6 @@
 package dire.swing
 
+import Frame.{FrameLayout, Center}
 import java.awt.{GridBagLayout, GridBagConstraints, Insets}
 import GridBagConstraints._
 import javax.swing.{JComponent ⇒ JComp, JLabel}
@@ -30,23 +31,27 @@ sealed trait Elem { self ⇒
       self.add(x, y, p)
   }
 
-  def setHeight(h: Int): Elem = adjustSize { case (w, _) ⇒ (w, h) }
+  def prefHeight(h: Int): Elem = adjustSize { case (w, _) ⇒ (w, h) }
 
-  def setWidth(w: Int): Elem = adjustSize { case (_, h) ⇒ (w, h) }
+  def prefWidth(w: Int): Elem = adjustSize { case (_, h) ⇒ (w, h) }
 
-  def setDim(w: Int, h: Int): Elem = adjustSize { _ ⇒ (w, h) }
+  def prefDim(w: Int, h: Int): Elem = adjustSize { _ ⇒ (w, h) }
 
   def height: Int
+
   def width: Int
+
+  final def addToFrame(f: Frame, l: FrameLayout = Center): IO[Unit] = 
+    f.addElem(this, l)
 
   final def addToPanel(p: Panel): IO[Panel] = add(0, 0, p) as p
 
   final def panel: IO[Panel] = Panel() >>= addToPanel
 
-  final def beside(e: Elem): Elem = Elem.Beside(this, e)
-  final def above(e: Elem): Elem = Elem.Above(this, e)
-  final def <>(e: Elem): Elem = beside(e)
-  final def ^^(e: Elem): Elem = above(e)
+  final def beside[A:AsElem](a: A): Elem = Elem.Beside(this, Elem(a))
+  final def above[A:AsElem](a: A): Elem = Elem.Above(this, Elem(a))
+  final def <>[A:AsElem](a: A): Elem = beside(a)
+  final def ^^[A:AsElem](a: A): Elem = above(a)
 
   private[swing] def add(x: Int, y: Int, p: Panel): IO[Unit]
 }
@@ -126,65 +131,86 @@ object Elem extends AsElemInstances with AsElemSyntax {
 }
 
 trait AsElem[-A] {
-  def elem(a: A): Elem.Single
+  def elem(a: A): Elem
+}
+
+trait AsSingleElem[-A] extends AsElem[A] {
+  final def elem(a: A): Elem = single(a)
+
+  def single(a: A): Elem.Single
 }
 
 trait AsElemFunctions {
   import Elem.{Single, Fill, Anchor}
 
-  def asElem[A](f: A ⇒ Single): AsElem[A] = new AsElem[A] {
+  def asElem[A](f: A ⇒ Elem): AsElem[A] = new AsElem[A] {
     def elem(a: A) = f(a)
   }
 
-  def noFill[A](f: A ⇒ JComp): AsElem[A] = asElem { a ⇒ 
+  def asSingle[A](f: A ⇒ Single): AsSingleElem[A] = new AsSingleElem[A] {
+    def single(a: A) = f(a)
+  }
+
+  def noFill[A](f: A ⇒ JComp): AsSingleElem[A] = asSingle { a ⇒ 
     Single(f(a), f = Fill.None, a = Anchor.W, wx = 0D)
   }
 
-  def hFill[A](f: A ⇒ JComp): AsElem[A] = asElem { a ⇒ Single(f(a)) }
+  def hFill[A](f: A ⇒ JComp): AsSingleElem[A] = asSingle { a ⇒ Single(f(a)) }
 
-  def vFill[A](f: A ⇒ JComp): AsElem[A] = asElem { a ⇒ 
+  def vFill[A](f: A ⇒ JComp): AsSingleElem[A] = asSingle { a ⇒ 
     Single(f(a), f = Fill.V, wx = 0D, wy = 1D)
   }
 
-  def vhFill[A](f: A ⇒ JComp): AsElem[A] = asElem { a ⇒ 
+  def vhFill[A](f: A ⇒ JComp): AsSingleElem[A] = asSingle { a ⇒ 
     Single(f(a), f = Fill.VH, wy = 1D)
   }
 }
 
 trait AsElemInstances extends AsElemFunctions {
-  implicit val StringAsElem: AsElem[String] = noFill(new JLabel(_))
+  implicit val SingleAsElem: AsSingleElem[Elem.Single] = asSingle(identity)
 
-  implicit val ElemAsElem: AsElem[Elem.Single] = asElem(identity)
+  implicit val ElemAsElem: AsElem[Elem] = asElem(identity)
+
+  implicit val StringAsElem: AsSingleElem[String] = noFill(new JLabel(_))
 }
 
 trait AsElemSyntax {
   import Elem._
 
   implicit class AsElemOps[A:AsElem](val a: A) {
-    def elem: Single = implicitly[AsElem[A]] elem a
+    def elem: Elem = implicitly[AsElem[A]] elem a
 
-    def fill(fill: Fill) = elem.copy(f = fill)
+    def beside[B:AsElem](b: B): Elem = elem beside b
+    def above[B:AsElem](b: B): Elem = elem above b
+    def <>[B:AsElem](b: B): Elem = beside(b)
+    def ^^[B:AsElem](b: B): Elem = above(b)
+  }
 
-    def anchor(anchor: Anchor) = elem.copy(a = anchor)
+  implicit class AsSingleElemOps[A:AsSingleElem](val a: A) {
+    def single: Single = implicitly[AsSingleElem[A]] single a
+
+    def fill(fill: Fill) = single.copy(f = fill)
+
+    def anchor(anchor: Anchor) = single.copy(a = anchor)
 
     def fillH(w: Int): Single = {
-      val newFill = elem.f match {
+      val newFill = single.f match {
         case Fill.V  ⇒ Fill.VH
         case Fill.VH ⇒ Fill.VH
         case _       ⇒ Fill.H
       }
 
-      elem.copy(width = w, f = newFill, wx = 1.0D)
+      single.copy(width = w, f = newFill, wx = 1.0D)
     }
 
     def fillV(h: Int): Single = {
-      val newFill = elem.f match {
+      val newFill = single.f match {
         case Fill.H  ⇒ Fill.VH
         case Fill.VH ⇒ Fill.VH
         case _       ⇒ Fill.V
       }
 
-      elem.copy(height = h, f = newFill, wy = 1.0D)
+      single.copy(height = h, f = newFill, wy = 1.0D)
     }
   }
 }

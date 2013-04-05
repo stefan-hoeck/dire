@@ -13,9 +13,9 @@ case class Frame(peer: JFrame) extends Wrapped[JFrame] {
 
   def title: EF[Event[String],Nothing] = sink(this) { peer.setTitle }
 
-  def addElem(e: Elem): IO[Unit] = for {
+  def addElem(e: Elem, l: FrameLayout = Center): IO[Unit] = for {
     p  ← e.panel
-    _  ← IO(peer.add(p.peer, BorderLayout.CENTER))
+    _  ← IO(peer.add(p.peer, l.v))
     d  ← IO(peer.getSize)
     nd = e prefSize ((d.width, d.height))
     _  ← IO(peer.setSize(new Dimension(nd._1, nd._2)))
@@ -46,6 +46,14 @@ object Frame {
   case object Deiconified extends FrameEvent
   case object Iconified extends FrameEvent
   case object Opened extends FrameEvent
+
+  sealed abstract class FrameLayout(val v: String)
+
+  case object Center extends FrameLayout(BorderLayout.CENTER)
+  case object North extends FrameLayout(BorderLayout.NORTH)
+  case object East extends FrameLayout(BorderLayout.EAST)
+  case object South extends FrameLayout(BorderLayout.SOUTH)
+  case object West extends FrameLayout(BorderLayout.WEST)
 
   private def listener(o: FrameEvent ⇒ Unit) = new WindowListener {
     def windowActivated(e: WindowEvent) {o(Activated)}

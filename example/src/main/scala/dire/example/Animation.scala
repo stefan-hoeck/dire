@@ -19,13 +19,19 @@ object Animation extends SwingApp {
 
   def behavior(f: Frame) = for {
     scene ← Scene()
-    sf    = (s1 ⊹ s2 ⊹ s3 ⊹ s4 ⊹ s5(scene)) toE scene.display
-  } yield (Elem(scene) setDim (1000, 600),
-           sf >>> now("Animation").to(f.title))
+    _     ← Elem(scene) prefDim (1000, 800) addToFrame f
 
+    //Behavior:
+    //Combine shape signals s1 to s5 through monoid append and display
+    //then set title of frame to "Animation"
+    sf    = (s1 ⊹ s2 ⊹ s3 ⊹ s4 ⊹ s5(scene)) toE scene.display andThen
+            now("Animation").to(f.title)
+  } yield sf
+
+  //time signal that updates every 10 milliseconds
   val ticks = SF.cached(EF ticks 10000L count, "ticks")
 
-  // sine wave:
+  // sine wave signal that updates every 10 milliseconds:
   // f: Frequency [Hz]
   // a: amplitude [Pixels]
   // offset [Pixels]
