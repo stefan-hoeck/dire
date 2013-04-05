@@ -24,17 +24,15 @@ object TextFieldsValidated extends SwingApp {
         ("Full name" beside full) above
         ("Accepted name" beside acc) above
         ("Error:" beside msg) above
-        (btn fillH 2) prefDim (500, 300) addToFrame (f, North)
+        (btn fillH 2) prefWidth 500 addToFrame (f, North)
 
-    //Validate first an last name and concatenate them
-    fullV = ^(
-              validate("First name")(first.value),
-              validate("Last name")(last.value)
-             ){ _ + " " + _ }
+    //Validate first and last name and concatenate them
+    fullV = ^(validate("First name")(first.value),
+              validate("Last name")(last.value)){ _ + " " + _ }
 
-    sf = fullV.to(btnOut(btn)) //disable btn if invalid
-              .to(errorOut(msg)) //display error message if invalid
-              .andThen(fullOut(full)) //print to full name label if valid
+    sf = fullV.to(enable(btn)) //disable btn if invalid
+              .to(printError(msg)) //display error message if invalid
+              .andThen(display(full)) //print to full name label if valid
               .hold("") //event stream of strings to signal of strings
               .on(btn.clicks) //fires signal's actual value if btn is clicked
               .to(acc.text) //display events in label acc
@@ -50,14 +48,14 @@ object TextFieldsValidated extends SwingApp {
   private val id = SF.id[ValRes[String]]
 
   //disables button if input is invalid
-  private def btnOut(b: Button) = id mapS { _.isSuccess } toE b.enabled
+  private def enable(b: Button) = id mapS { _.isSuccess } toE b.enabled
 
-  //displays error messge if invalid
-  private def errorOut(l: Label) = 
+  //displays error message if invalid
+  private def printError(l: Label) = 
     id mapS { _.fold(_.head, _ ⇒ "") } toE l.text
 
   //collects valid inputs and displays them in label
-  private def fullOut(l: Label) = id.events collect { _.toOption } to l.text
+  private def display(l: Label) = id.events collect { _.toOption } to l.text
 }
 
 // vim: set ts=2 sw=2 et:

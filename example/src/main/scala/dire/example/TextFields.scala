@@ -14,7 +14,7 @@ object TextFields extends SwingApp {
     //Layout (available through class Elem and its implicit syntax classes)
     _ ← ("First name" beside first) above
         ("Last name" beside last) above
-        ("Full name" beside full) prefDim (200, 300) addToFrame (f, North)
+        ("Full name" beside full) prefWidth 300 addToFrame (f, North)
 
     //Behavior:
     //Concatenate values of signals first and last and output to full

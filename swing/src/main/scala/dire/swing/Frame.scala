@@ -15,9 +15,8 @@ case class Frame(peer: JFrame) extends Wrapped[JFrame] {
 
   def addElem(e: Elem, l: FrameLayout = Center): IO[Unit] = for {
     p  ← e.panel
-    _  ← IO(peer.add(p.peer, l.v))
-    d  ← IO(peer.getSize)
-    nd = e prefSize ((d.width, d.height))
+    d  ← IO { peer.add(p.peer, l.v); peer.pack(); peer.getSize }
+    nd = e prefSize (d.width, d.height)
     _  ← IO(peer.setSize(new Dimension(nd._1, nd._2)))
   } yield ()
 

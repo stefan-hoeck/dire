@@ -15,7 +15,7 @@ object ButtonApp extends SwingApp {
     btn ← Button()
 
     //Layout (available through class Elem and its implicit syntax classes)
-    _   ← "Click me" beside btn prefDim (200, 100) addToFrame (f, North)
+    _   ← "Click me" beside btn prefWidth 200 addToFrame (f, North)
 
     //Behavior:
     //Count number of button clicks and output to button's actual text >>>
