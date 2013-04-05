@@ -7,9 +7,13 @@ import javax.swing.JComponent
 trait Component[A<:JComponent] extends Wrapped[A] {
   import Component._
 
+  def enabled: EF[Event[Boolean],Nothing] = sink(this){ peer.setEnabled }
+
   def mouseMoved: EIn[MotionEvent] = SF cachedSrc this
 
-  def mousePosition: SIn[Position] = mouseMoved mapE { _.pos } hold ((0, 0))
+  def mousePosition: SIn[Position] = mouseMoved mapE { _.pos } hold (0, 0)
+
+  def tooltip: EF[Event[String],Nothing] = sink(this){ peer.setToolTipText }
 }
 
 object Component {

@@ -4,7 +4,7 @@ import dire._
 import javax.swing.JButton
 import scalaz._, Scalaz._, effect.IO
 
-case class Button(peer: JButton) extends Wrapped[JButton] {
+case class Button(peer: JButton) extends Component[JButton] {
   import Button._
 
   def clicks: EIn[Unit] = SF cachedSrc this
