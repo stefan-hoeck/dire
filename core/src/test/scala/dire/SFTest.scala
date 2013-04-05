@@ -148,16 +148,30 @@ object SFTest
   }
 
   //upon
-  //property("upon") = forAll { p: (SFTT, EFTT) ⇒ 
-  //  val (sf, ef) = p
-  //  val sfCached: TSF[Time] = SF.cached(sf, "upon_sf")
-  //  val efCached: TSF[Event[Time]] = SF.cached(ef.distinct, "upon_ef")
+  property("upon_never") = forAll { sf: SFTT ⇒ 
+    val sfCached: TSF[Time] = SF.cached(sf, "upon_sf")
 
-  //  val pairs = ^(sfCached, efCached)(Pair.apply)
-  //  val upon = sfCached.upon(efCached){ _ + _ }
+    val upon = sfCached.upon[Time,Time,Time](EF.never[Time]){ _ + _ }
 
-  //  compare(pairs, upon, 100L)(collectUpon)
-  //}
+    compare(sfCached, upon, 100L)(_ ⇒ List(Change(0L, Never)))
+  }
+
+  property("upon_now") = forAll { sf: SFTT ⇒ 
+    val sfCached: TSF[Time] = SF.cached(sf, "upon_sf")
+
+    val upon = sfCached.upon[Time,Time,Time](EF.now(12L)){ _ + _ }
+
+    def calc(cs: Changes[Time]): Changes[Event[Time]] =
+      List(Change(T0, Once(cs.head.v + 12L)))
+
+    compare(sfCached, upon, 100L)(calc)
+  }
+
+  property("upon_once") = forAll { sf: SFTT ⇒ 
+    val upon = (SF.time andThen sf upon EF.once(12L)){ _ + _ }
+
+    runUntil[Event[Time]](upon, e ⇒ e != Never).size ≟ 2
+  }
   
   type Changes[+A] = List[Change[A]]
 
@@ -174,23 +188,6 @@ object SFTest
 
     res.toList
   }
-
-  //private def collectUpon(cs: Changes[(Time,Event[Time])])
-  //  : Changes[Event[Time]] = {
-  //  val res = new collection.mutable.ListBuffer[Change[Event[Time]]]
-
-  //  def run(rem: Changes[(Time,Event[Time])]): Unit = rem match {
-  //    case ca::cb::rest if(ca.v._2 ≟ cb.v._2) ⇒ run(ca::rest)
-  //    case ca::rest                           ⇒ {
-  //      res += (ca map { case (t,et) ⇒ et map {_ ⇒  t } }); run(rest)
-  //    }
-  //    case Nil                          ⇒ ()
-  //  }
-
-  //  run(cs)
-
-  //  res.toList
-  //}
 }
 
 // vim: set ts=2 sw=2 et:

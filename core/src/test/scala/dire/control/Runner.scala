@@ -50,7 +50,12 @@ trait Runner {
 
     val res = should ≟ was
 
-    if (! res) println(s"Exp: $should, but was: $was")
+    if (! res) {
+      val shouldStr = should mkString "\n"
+      val wasStr = was mkString "\n"
+
+      println(s"Exp:\n$shouldStr\nWas:$wasStr")
+    }
 
     res
   }
