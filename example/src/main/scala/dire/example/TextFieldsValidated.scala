@@ -1,6 +1,6 @@
 package dire.example
 
-import dire._, SF.EFOps
+import dire._
 import dire.swing._, Frame.North, Elem._
 import scalaz._, Scalaz._
 
