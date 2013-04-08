@@ -1,6 +1,6 @@
 package dire.control
 
-import dire.{Out, SF, Time, T0, DataSource, DataSink, Event}
+import dire._
 import collection.mutable.{ListBuffer, HashMap ⇒ MMap}
 import java.util.concurrent.CountDownLatch
 import scala.reflect.runtime.universe._
@@ -63,6 +63,17 @@ final private[dire] class Reactor(
     r
   }
 
+  private[dire] def trans[A,B](f: A ⇒ IO[B])(in: RawSignal[Event[A]])
+    : IO[RawSignal[Event[B]]] = for {
+      v  ← Var[Event[B]](Never, strategy)
+      si = DataSink.create[Var[Event[B]],Event[A]](
+        v ⇒ _.fold(a ⇒ f(a) flatMap { b ⇒ IO(v.fire(Once(b))) }, IO.ioUnit)
+        , _ ⇒ IO.ioUnit)
+      so = Var.VarSource[Event[B]]
+      _  ← sink(v, in)(si)
+      s ← source[Event[B]](so ini v)(so cb  v)
+    } yield s
+
   private[dire] def timeSignal: IO[RawSignal[Time]] =
     cached[Unit,Time](_ ⇒ source[Time](IO(T0))(Clock(T0, step, _)), "DireTime")
 
@@ -122,9 +133,7 @@ final private[dire] class Reactor(
         state = Zombie
 
         //await shutdown for all sources
-        val cdl = new CountDownLatch(reactives.size)
-        reactives foreach { _.stop(cdl) }
-        cdl.await()
+        await(reactives.size, cdl ⇒ reactives foreach { _.stop(cdl) })
 
         //now that all sources are shutdown, fire ConfirmDeath. This
         //will be the very last event fired to the actor

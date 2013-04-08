@@ -5,6 +5,8 @@ import scala.reflect.runtime.universe.TypeTag
 import scalaz._, Scalaz._, effect.IO
 
 trait EFFunctions {
+  def apply[A,B](f: A ⇒ IO[B]): EF[Event[A],B] =
+    SF(ea ⇒ r ⇒ r.trans(f)(ea))
 
   def id[A]: EF[Event[A],A] = SF.id
 

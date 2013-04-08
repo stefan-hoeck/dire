@@ -6,6 +6,9 @@ import scalaz._, Scalaz._, effect.IO
 
 case class Label(peer: JLabel) extends Component[JLabel] {
   def text: EF[Event[String],Nothing] = sink(this){ peer.setText }
+
+  def textA[A]: EF[Event[A],Nothing] = 
+    EF.id[A] mapE { _.toString } andThen text
 }
 
 object Label {
