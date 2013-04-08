@@ -66,12 +66,15 @@ final private[dire] class Reactor(
   private[dire] def trans[A,B](f: A ⇒ IO[B])(in: RawSignal[Event[A]])
     : IO[RawSignal[Event[B]]] = for {
       v  ← Var[Event[B]](Never, strategy)
+
       si = DataSink.create[Var[Event[B]],Event[A]](
         v ⇒ _.fold(a ⇒ f(a) flatMap { b ⇒ IO(v.fire(Once(b))) }, IO.ioUnit)
         , _ ⇒ IO.ioUnit)
+
       so = Var.VarSource[Event[B]]
       _  ← sink(v, in)(si)
-      s ← source[Event[B]](so ini v)(so cb  v)
+      s  ← source[Event[B]](so ini v)(so cb  v)
+      _  ← IO(reactives += v)
     } yield s
 
   private[dire] def timeSignal: IO[RawSignal[Time]] =

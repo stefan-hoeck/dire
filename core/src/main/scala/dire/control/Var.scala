@@ -5,7 +5,8 @@ import java.util.concurrent.{CountDownLatch ⇒ CDL}
 import scalaz._, Scalaz._, effect.IO
 import scalaz.concurrent.{Strategy, Actor}
 
-sealed abstract class Var[A](ini: A, s: Strategy) {
+sealed abstract class Var[A](ini: A, s: Strategy)
+    extends Reactive {
   import Var._
 
   private[this] val listeners =
@@ -66,6 +67,9 @@ sealed abstract class Var[A](ini: A, s: Strategy) {
   private[control] def shutdown {
     await(1, c ⇒ actor ! Shutdown(c))
   }
+
+  def start() {}
+  def stop(cdl: CDL) { actor ! Shutdown(cdl) }
 }
 
 object Var {

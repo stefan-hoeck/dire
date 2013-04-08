@@ -66,7 +66,7 @@ object Elem extends AsElemInstances with AsElemSyntax {
       width: Int = 1,
       height: Int = 1,
       f: Fill = Fill.H,
-      a: Anchor = Anchor.NW,
+      a: Anchor = Anchor.W,
       wx: Double = 1.0D,
       wy: Double = 0D,
       px: Int = 0,

@@ -6,7 +6,7 @@ import java.util.concurrent.CountDownLatch
 import scalaz.effect.IO
 import scalaz.concurrent.{Actor, Strategy}
 
-private[control] sealed trait Reactive {
+private[control] trait Reactive {
   def start(): Unit
   def stop(cdl: CountDownLatch): Unit
 }
