@@ -26,6 +26,39 @@ private[dire] class RawSource[A](s: RSource[A]) extends RawSignal[A] {
   def last = s.last
 }
 
+private[dire] class RawSwitch[A](s: RawSignal[RawSignal[A]]) 
+  extends RawSignal[A] {
+  private[this] var switching = false
+  private[this] var actual: RawSignal[A] = s.last.v
+
+  private[this] val switchNode = new ChildNode {
+    def doCalc(t: Time) = { switching = true; true }
+  }
+
+  private[control] val node = new ChildNode {
+    def doCalc(t: Time) = {
+      if (switching) {
+        actual.node disconnectChild this
+        actual = s.last.v
+        actual.node connectChild this
+      }
+
+      switching = false
+      true
+    }
+  }
+
+  s.node connectChild switchNode
+  switchNode connectChild node
+  actual.node connectChild node
+
+  private[control] def last: Change[A] = {
+    println(actual.last)
+    actual.last
+  }
+
+}
+
 object RawSignal {
 
   def const[A](a: ⇒ A): IO[RawSignal[A]] = IO(Const(a))
@@ -48,13 +81,24 @@ object RawSignal {
           //println(s"new value: $last; changed: ${last.at == t}")
           last.at == t
         }
-
-        protected def doClean() {}
       }
 
       a.node connectChild node
       b.node connectChild node
     }
+  }
+
+  private[dire] def switch[A,B]
+    (rawSF: RawSignal[SF[A,B]])
+    (r: Reactor, in: RawSignal[A]): IO[RawSignal[B]] = {
+
+    def get(c: Change[SF[A,B]]): Change[RawSignal[B]] =
+      c map { _.run(in)(r).unsafePerformIO }
+
+    val rawB: IO[RawSignal[RawSignal[B]]] = 
+      sync2(rawSF, Const(()))((c,_) ⇒ get(c))((c,_,_) ⇒ get(c))
+
+    rawB >>= { rb ⇒ IO(new RawSwitch(rb)) }
   }
 }
 

@@ -18,7 +18,7 @@ private[control] class RSource[A](
     extends Reactive {
   import RSource._
 
-  private[control] val node = new RootNode
+  private[control] val node = new RootNode(() ⇒ reactor.destroy(this))
   private[this] var onStop: IO[Unit] = IO.ioUnit
   private[this] val actor = Actor[SourceE[A]](react)(reactor.strategy)
   private[control] var last: Change[A] = Change(T0, initial)

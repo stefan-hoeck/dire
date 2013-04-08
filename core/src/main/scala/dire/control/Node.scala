@@ -42,9 +42,8 @@ private[control] trait Node {
   /** Cleans up this node
     *
     * This method is called after all nodes have been updated
-    * during a graph traversal. It is used to release
-    * resources to be garbage collector. Later it might also be
-    * used to rearrange the node graph (adding and removing nodes)
+    * during a graph traversal. It is used to reset the state of
+    * the node to 'unchanged'
     */
   def cleanup(): Unit
 
@@ -55,7 +54,18 @@ private[control] trait Node {
     */
   def connectChild(n: ChildNode) { n.addParent(this); addChild(n) }
 
+  def disconnectChild(n: ChildNode) {
+    removeChild(n)
+    if (!hasChildren) { destroy() }
+  }
+
+  protected def destroy(): Unit
+
   protected def addChild(n: ChildNode): Unit
+
+  protected def removeChild(n: ChildNode): Unit
+
+  protected def hasChildren: Boolean
 }
 
 /** `RootNode`s represent external event sources in the reactive
@@ -67,7 +77,7 @@ private[control] trait Node {
   * of distinct root node's will be handled sequentially by the
   * controlling actor (see `Reactor`).
   */
-private[control] final class RootNode extends Node {
+private[control] final class RootNode(doDestroy: () ⇒ Unit) extends Node {
   private[this] val children = new ListBuffer[ChildNode]
 
   def isDirty = false
@@ -76,6 +86,9 @@ private[control] final class RootNode extends Node {
   def calculate(t: Time) { children foreach { _.calculate(t) } }
   def cleanup() { children foreach { _.cleanup() } }
   def addChild(n: ChildNode) { children += n }
+  def removeChild(n: ChildNode) { children -= n }
+  def hasChildren = children.nonEmpty
+  def destroy() { doDestroy() }
 
   /** Updates the whole dependency graph
     *
@@ -115,13 +128,15 @@ private[control] abstract class ChildNode extends Node {
   //for testing only
   final private[control] def getParents = parents.toList
 
-  protected def doClean()
   protected def doCalc(t: Time): Boolean
 
   final def isDirty = dirty
   final def hasChanged = changed
   final def addParent(n: Node) { parents += n }
   final def addChild(n: ChildNode) { children += n }
+  final def removeChild(n: ChildNode) { children -= n }
+  final def hasChildren = children.nonEmpty
+  final def destroy() { parents foreach { _.disconnectChild(this) } }
 
   final def setDirty() {
     if(!dirty) {
@@ -142,7 +157,6 @@ private[control] abstract class ChildNode extends Node {
   final def cleanup() {
     if (hasChanged) {
       changed = false
-      doClean()
       children foreach { _.cleanup() }
     }
   }
@@ -160,8 +174,12 @@ case object Isolated extends Node {
   def setDirty() {}
   def isDirty = false
   def hasChanged = false
+  def destroy() {}
+  def hasChildren = false
   override def connectChild(n: ChildNode) {}
+  override def disconnectChild(n: ChildNode) {}
   protected def addChild(n: ChildNode) {}
+  protected def removeChild(n: ChildNode) {}
 }
 
 // vim: set ts=2 sw=2 et:

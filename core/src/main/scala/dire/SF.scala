@@ -70,6 +70,12 @@ case class SF[-A,+B](run: RS[A] ⇒ Signal[B]) {
     */
   def on[C,E<:A](ef: EF[E,C]): EF[E,B] = upon(ef)((b,_) ⇒ b)
 
+  /** Highly experimental implementation of signal switching (aka
+    * SF Monad)
+    */
+  def switch[C,D<:A](f: B ⇒ SF[D,C]): SF[D,C] = 
+    SF[D,C](sd ⇒ r ⇒ mapS(f).run(sd)(r) >>= { ssf ⇒ RS.switch(ssf)(r, sd) })
+
   /** Asynchronuously output the values of this Signal to a data sink
     *
     * How the data sink operates and what concurrency strategy is

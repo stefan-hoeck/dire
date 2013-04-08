@@ -15,7 +15,7 @@ final private[dire] class Reactor(
   import Reactor._
 
   //cache for tagged signal functions
-  private[this] val cache = new ListBuffer[(Type,Type,Any,Any)]
+  private[this] val cache = new ListBuffer[(Type,Type,Any,AnyRef)]
 
   //child-actors that need to be stopped when this reactor is stopped
   private[this] val reactives = new ListBuffer[Reactive]
@@ -39,6 +39,7 @@ final private[dire] class Reactor(
     (cb: Out[A] ⇒ IO[IO[Unit]]): IO[RawSignal[A]] = for {
       s ← RSource(ini, this)(cb)
       _ ← IO(reactives += s)
+      _ ← IO { if (state == Active) s.start() }
     } yield new RawSource(s)
 
   //creates a new anychronous data sink
@@ -52,10 +53,10 @@ final private[dire] class Reactor(
                          E out src,
                          E cleanSink src)
     reactives += s
+    if (state == Active) s.start()
 
     val n = new ChildNode {
       def doCalc(t: Time) = { s.output(r.last); false }
-      def doClean() {}
     }
 
     r.node connectChild n
@@ -92,14 +93,23 @@ final private[dire] class Reactor(
                            (sf: SF[A,A]): IO[RawSignal[A]] = for {
     s   ← IO(new RSource[A](ini, this, _ ⇒ IO(IO.ioUnit)))
     _   ← IO(reactives += s)
+    _   ← IO { if (state == Active) s.start() }
     r   ← IO(new RawSource(s))
     re  ← sf.run(r)(this)
     n   = new ChildNode {
             def doCalc(t: Time) = { s.fire(re.last.v); false }
-            def doClean() {}
           }
     _   ← IO(re.node.connectChild(n))
   } yield re
+
+  private[control] def destroy(r: Reactive) {
+    if (state == Active) {
+      val cdl = new CountDownLatch(1)
+      cache filterNot { _._4 eq r }
+      reactives filterNot { r.eq }
+      r.stop(cdl)
+    }
+  }
 
   //called from child actors in signal sources when they want
   //to notify the reactor about an event that happened.
