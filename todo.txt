@@ -9,7 +9,24 @@
 0003  #Done     Check once more the methods that create source signals
                 defined in class Reactor. Can they be unified further?
 
-0004  #High		Create a SF from signal to event stream that skips the
+0004  #Done		Create a SF from signal to event stream that skips the
                 signal's initial value. Use this to implement signals
                 'seconds' and so on as well as the final counter in the
                 user bob example.
+
+0005  #High		Change type aliases for EF. EF[A,B] should be
+                SF[Event[A],Event[B].
+
+0006  #High		Add symbolic aliases >=> and <=< for andThen and compose.
+
+0007  #High		Add type aliases SEF and ESF.
+
+0008  #High		Implement Contravariant for SF and EF. Test that in
+                case of EF its Contravariant implementation takes
+                precedence
+
+0009  #High		Implement Applicative for EF and check that it takes precedence
+                over Applicative implementation for SF
+
+0010  #High		Implement Arrow for EF and check that it takes precedence
+                over Arrow implementation for SF

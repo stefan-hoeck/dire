@@ -29,6 +29,8 @@ sealed trait Event[+A] extends Any {
 
   private[dire] def orElse[B>:A](e: ⇒ Event[B]): Event[B] =
     fold(Once(_), e)
+
+  private[dire] def toOption: Option[A] = fold(Some(_), None)
 }
 
 private[dire] case object Never extends Event[Nothing]
