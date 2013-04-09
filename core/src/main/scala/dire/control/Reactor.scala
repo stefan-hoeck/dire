@@ -102,12 +102,13 @@ final private[dire] class Reactor(
 
   //loops the output of a signal function asynchronuously back to
   //its input
-  private[dire] def loop[A](ini: ⇒ A)
-                           (sf: SF[A,A]): IO[RawSignal[A]] = for {
+  private[dire] def loop[A]
+    (ini: ⇒ A)
+    (f: RawSignal[A] ⇒ Reactor ⇒ IO[RawSignal[A]]): IO[RawSignal[A]] = for {
     s   ← IO(new RSource[A](ini, this, _ ⇒ IO(IO.ioUnit)))
     _   ← IO(reactives += s)
     r   ← IO(new RawSource(s))
-    re  ← sf.run(r)(this)
+    re  ← f(r)(this)
     n   = new ChildNode {
             def doCalc(t: Time) = { s.fire(re.last.v); false }
             def doClean() {}

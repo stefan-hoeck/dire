@@ -47,10 +47,10 @@ object Event {
     }
   }
 
-//  implicit val EventMonad: Monad[Event] = new Monad[Event] {
-//    def point[A](a: ⇒ A) = Once(a)
-//    def bind[A,B](e: Event[A])(f: A ⇒ Event[B]) = e flatMap f
-//  }
+  implicit val EventMonad: Monad[Event] = new Monad[Event] {
+    def point[A](a: ⇒ A) = Once(a)
+    def bind[A,B](e: Event[A])(f: A ⇒ Event[B]) = e flatMap f
+  }
 }
 
 // vim: set ts=2 sw=2 et:

@@ -1,5 +1,7 @@
 import scalaz.effect.IO
 
+import scalaz._, Scalaz._
+
 package object dire {
   import control._
 
@@ -11,26 +13,56 @@ package object dire {
 
   type Out[-A] = A ⇒ IO[Unit]
 
-  /** Type alias for signals */
-  type Signal[+A] = Reactor ⇒ IO[RawSignal[A]]
+  type EF[-A,+B] = SfT[A,B,Event,Event]
 
-  /** Type alias for event streams
-    *
-    * In dire, an event stream is a signal
-    * of [[dire.Event]]s. Class 'Event' is isomorphic to 'Option'
-    * but it is not possible to create instances of 'Event' in
-    * client code. This is to make sure that clients do not
-    * create event streams that are not well behaved.
-    */
-  type Events[+A] = Signal[Event[A]]
+  type EIn[+A] = SEF[Any,A]
 
-  type EF[-A,+B] = SF[A,Event[B]]
+  type ESF[-A,+B] = SfT[A,B,Event,Id]
+
+  type SF[-A,+B] = SfT[A,B,Id,Id]
+
+  type SEF[-A,+B] = SfT[A,B,Id,Event]
 
   type SIn[+A] = SF[Any,A]
 
-  type SOut[-A] = EF[A,Nothing]
+  /** The most general function needed to calculate the
+    * latest change of a signal from two input signals.
+    *
+    * All primitive functions that create a new signal from
+    * two input signals that is synchronously updated
+    * can be expressed using this type and type 'Initial2'.
+    */
+  private[dire] type Next2[-A,-B,C] = 
+    (Change[A], Change[B], Change[C]) ⇒ Change[C]
 
-  type EIn[+A] = EF[Any,A]
+  /** The most general function needed to calculate the
+    * initial value of a signal from two input signals.
+    *
+    * All primitive functions that create a new signal from
+    * two input signals that is synchronously updated
+    * can be expressed using this type and type 'Next1'.
+    */
+  private[dire] type Initial2[-A,-B,C] = 
+    (Change[A], Change[B]) ⇒ Change[C]
+
+  /** The most general function needed to calculate the
+    * latest change of a signal from one input signal.
+    *
+    * All primitive functions that create a new signal from
+    * one input signal that is synchronously updated
+    * can be expressed using this type and type 'Initial1'.
+    */
+  private[dire] type Next1[-A,B] = 
+    (Change[A], Change[B]) ⇒ Change[B]
+
+  /** The most general function needed to calculate the
+    * initial value of a signal from one input signal.
+    *
+    * All primitive functions that create a new signal from
+    * one input signal that is synchronously updated
+    * can be expressed using this type and type 'Next1'.
+    */
+  private[dire] type Initial1[-A,+B] = Change[A] ⇒ Change[B]
 }
 
 // vim: set ts=2 sw=2 et:
