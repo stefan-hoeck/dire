@@ -24,6 +24,8 @@ package object dire {
   type SEF[-A,+B] = SfT[A,B,Id,Event]
 
   type SIn[+A] = ESF[⊥,A]
+
+  object SF extends SfTFunctions
 }
 
 // vim: set ts=2 sw=2 et:

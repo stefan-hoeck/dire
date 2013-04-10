@@ -298,10 +298,10 @@ object SfT extends SfTFunctions with SfTInstances {
   type AsEv[O[+_]] = O[Any] === Event[Any]
 
   private def sfTo[A,B,I[+_],O[+_]:AsId](sf: SfT[A,B,I,O])
-    : SfT[A,B,I,Id] = sf.asInstanceOf
+    : SfT[A,B,I,Id] = sf.asInstanceOf[SfT[A,B,I,Id]]
 
   private def efTo[A,B,I[+_],O[+_]:AsEv](sf: SfT[A,B,I,O])
-    : SfT[A,B,I,Event] = sf.asInstanceOf
+    : SfT[A,B,I,Event] = sf.asInstanceOf[SfT[A,B,I,Event]]
 
   private[dire] def apply[A,B,I[+_]:IdOrEvent,O[+_]:IdOrEvent]
     (run: (RS[I[A]], Reactor) ⇒ IO[RS[O[B]]]): SfT[A,B,I,O] =
@@ -693,7 +693,7 @@ private[dire] object IdOrEvent {
   }
 
   implicit val EventIdOrEvent: IdOrEvent[Event] =
-    new IdOrEvent[Event](Applicative[Event]) {
+    new IdOrEvent[Event](Event.EventMonad) {
       def toEvent[A](f: Event[A]) = f
     }
 }
