@@ -18,7 +18,7 @@ object SFTest
 
   val appLawEF = Applicative[TEF].applicativeLaw
 
-  val monLaw = Monoid[EFTT].monoidLaw
+  val monLaw = Monoid[SEFTT].monoidLaw
 
   val arrLaw = Arrow[SF].categoryLaw
 
@@ -39,6 +39,11 @@ object SFTest
 
   implicit def TEFEqual[A:Equal]: Equal[TEF[A]] = new Equal[TEF[A]] {
     def equal(a: TEF[A], b: TEF[A]) = compare(a, b, 100L)(identity)
+  }
+
+  implicit val EFTTEqual: Equal[EFTT] = new Equal[EFTT] {
+    def equal(a: EFTT, b: EFTT) = compare(
+      SF.idS[Time].ef andThen a, SF.idS[Time].ef andThen b, 100L)(identity)
   }
 
   // ***             ***//
@@ -100,23 +105,23 @@ object SFTest
   property("basic_functor_events") =
     test100(idTime.ef map { 1 + })(t ⇒ Some(Once(t + 1)))
 
-  property("functor_identity") = forAll { t: EFTT ⇒ 
+  property("functor_identity") = forAll { t: SEFTT ⇒ 
     appLawEF identity SF.cached(t, "first")
   }
 
-  property("functor_comp") = forAll { t: (Time ⇒ String, String ⇒ Int, EFTT) ⇒  
+  property("functor_comp") = forAll { t: (Time ⇒ String, String ⇒ Int, SEFTT) ⇒  
     appLawEF.composite(SF.cached(t._3, "first"), t._1, t._2)
   }
 
   property("basic_applicative") =
     test100((idTime.ef <*> idTime.ef){ _ + _ })(t ⇒ Some(Once(t * 2)))
 
-  property("applicative_identity") = forAll { t: EFTT ⇒ 
+  property("applicative_identity") = forAll { t: SEFTT ⇒ 
     appLawEF identityAp SF.cached(t, "first")
   }
 
   property("applicative_comp") = forAll {
-    p: (Time ⇒ (Time ⇒ String), Time ⇒ (String ⇒ Int), EFTT, EFTT, EFTT) ⇒  
+    p: (Time ⇒ (Time ⇒ String), Time ⇒ (String ⇒ Int), SEFTT, SEFTT, SEFTT) ⇒  
     val sfString = SF.cached(p._3 map p._1, "first")
     val sfInt = SF.cached(p._4 map p._2, "second")
 
@@ -129,26 +134,35 @@ object SFTest
   }
 
   property("applicative_interchange") = forAll {
-    p: (Time ⇒ (Int ⇒ String), Int, EFTT) ⇒  
+    p: (Time ⇒ (Int ⇒ String), Int, SEFTT) ⇒  
     appLawEF.interchange(SF.cached(p._3 map p._1, "first"), p._2)
   }
 
-//  //Monoid Laws: EventStreams
-//  property("monoid_left_identity") = forAll { t: EFTT ⇒ 
-//    monLaw.leftIdentity(SF.cached(t, "first"))
-//  }
-//
-//  property("monoid_right_identity") = forAll { t: EFTT ⇒ 
-//    monLaw.rightIdentity(SF.cached(t, "first"))
-//  }
-//
-//  property("monoid_associative") = forAll { t: (EFTT, EFTT, EFTT) ⇒ 
-//    val (a, b, c) = t
-//
-//    monLaw.associative(SF.cached(a, "first"),
-//                       SF.cached(b, "second"),
-//                       SF.cached(c, "third"))
-//  }
+  // ***                      ***//
+  // *** Monoid event streams ***//
+  // ***                      ***//
+
+  property("basic_monoid_id_left") =
+    test100(idTime.ef ⊹ (SF.idS[Time] >> SF.never))(t ⇒ Some(Once(t)))
+
+  property("basic_monoid_id_right") =
+    test100((SF.idS[Time] >> SF.never[Time]) ⊹ idTime.ef)(t ⇒ Some(Once(t)))
+
+  property("monoid_left_identity") = forAll { t: SEFTT ⇒ 
+    monLaw.leftIdentity(SF.cached(t, "first"))
+  }
+
+  property("monoid_right_identity") = forAll { t: SEFTT ⇒ 
+    monLaw.rightIdentity(SF.cached(t, "first"))
+  }
+
+  property("monoid_associative") = forAll { t: (SEFTT, SEFTT, SEFTT) ⇒ 
+    val (a, b, c) = t
+
+    monLaw.associative(SF.cached(a, "first"),
+                       SF.cached(b, "second"),
+                       SF.cached(c, "third"))
+  }
 
 
   // ***                  ***//
@@ -169,23 +183,23 @@ object SFTest
                        SF.cached(t._3, "third"))
   }
 
-//  // ***                        ***//
-//  // *** Category event streams ***//
-//  // ***                        ***//
-//
-//  property("category_right_identity_ef") = forAll { t: EFTT ⇒ 
-//    arrLawEF.rightIdentity(SF.cached(SF.idE[Time] hold 0L andThen t, "first"))
-//  }
-//
-//  property("category_left_identity_ef") = forAll { t: EFTT ⇒ 
-//    arrLawEF.leftIdentity(SF.cached(t, "first"))
-//  }
-//
-//  property("compose_associative_ef") = forAll { t: (EFTT, EFTT, EFTT) ⇒ 
-//    arrLawEF.associative(SF.cached(t._1, "first"),
-//                       SF.cached(t._2, "second"),
-//                       SF.cached(t._3, "third"))
-//  }
+  // ***                        ***//
+  // *** Category event streams ***//
+  // ***                        ***//
+
+  property("category_right_identity_ef") = forAll { t: EFTT ⇒ 
+    arrLawEF.rightIdentity(SF.cached(t, "first"))
+  }
+
+  property("category_left_identity_ef") = forAll { t: EFTT ⇒ 
+    arrLawEF.leftIdentity(SF.cached(t, "first"))
+  }
+
+  property("compose_associative_ef") = forAll { t: (EFTT, EFTT, EFTT) ⇒ 
+    arrLawEF.associative(SF.cached(t._1, "first"),
+                         SF.cached(t._2, "second"),
+                         SF.cached(t._3, "third"))
+  }
     
   //Once
   property("once") = forAll { i: Int ⇒ 
@@ -236,23 +250,23 @@ object SFTest
     compare(sfCached, upon, 100L)(_ ⇒ List(Change(0L, Never)))
   }
 
-//  property("upon_now") = forAll { sf: SFTT ⇒ 
-//    val sfCached: TSF[Time] = SF.cached(sf, "upon_sf")
-//
-//    val upon = sfCached.upon[Time,Time,Time](
-//      idTime >> SF.now(12L)){ _ + _ }
-//
-//    def calc(cs: Changes[Time]): Changes[Event[Time]] =
-//      List(Change(T0, Once(cs.head.v + 12L)))
-//
-//    compare(sfCached, upon, 100L)(calc)
-//  }
+  property("upon_now") = forAll { sf: SFTT ⇒ 
+    val sfCached: TSF[Time] = SF.cached(sf, "upon_sf")
 
-//  property("upon_once") = forAll { sf: SFTT ⇒ 
-//    val upon = (SF.time andThen sf upon EF.once(12L)){ _ + _ }
-//
-//    runUntil[Event[Time]](upon, e ⇒ e != Never).size ≟ 2
-//  }
+    val upon = sfCached.upon[Time,Time,Time](
+      idTime >> SF.now(12L)){ _ + _ }
+
+    def calc(cs: Changes[Time]): Changes[Event[Time]] =
+      List(Change(T0, Once(cs.head.v + 12L)))
+
+    compare(sfCached, upon, 100L)(calc)
+  }
+
+  property("upon_once") = forAll { sf: SFTT ⇒ 
+    val upon = (SF.time andThen sf upon SF.once(12L)){ _ + _ }
+
+    runUntil(upon)(_ ⇒ true).size ≟ 2
+  }
   
   type Changes[+A] = List[Change[A]]
 

@@ -8,7 +8,11 @@ import scalaz._, Scalaz._
 trait SFArbitrary {
   type SFTT = SF[Time,Time]
 
-  type EFTT = SEF[Time,Time]
+  type EFTT = EF[Time,Time]
+
+  type SEFTT = SEF[Time,Time]
+
+  type ESFTT = ESF[Time,Time]
 
   def const(t: Time): SFTT = SfT.idS[Time] >> SfT.const(t)
   
@@ -47,11 +51,11 @@ trait SFArbitrary {
 
   lazy val allSF: Gen[SFTT] = Gen oneOf (single, composed, applied, mapped)
 
-  lazy val ef: Gen[EFTT] = allSF map { _.ef }
+  lazy val ef: Gen[SEFTT] = allSF map { _.ef }
 
-  lazy val events: Gen[EFTT] = allSF map { _.events }
+  lazy val events: Gen[SEFTT] = allSF map { _.events }
 
-  lazy val changes: Gen[EFTT] = allSF map { _.changes }
+  lazy val changes: Gen[SEFTT] = allSF map { _.changes }
   
   lazy val merged = for {
     a ← Gen oneOf (events, changes)
@@ -60,8 +64,16 @@ trait SFArbitrary {
 
   implicit lazy val sfttArb: Arbitrary[SFTT] = Arbitrary(allSF)
 
-  implicit lazy val efttArb: Arbitrary[EFTT] =
+  implicit lazy val sefttArb: Arbitrary[SEFTT] =
     Arbitrary(Gen oneOf (ef, events, changes, merged))
+
+  implicit lazy val efttArb: Arbitrary[EFTT] = Arbitrary (
+    Arbitrary.arbitrary[SEFTT] map { s ⇒ SF.idE[Time] hold 0L andThen s }
+  )
+
+  implicit lazy val esfttArb: Arbitrary[ESFTT] = Arbitrary (
+    Arbitrary.arbitrary[SFTT] map { s ⇒ SF.idE[Time] hold 0L andThen s }
+  )
 }
 
 // vim: set ts=2 sw=2 et:

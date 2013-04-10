@@ -132,7 +132,10 @@ class SfT[-A,+B,I[+_],O[+_]] private[dire](
   def merge[AA<:A,BB>:B](that: SfT[AA,BB,I,Event])
                         (implicit W: AsEv[O]): SfT[AA,BB,I,Event] = {
     def later(c1: Change[Event[BB]], c2: Change[Event[BB]]) =
-      if (c1.at >= c2.at) c1.v else c2.v
+      (c1.v, c2.v) match {
+        case (Once(x), Once(y)) ⇒ if (c1.at >= c2.at) Once(x) else Once(y)
+        case (ox, oy)           ⇒ ox orElse oy
+      }
 
     sync2(efTo(this),that)(later)((ca,cb,_) ⇒ later(ca,cb))
   }
@@ -255,7 +258,7 @@ class SfT[-A,+B,I[+_],O[+_]] private[dire](
 
     def ini(cb: Change[B], cec: Change[Event[C]]) = g(cb,cec) | Never
 
-    sync2(sfTo(this),ef)(ini)((cb,cec,ced) ⇒ g(cb,cec) | ced.v)
+    sync2(sfTo(this),ef)(ini)((cb,cec,_) ⇒ ini(cb,cec))
   }
 
   /** Alias for `andThen` */
