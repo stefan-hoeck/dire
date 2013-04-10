@@ -6,6 +6,17 @@ import scalaz._, Scalaz._, effect.IO
 
 trait Runner {
 
+  private val o100: List[Change[Time]] =
+    0 to 100 map { i ⇒ Change(i, i.toLong) } toList
+
+  def test100[A,O[+_]:IdOrEvent]
+    (sf: SfT[Time,A,Id,O])
+    (f: Time ⇒ Option[O[A]])
+    (implicit E: Equal[O[A]]): Boolean = {
+    val changes = runFor(sf, 100L)
+
+    (o100 flatMap { c ⇒ f(c.v) map (Change(c.at,_)) }) ≟ changes
+  }
   /** Builds a reactive graph and runs it until an event is fired
     * that fullfills the given predicate
     */

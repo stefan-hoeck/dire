@@ -653,16 +653,20 @@ trait SfTInstances {
 
   implicit val EFArrow: Arrow[EF] = new SfTArrow[Event]
 
-  implicit def SFApplicative[R]: Applicative[({type λ[α]=SF[R,α]})#λ] =
+  implicit def SFApplicative[R]
+    : Applicative[({type λ[α]=SfT[R,α,Id,Id]})#λ] =
     new SfTApplicative[R,Id,Id]
 
-  implicit def EFApplicative[R]: Applicative[({type λ[α]=EF[R,α]})#λ] =
+  implicit def EFApplicative[R]
+    : Applicative[({type λ[α]=SfT[R,α,Event,Event]})#λ] =
     new SfTApplicative[R,Event,Event]
 
-  implicit def SEFApplicative[R]: Applicative[({type λ[α]=SEF[R,α]})#λ] =
+  implicit def SEFApplicative[R]
+    : Applicative[({type λ[α]=SfT[R,α,Id,Event]})#λ] =
     new SfTApplicative[R,Id,Event]
 
-  implicit def ESFApplicative[R]: Applicative[({type λ[α]=ESF[R,α]})#λ] =
+  implicit def ESFApplicative[R]
+    : Applicative[({type λ[α]=SfT[R,α,Event,Id]})#λ] =
     new SfTApplicative[R,Event,Id]
 
   implicit def EFPlus[R]: PlusEmpty[({type λ[α]=EF[R,α]})#λ] =

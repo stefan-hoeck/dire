@@ -16,11 +16,13 @@ object SFTest
 
   val appLaw = Applicative[TSF].applicativeLaw
 
-  val funLaw = Functor[TEF].functorLaw
+  val appLawEF = Applicative[TEF].applicativeLaw
 
   val monLaw = Monoid[EFTT].monoidLaw
 
   val arrLaw = Arrow[SF].categoryLaw
+
+  val arrLawEF = Arrow[EF].categoryLaw
 
   // the main time signal
   val idTime = SF.idS[Time]
@@ -39,9 +41,11 @@ object SFTest
     def equal(a: TEF[A], b: TEF[A]) = compare(a, b, 100L)(identity)
   }
 
-  //Basic tests
-  property("idTime") =
-    runFor(idTime, 100L) ≟ (0 to 100 map { i ⇒ Change(i, i: Long) } toList)
+  // ***             ***//
+  // *** Basic tests ***//
+  // ***             ***//
+
+  property("idTime") = test100(idTime)(Some(_))
 
   property("tickCount") = forAll(Gen choose (20, 100)) { i ⇒ 
     val res = runFor(tickCount, i) map { _.v }
@@ -49,7 +53,13 @@ object SFTest
     res ≟ (0 until res.size toList)
   }
 
-  //Applicative Laws: Signals
+  // ***                     ***//
+  // *** Applicative Signals ***//
+  // ***                     ***//
+
+  property("basic_functor") =
+    test100(idTime ∘ { 1 + })(t ⇒ Some(t + 1))
+
   property("functor_identity") = forAll { t: SFTT ⇒ 
     appLaw identity SF.cached(t, "first")
   }
@@ -57,6 +67,9 @@ object SFTest
   property("functor_comp") = forAll { t: (Time ⇒ String, String ⇒ Int, SFTT) ⇒  
     appLaw.composite(SF.cached(t._3, "first"), t._1, t._2)
   }
+
+  property("basic_applicative") =
+    test100(idTime ⊛ idTime apply { _ + _ })(t ⇒ Some(t * 2))
 
   property("applicative_identity") = forAll { t: SFTT ⇒ 
     appLaw identityAp SF.cached(t, "first")
@@ -80,15 +93,44 @@ object SFTest
     appLaw.interchange(SF.cached(p._3 map p._1, "first"), p._2)
   }
 
-  //Functor Laws: EventStreams
-  property("functor_identity_events") = forAll { t: EFTT ⇒ 
-    funLaw identity SF.cached(t, "first")
+  // ***                           ***//
+  // *** Applicative event streams ***//
+  // ***                           ***//
+
+  property("basic_functor_events") =
+    test100(idTime.ef map { 1 + })(t ⇒ Some(Once(t + 1)))
+
+  property("functor_identity") = forAll { t: EFTT ⇒ 
+    appLawEF identity SF.cached(t, "first")
   }
 
-  property("functor_comp_events") = forAll {
-    p: (Time ⇒ String, String ⇒ Int, EFTT) ⇒  
+  property("functor_comp") = forAll { t: (Time ⇒ String, String ⇒ Int, EFTT) ⇒  
+    appLawEF.composite(SF.cached(t._3, "first"), t._1, t._2)
+  }
 
-    funLaw.composite(SF.cached(p._3, "first"), p._1, p._2)
+  property("basic_applicative") =
+    test100((idTime.ef <*> idTime.ef){ _ + _ })(t ⇒ Some(Once(t * 2)))
+
+  property("applicative_identity") = forAll { t: EFTT ⇒ 
+    appLawEF identityAp SF.cached(t, "first")
+  }
+
+  property("applicative_comp") = forAll {
+    p: (Time ⇒ (Time ⇒ String), Time ⇒ (String ⇒ Int), EFTT, EFTT, EFTT) ⇒  
+    val sfString = SF.cached(p._3 map p._1, "first")
+    val sfInt = SF.cached(p._4 map p._2, "second")
+
+    appLawEF.composition(sfInt, sfString, SF.cached(p._5, "third"))
+  }
+
+  property("applicative_homomorphism") = forAll { 
+    p: (Time ⇒ String, Time) ⇒  
+    appLawEF.homomorphism(p._1, p._2)
+  }
+
+  property("applicative_interchange") = forAll {
+    p: (Time ⇒ (Int ⇒ String), Int, EFTT) ⇒  
+    appLawEF.interchange(SF.cached(p._3 map p._1, "first"), p._2)
   }
 
 //  //Monoid Laws: EventStreams
@@ -108,7 +150,11 @@ object SFTest
 //                       SF.cached(c, "third"))
 //  }
 
-  //Category Laws
+
+  // ***                  ***//
+  // *** Category signals ***//
+  // ***                  ***//
+
   property("category_right_identity") = forAll { t: SFTT ⇒ 
     arrLaw.rightIdentity(SF.cached(t, "first"))
   }
@@ -122,6 +168,24 @@ object SFTest
                        SF.cached(t._2, "second"),
                        SF.cached(t._3, "third"))
   }
+
+//  // ***                        ***//
+//  // *** Category event streams ***//
+//  // ***                        ***//
+//
+//  property("category_right_identity_ef") = forAll { t: EFTT ⇒ 
+//    arrLawEF.rightIdentity(SF.cached(SF.idE[Time] hold 0L andThen t, "first"))
+//  }
+//
+//  property("category_left_identity_ef") = forAll { t: EFTT ⇒ 
+//    arrLawEF.leftIdentity(SF.cached(t, "first"))
+//  }
+//
+//  property("compose_associative_ef") = forAll { t: (EFTT, EFTT, EFTT) ⇒ 
+//    arrLawEF.associative(SF.cached(t._1, "first"),
+//                       SF.cached(t._2, "second"),
+//                       SF.cached(t._3, "third"))
+//  }
     
   //Once
   property("once") = forAll { i: Int ⇒ 
