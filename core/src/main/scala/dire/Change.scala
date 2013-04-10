@@ -46,14 +46,6 @@ private[dire] trait ChangeInstances {
   */
 private[dire] trait ChangeFunctions {
   import Change.{ChangeMonoid, ChangeMonad, ChangeEqual}
-
-//  def collectI[A,B](f: A ⇒ Option[B]): InitialS[Event[A],Any,Event[B]] =
-//    (cea,_) ⇒ cea map { _ collect f }
-//
-//  def collectN[A,B](f: A ⇒ Option[B]): NextS[Event[A],Any,Event[B]] = {
-//    case (Change(t, ea),_,ceb) ⇒ 
-//      ea collect f fold (b ⇒ Change(t, Once(b)), ceb)
-//  }
 //
 //  def mergeI[A]: InitialS[Event[A],Event[A],Event[A]] = (c1,c2) ⇒ 
 //    later(c1, c2) | ^(c1, c2)(_ orElse _)
@@ -68,16 +60,6 @@ private[dire] trait ChangeFunctions {
 //    if (c1.at > c2.at) Some(c1)
 //    else if (c2.at > c1.at) Some(c2)
 //    else None
-//
-//  def scanI[A,B](ini: ⇒ B)(f: (A,B) ⇒ B): InitialS[Event[A],Any,B] = {
-//    case (Change(t, Once(a)), _) ⇒ Change(t, f(a, ini))
-//    case (Change(t, Never), _)   ⇒ Change(t, ini)
-//  }
-//
-//  def scanN[A,B](ini: ⇒ B)(f: (A,B) ⇒ B): NextS[Event[A],Any,B] = {
-//    case (Change(t, Once(a)), _, Change(t2, b)) ⇒ Change(t max t2, f(a, b))
-//    case (_, _, cb)                             ⇒ cb
-//  }
 }
 
 // vim: set ts=2 sw=2 et:

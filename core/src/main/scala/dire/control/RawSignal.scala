@@ -37,14 +37,17 @@ object RawSignal {
     */
   private[dire] def sync1[A,B]
     (a: RawSignal[A])
-    (ini: Initial1[A,B])
-    (next: Next1[A,B]): IO[RawSignal[B]] = IO {
+    (ini: Change[A] ⇒ B)
+    (next: (Change[A],Change[B]) ⇒ Option[B])
+    : IO[RawSignal[B]] = IO {
     new RawSignal[B] {
-      private[control] var last: Change[B] = ini(a.last)
+      private[control] var last: Change[B] = 
+        Change(a.last.at, ini(a.last))
 
       private[control] val node: ChildNode = new ChildNode {
         protected def doCalc(t: Time) = {
-          last = next(a.last, last)
+          val newV = next(a.last, last)
+          last = newV cata (Change(a.last.at, _), last)
           //println(s"new value: $last; changed: ${last.at == t}")
           last.at == t
         }
@@ -62,15 +65,18 @@ object RawSignal {
     */
   private[dire] def sync2[A,B,C]
     (a: RawSignal[A], b: RawSignal[B])
-    (ini: Initial2[A,B,C])
-    (next: Next2[A,B,C]): IO[RawSignal[C]] = IO {
+    (ini: (Change[A],Change[B]) ⇒ C)
+    (next: (Change[A],Change[B],Change[C]) ⇒ Option[C])
+    : IO[RawSignal[C]] = IO {
     new RawSignal[C] {
-      private[control] var last: Change[C] = ini(a.last, b.last)
+      private[control] var last: Change[C] =
+        Change(a.last.at, ini(a.last, b.last))
 
       private[control] val node: ChildNode = new ChildNode {
         protected def doCalc(t: Time) = {
+          val newV = next(a.last, b.last, last)
           //print(s"Time: $t; a: ${a.last}; b: ${b.last}; last: $last; ")
-          last = next(a.last, b.last, last)
+          last = newV cata (Change(a.last.at max b.last.at, _), last)
           //println(s"new value: $last; changed: ${last.at == t}")
           last.at == t
         }

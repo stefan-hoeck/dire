@@ -4,26 +4,6 @@ package dire
 //import java.util.concurrent.TimeUnit.{MILLISECONDS ⇒ MS}
 //import scala.reflect.runtime.universe.TypeTag
 //
-//  /** Operations that work only on event streams */
-//  implicit class EFOps[R,A](val s: EF[R,A]) extends AnyVal {
-//
-//    /** Map and filter an event stream in one run */
-//    def collect[B](f: A ⇒ Option[B]): EF[R,B] =
-//      sync2(s, never)(Change collectI f)(Change collectN f)
-//
-//    /** Counts the number of events this event stream fired and
-//      * stores the results in a signal
-//      */
-//    def count: SF[R,Int] = scanMap { _ ⇒ 1 }
-//
-//    /** Filters an event stream according to the given predicate */
-//    def filter(p: A ⇒ Boolean): EF[R,A] =
-//      collect[A] { a ⇒ p(a) option a }
-//
-//    /** Converts this event stream to a signal with initial value
-//      * `ini`
-//      */
-//    def hold[B>:A](ini: B): SF[R,B] = scan[B](ini)((next,_) ⇒ next)
 //
 //    /** Returns an event stream that fires whenever one of the input streams
 //      * fire.
@@ -33,37 +13,6 @@ package dire
 //      */
 //    def merge(that: EF[R,A]): EF[R,A] =
 //      sync2(s, that)(Change.mergeI)(Change.mergeN)
-//
-//    /** Accumulates events fired by this event stream in a signal
-//      *
-//      * If the original event stream fires its first event 'a' at time
-//      * 'T0', the resulting signal's initial value will be
-//      * 'next(a, ini)', otherwise it will be just 'ini'
-//      *
-//      * This is the most fundamental function for accumulating the
-//      * events of an event stream in a signal. All other functions like
-//      * 'hold', 'scanMap', and so on can be derrived from this one
-//      *
-//      * @param ini  the initial value of the resulting signal
-//      * @param next combines the fired event with the
-//      *             value accumulated so far
-//      */
-//    def scan[B](ini: ⇒ B)(next: (A,B) ⇒ B): SF[R,B] = 
-//      sync2(s, never)(Change.scanI(ini)(next))(Change.scanN(ini)(next))
-//
-//    /** Accumulates events by first transferring them to a value
-//      * with a Monoid instance
-//      */
-//    def scanMap[B:Monoid](f: A ⇒ B): SF[R,B] = scan(∅[B])((a,b) ⇒ b ⊹ f(a))
-//
-//    /** Accumulates events in a container */
-//    def scanPlus[F[_]](implicit P: ApplicativePlus[F]): SF[R,F[A]] = 
-//      scanMap(_.η[F])(P.monoid)
-//
-//    /** Accumulates the results of a stateful calculation */
-//    def scanSt[S,B](ini: S)(implicit w: A <:< State[S,B]): EF[R,(S,B)] =
-//      scan[Event[(S,B)]](Never)((s: A, e: Event[(S,B)]) ⇒ 
-//        e map { s run _._1 } orElse Once(s run ini))
 //
 //    /** Accumulates the results of a stateful calculation in a signal
 //      * starting at value `ini`.
@@ -85,9 +34,6 @@ package dire
 //      */
 //    def scanStV[S,B](ini: S)(implicit w: A <:< State[S,B]): EF[R,B] =
 //      scanSt[S,B](ini) mapE { _._2 }
-//
-//    /** Accumulates events using a Monoid */
-//    def sum(implicit M: Monoid[A]): SF[R,A] = scanMap(identity)
 //  }
 //}
 //

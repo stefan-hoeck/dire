@@ -32,8 +32,8 @@ package object dire {
     * two input signals that is synchronously updated
     * can be expressed using this type and type 'Initial2'.
     */
-  private[dire] type Next2[-A,-B,C] = 
-    (Change[A], Change[B], Change[C]) ⇒ Change[C]
+  private[dire] type Next2[-A,-B,C,F[+_]] = 
+    (Change[A], Change[B], Change[F[C]]) ⇒ F[C]
 
   /** The most general function needed to calculate the
     * initial value of a signal from two input signals.
@@ -42,8 +42,8 @@ package object dire {
     * two input signals that is synchronously updated
     * can be expressed using this type and type 'Next1'.
     */
-  private[dire] type Initial2[-A,-B,C] = 
-    (Change[A], Change[B]) ⇒ Change[C]
+  private[dire] type Initial2[-A,-B,C,F[+_]] = 
+    (Change[A], Change[B]) ⇒ F[C]
 
   /** The most general function needed to calculate the
     * latest change of a signal from one input signal.
@@ -52,8 +52,7 @@ package object dire {
     * one input signal that is synchronously updated
     * can be expressed using this type and type 'Initial1'.
     */
-  private[dire] type Next1[-A,B] = 
-    (Change[A], Change[B]) ⇒ Change[B]
+  private[dire] type Next1[-A,B,F[+_]] = (Change[A], Change[F[B]]) ⇒ F[B]
 
   /** The most general function needed to calculate the
     * initial value of a signal from one input signal.
@@ -62,7 +61,7 @@ package object dire {
     * one input signal that is synchronously updated
     * can be expressed using this type and type 'Next1'.
     */
-  private[dire] type Initial1[-A,+B] = Change[A] ⇒ Change[B]
+  private[dire] type Initial1[-A,+B,F[+_]] = Change[A] ⇒ F[B]
 }
 
 // vim: set ts=2 sw=2 et:
