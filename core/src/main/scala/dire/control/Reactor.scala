@@ -44,13 +44,12 @@ final private[dire] class Reactor(
   //creates a new anychronous data sink
   //must only be called when initializing the reactive graph
   //or (probably) when processing a signal's update event
-  private[dire] def sink[S,O](src: S, r: RawSignal[O])
-                             (implicit E: DataSink[S,O])
-                             : IO[RawSignal[O]] = IO {
-    val s = new RSink[O](E.strategy getOrElse strategy,
+  private[dire] def sink[O](snk: DataSink[O])
+                           (r: RawSignal[O]): IO[RawSignal[O]] = IO {
+    val s = new RSink[O](snk.strategy getOrElse strategy,
                          r.last,
-                         E out src,
-                         E cleanSink src)
+                         snk.out,
+                         snk.cleanSink)
     reactives += s
 
     val n = new ChildNode {
@@ -67,12 +66,12 @@ final private[dire] class Reactor(
     : IO[RawSignal[Event[B]]] = for {
       v  ← Var[Event[B]](Never, strategy)
 
-      si = DataSink.create[Var[Event[B]],Event[A]](
-        v ⇒ _.fold(a ⇒ f(a) flatMap { b ⇒ IO(v.fire(Once(b))) }, IO.ioUnit)
-        , _ ⇒ IO.ioUnit)
+      si = DataSink.create[Event[A]](
+        _.fold(f(_) flatMap { b ⇒ IO(v.fire(Once(b))) }, IO.ioUnit)
+      )
 
       so = Var.VarSource[Event[B]]
-      _  ← sink(v, in)(si)
+      _  ← sink(si)(in)
       s  ← source[Event[B]](so ini v)(so cb  v)
       _  ← IO(reactives += v)
     } yield s
@@ -104,11 +103,11 @@ final private[dire] class Reactor(
   //its input
   private[dire] def loop[A]
     (ini: ⇒ A)
-    (f: RawSignal[A] ⇒ Reactor ⇒ IO[RawSignal[A]]): IO[RawSignal[A]] = for {
+    (f: (RawSignal[A], Reactor) ⇒ IO[RawSignal[A]]): IO[RawSignal[A]] = for {
     s   ← IO(new RSource[A](ini, this, _ ⇒ IO(IO.ioUnit)))
     _   ← IO(reactives += s)
     r   ← IO(new RawSource(s))
-    re  ← f(r)(this)
+    re  ← f(r, this)
     n   = new ChildNode {
             def doCalc(t: Time) = { s.fire(re.last.v); false }
             def doClean() {}

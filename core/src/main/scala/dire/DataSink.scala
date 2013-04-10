@@ -4,40 +4,47 @@ import dire.control.Sink
 import scalaz._, Scalaz._, effect.IO
 import scalaz.concurrent.Strategy
 
-/** Describes how an object of type `Snk` can operate as a data sink
-  * that consumes values of type `Value`.
-  */
-sealed trait DataSink[-Snk,-Value] {
-  private[dire] def out(s: Snk): Out[Change[Value]]
-  private[dire] def cleanSink(s: Snk): IO[Unit]
+/** Consumes values using a declared concurrency strategy */
+sealed trait DataSink[-A] {
+  private[dire] def out: Out[Change[A]]
+  private[dire] def cleanSink: IO[Unit]
   private[dire] def strategy: Option[Strategy]
+
+  private[dire] def lift[F[+_]](implicit I: IdOrEvent[F])
+    : DataSink[F[A]] = DataSink.createC[F[A]](cfv ⇒
+      I toEvent cfv.v fold (v ⇒ out(cfv as v), IO.ioUnit),
+      cleanSink,
+      strategy)
 }
 
 object DataSink extends DataSinkFunctions
 
 trait DataSinkFunctions {
-  private[dire] def createC[S,A](
-    o: S ⇒ Out[Change[A]], 
-    cl: S ⇒ IO[Unit] = (s: S) ⇒ IO.ioUnit,
-    st: Option[Strategy] = None): DataSink[S,A] =
-  new DataSink[S,A] {
-    private[dire] def out(s: S) = o(s)
-    private[dire] def cleanSink(s: S) = cl(s)
-    private[dire] def strategy = st
+  private[dire] def createC[A](
+    o: Out[Change[A]], 
+    cl: IO[Unit] = IO.ioUnit,
+    st: Option[Strategy] = None): DataSink[A] =
+  new DataSink[A] {
+    private[dire] val out = o
+    private[dire] val cleanSink = cl
+    private[dire] val strategy = st
   }
 
-  private[dire] def synchC[A](o: Out[Change[A]]): DataSink[Unit,A] =
-    createC(_ ⇒ o, st = Some(Strategy.Sequential))
+  private[dire] def syncC[A](o: Out[Change[A]]): DataSink[A] =
+    createC(o, st = Some(Strategy.Sequential))
 
-  def create[S,A](o: S ⇒ Out[A], 
-                  cl: S ⇒ IO[Unit],
-                  st: Option[Strategy] = None): DataSink[S,A] =
-    createC[S,A](s ⇒ ca ⇒ o(s)(ca.v), cl, st)
+  def create[A](out: Out[A], 
+                clean: IO[Unit] = IO.ioUnit,
+                strategy: Option[Strategy] = None): DataSink[A] =
+    createC[A](ca ⇒ out(ca.v), clean, strategy)
 
-  def createE[S,A](o: S ⇒ Out[A], 
-                   cl: S ⇒ IO[Unit],
-                   st: Option[Strategy] = None): DataSink[S,Event[A]] =
-    create[S,Event[A]](s ⇒ ea ⇒ ea.fold(o(s), IO.ioUnit), cl, st)
+  def sync[A](out: Out[A], 
+              clean: IO[Unit] = IO.ioUnit): DataSink[A] =
+    createC[A](ca ⇒ out(ca.v), clean, Some(Strategy.Sequential))
+
+  def async[A](out: Out[A], 
+               clean: IO[Unit] = IO.ioUnit): DataSink[A] =
+    createC[A](ca ⇒ out(ca.v), clean)
 }
 
 // vim: set ts=2 sw=2 et:

@@ -70,14 +70,14 @@ sealed abstract class Var[A](ini: A, s: Strategy)
 
   def start() {}
   def stop(cdl: CDL) { actor ! Shutdown(cdl) }
+
+  def sink: DataSink[A] = DataSink.sync[A](a ⇒ IO(fire(a)))
 }
 
 object Var {
   private[control] def apply[A](a: A, s: Strategy): IO[Var[A]] = 
     IO { new Var(a, s){} }
 
-  implicit def VarSink[A]: DataSink[Var[A],A] = 
-    DataSink.create[Var[A],A](v ⇒ a ⇒ IO(v.fire(a)), _ ⇒ IO.ioUnit)
 
   implicit def VarSource[A]: DataSource[Var[A],A] = 
     DataSource.signalSrc[Var[A],A](s ⇒ IO(s.get))(
