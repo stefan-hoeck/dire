@@ -37,7 +37,7 @@ final private[dire] class Reactor(
   private[dire] def source[A]
     (ini: IO[A])
     (cb: Out[A] ⇒ IO[IO[Unit]]): IO[RawSignal[A]] = for {
-      s ← RSource(ini, this)(cb)
+      s ← Reactive.source(ini, this)(cb)
       _ ← IO(reactives += s)
     } yield new RawSource(s)
 
@@ -45,22 +45,10 @@ final private[dire] class Reactor(
   //must only be called when initializing the reactive graph
   //or (probably) when processing a signal's update event
   private[dire] def sink[O](snk: DataSink[O])
-                           (r: RawSignal[O]): IO[RawSignal[O]] = IO {
-    val s = new RSink[O](snk.strategy getOrElse strategy,
-                         r.last,
-                         snk.out,
-                         snk.cleanSink)
-    reactives += s
-
-    val n = new ChildNode {
-      def doCalc(t: Time) = { s.output(r.last); false }
-      def doClean() {}
-    }
-
-    r.node connectChild n
-
-    r
-  }
+                           (r: RawSignal[O]): IO[RawSignal[O]] = for {
+    s ← Reactive.sink(snk, this)(r)
+    _ ← IO(reactives += s)
+  } yield r
 
   private[dire] def trans[A,B](f: A ⇒ IO[B])(in: RawSignal[Event[A]])
     : IO[RawSignal[Event[B]]] = for {
