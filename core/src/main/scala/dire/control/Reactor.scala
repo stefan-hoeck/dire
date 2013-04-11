@@ -38,26 +38,40 @@ final private[dire] class Reactor(
   //creates a new anychronous data sink
   //must only be called when initializing the reactive graph
   //or (probably) when processing a signal's update event
-  private[dire] def sink[O]
-    (snk: DataSink[O])
-    (r: RawSignal[O]): IO[RawSignal[O]] = for {
-      s ← Reactive.sink(snk, this)(r)
-      _ ← IO(reactives += s)
-    } yield r
+  private[dire] def sink[O](
+    out: Out[Change[O]],
+    clean: IO[Unit],
+    st: Option[Strategy],
+    key: Option[(Any,TypeTag[O])])
+    (r: RawSignal[O]): IO[Unit] = {
+      def tag(implicit T:TypeTag[O]) = implicitly[TypeTag[Var[Change[O]]]]
 
+      def newVar = Var(r.last, st getOrElse strategy)
+
+      def getVar = key.fold(newVar)(p ⇒ cache(newVar, p._1)(tag(p._2)))
+
+      def connect(v: Var[Change[O]]) = IO {
+        r.node connectChild Node.child{ t ⇒ v.set(r.last); false }
+        v.addListener(out)
+      }
+
+      getVar flatMap connect
+    }
+
+  //@TODO
   private[dire] def trans[A,B](f: A ⇒ IO[B])(in: RawSignal[Event[A]])
-    : IO[RawSignal[Event[B]]] = for {
-      v  ← Var[Event[B]](Never, strategy)
-
-      si = DataSink.create[Event[A]](
-        _.fold(f(_) flatMap { b ⇒ IO(v.fire(Once(b))) }, IO.ioUnit)
-      )
-
-      so = Var.VarSource[Event[B]]
-      _  ← sink(si)(in)
-      s  ← source[Event[B]](so ini v)(so cb  v)
-      _  ← IO(reactives += v)
-    } yield s
+    : IO[RawSignal[Event[B]]] = ??? //for {
+//      v  ← Varhhh
+//
+//      si = DataSink.create[Event[A]](
+//        _.fold(f(_) flatMap { b ⇒ IO(v.fire(Once(b))) }, IO.ioUnit)
+//      )
+//
+//      so = Var.VarSource[Event[B]]
+//      _  ← sink(si)(in)
+//      s  ← source[Event[B]](so ini v)(so cb  v)
+//      _  ← IO(reactives += v)
+//    } yield ???
 
   private[dire] def timeSignal: IO[RawSignal[Time]] =
     cached[Event[Nothing],Time](
@@ -79,20 +93,16 @@ final private[dire] class Reactor(
     _   ← IO(reactives += s)
     r   ← IO(new RawSource(s))
     re  ← f(r, this)
-    n   = new ChildNode {
-            def doCalc(t: Time) = { s.fire(re.last.v); false }
-            def doClean() {}
-          }
-    _   ← IO(re.node.connectChild(n))
+    _   ← IO(re.node connectChild Node.child {t ⇒ s.fire(re.last.v); false })
   } yield re
 
-  protected def doRun(update: Sink[Time]) {
+  protected def doRun(update: Sink[Time], act: Boolean) = if (act) {
     time += 1L //increase time
     update(time) //updates the reaktive graph
 
     //check wether we have to stop the reactor
     if (doKill()) {
-      stopped = true //ignore all subsequent events
+      active = false //ignore all subsequent events
       stop(countDownToDeath) //fire Stop event
     }
   }

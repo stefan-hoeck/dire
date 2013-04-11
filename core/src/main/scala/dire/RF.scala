@@ -1,7 +1,7 @@
 package dire
 
 import dire.control.{RawSignal ⇒ RS, Reactor, Const}
-import scala.reflect.runtime.universe.TypeTag
+import scala.reflect.runtime.universe._
 import scalaz._, Scalaz._, effect.IO
 import scalaz.Isomorphism.<~>
 import scalaz.Leibniz.===
@@ -66,10 +66,6 @@ class RF[-A,+B,I[+_],O[+_]] private[dire](
   def changes[BB>:B:Equal](implicit W: AsId[O])
     : RF[A,BB,I,Event] = sfTo(this).distinct[BB].ef
 
-  //Used in unit tests
-  private[dire] def changeTo(out: Out[Change[O[B]]]): RF[A,B,I,O] =
-    toO(DataSink syncC out)
-
   /** Map and filter an event stream in one run */
   def collect[C](f: B ⇒ Option[C])
                 (implicit W: AsEv[O]): RF[A,C,I,Event] =
@@ -130,7 +126,7 @@ class RF[-A,+B,I[+_],O[+_]] private[dire](
 
   /** Functor map */
   def map[C](f: B ⇒ C): RF[A,C,I,O] =
-    sync1(this)(_.v map f)((cb,_) ⇒ cb.v map f)
+    RF[A,C,I,O]((ra,r) ⇒ run(ra,r) >>= { _ map (MO.map(_)(f))})
 
   /** Returns an event stream that fires whenever one of the input streams
     * fire.
@@ -247,10 +243,8 @@ class RF[-A,+B,I[+_],O[+_]] private[dire](
     * How the data sink operates and what concurrency strategy is
     * applied is defined in the [[dire.DataSink]] type class.
     */
-  def to(sink: DataSink[B]): RF[A,B,I,O] = toO(sink.lift)
-
-  private def toO(s: DataSink[O[B]]): RF[A,B,I,O] = 
-    RF { (ra,r) ⇒ run(ra,r) >>= r.sink(s) }
+  def to(sink: DataSink[B]): RF[A,B,I,O] = 
+    RF((ra,r) ⇒ run(ra,r) >>= { rb ⇒ sink.connect[O](rb,r) as rb })
 
   /** Combines a signal with an event stream through a
     * function of arity two.
@@ -697,6 +691,7 @@ private[dire] sealed abstract class IdOrEvent[F[+_]](m: Applicative[F])
   def toEvent[A](f: F[A]): Event[A]
   def isNever[A](f: F[A]) = toEvent(f) fold (_ ⇒ false, true)
   def out[A](o: Out[A]): Out[F[A]] = toEvent(_) fold (o, IO.ioUnit)
+  def tTag[A:TypeTag]: TypeTag[F[A]]
   final def point[A](a: ⇒ A) = m point a
   final def ap[A,B](fa: ⇒ F[A])(f: ⇒ F[A ⇒ B]) = m.ap(fa)(f)
 }
@@ -706,11 +701,13 @@ private[dire] object IdOrEvent {
 
   implicit val IdIdOrEvent: IdOrEvent[Id] = new IdOrEvent[Id](Applicative[Id]) {
     def toEvent[A](f: Id[A]): Event[A] = Once(f)
+    def tTag[A:TypeTag] = typeTag[Id[A]]
   }
 
   implicit val EventIdOrEvent: IdOrEvent[Event] =
     new IdOrEvent[Event](Event.EventMonad) {
       def toEvent[A](f: Event[A]) = f
+      def tTag[A:TypeTag] = typeTag[Event[A]]
     }
 }
 

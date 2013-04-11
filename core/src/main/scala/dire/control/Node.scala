@@ -164,4 +164,11 @@ case object Isolated extends Node {
   protected def addChild(n: ChildNode) {}
 }
 
+object Node {
+  def child(f: Time ⇒ Boolean): ChildNode = new ChildNode {
+    def doCalc(t: Time) = f(t)
+    def doClean() {}
+  }
+}
+
 // vim: set ts=2 sw=2 et:
