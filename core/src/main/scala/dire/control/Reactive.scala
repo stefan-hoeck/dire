@@ -20,45 +20,45 @@ private[control] object Reactive {
     : IO[RSink[A]] = IO(new RSink[A](sink, r, raw))
 }
 
-private[control] abstract class WithActor[A](
-    val reactor: Reactor,
-    s: Option[Strategy]) 
-  extends Reactive {
-  import WithActor._ 
+private[control] abstract class DireActor[A](s: Strategy) extends Reactive {
+  import DireActor._ 
 
-  private[this] var stopped = false
-  private[this] val actor = Actor(react)(s getOrElse reactor.strategy)
+  protected var stopped = false //true if this actor should ignore events
+  private[this] val actor = Actor(react)(s)
 
-  private[control] def node: Node
-
+  //release all resources
   protected def doStop(): Unit
 
+  //initialize reactive behavior
   protected def doStart(): Unit
 
+  //act upon an event of type a
   protected def doRun(a: A): Unit
 
+  //asynchronously fires and event of type a
   final private[control] def fire(a: A) { actor ! Run(a) }
 
+  //asynchronously starts the actor
   final def start() { actor ! Start }
 
+  //asynchronously stops the actor. Typically the calling thread
+  //will wait on the countdown latch. The countdown latch is released
+  //once the actor is cleaned up and no more events are to be expeced
   final def stop(cdl: CountDownLatch) { actor ! Stop(cdl) }
 
   private[this] def react(e: RunE[A]): Unit = e match {
     case Run(a)          ⇒ if (! stopped) doRun(a)
-
+    case Start           ⇒ doStart()
+    case Dead(cdl)       ⇒ cdl.countDown()
     case Stop(cdl)       ⇒ {
       stopped = true
       doStop()
-      actor ! Dead(cdl)
+      actor ! Dead(cdl) //this will be the very last event the actor receives
     }
-
-    case Start           ⇒ doStart()
-
-    case Dead(cdl)       ⇒ cdl.countDown()
   }
 }
 
-private object WithActor {
+private object DireActor {
   sealed trait RunE[+A]
 
   case object Start extends RunE[Nothing]
@@ -72,14 +72,14 @@ final private[control] class RSource[A](
     initial: A,
     reactor: Reactor,
     setup: Out[A] ⇒ IO[IO[Unit]])
-  extends WithActor[A](reactor, None) {
+  extends DireActor[A](reactor.strategy) {
 
   private[control] val node = new RootNode
   private[this] var stop: IO[Unit] = IO.ioUnit
   private[control] var last: Change[A] = Change(T0, initial)
 
   protected def doRun(a: A) {
-    reactor.run { t ⇒ 
+    reactor fire { t ⇒ 
       last = Change(t, a)
       node.update(t)
     }
@@ -95,7 +95,7 @@ private[control] class RSink[A](
     sink: DataSink[A],
     reactor: Reactor,
     raw: RawSignal[A])
-  extends WithActor[Change[A]](reactor, sink.strategy) {
+  extends DireActor[Change[A]](sink.strategy getOrElse reactor.strategy) {
   private[control] val node = new ChildNode {
     def doCalc(t: Time) = { fire(raw.last); false }
     def doClean() {}

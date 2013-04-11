@@ -654,7 +654,7 @@ trait RFFunctions {
       r ← IO(new Reactor(step, () ⇒ doKill, cdl, s))
       _ ← in.syncTo { stop(_) ? IO{doKill = true} | IO.ioUnit }
             .run(Const(Never), r)
-      _ ← r.start
+      _ ← IO(r.start())
       _ ← IO { cdl.await(); ex.shutdown() }
     } yield ()
   }
