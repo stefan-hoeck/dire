@@ -15,7 +15,7 @@ final private[dire] class Reactor(
   import Reactor._
 
   //cache for tagged signal functions
-  private[this] val cache = new ListBuffer[(Type,Type,Any,Any)]
+  private[this] val cache = new Cache
 
   //child-actors that need to be stopped when this reactor is stopped
   private[this] val reactives = new ListBuffer[Reactive]
@@ -77,26 +77,17 @@ final private[dire] class Reactor(
     } yield s
 
   private[dire] def timeSignal: IO[RawSignal[Time]] =
-    cached[Unit,Time](_ ⇒ source[Time](IO(T0))(Clock(T0, step, _)), "DireTime")
+    cached[Event[Nothing],Time](
+      (_,_) ⇒ source[Time](IO(T0))(Clock(T0, step, _)), "DireTime")(
+      Const(Never))
 
-  //lookup a cached RawSignal for the given input and output
-  //type. 
-  private[dire] def cached[In:TypeTag,Out:TypeTag](
-    sig: Reactor ⇒ IO[RawSignal[Out]], tag: Any): IO[RawSignal[Out]] = {
-    val in = typeOf[In]
-    val out = typeOf[Out]
+  //lookup a cached RawSignal for the given input and output type. 
+  private[dire] def cached[In:TypeTag,Out:TypeTag]
+    (sig: (RawSignal[In],Reactor) ⇒ IO[RawSignal[Out]], key: Any)
+    (in: RawSignal[In]): IO[RawSignal[Out]] = {
+    def io: IO[(RawSignal[In],RawSignal[Out])] = sig(in,this) map { (in,_) }
 
-    //SF[Any,Nothing] should match SF[Int,Int] but not vice verca
-    def res = cache find { case (i,o,t,_) ⇒ 
-      (i <:< in) && (out <:< o) && (t == tag) } 
-
-    res match {
-      case None    ⇒ for {
-                       res ← sig(this)
-                       _   ← IO(cache += ((in, out, tag, res)))
-                     } yield res
-      case Some(t) ⇒ IO(t._4.asInstanceOf[RawSignal[Out]])
-    }
+    cache(io, key) map { _._2 }
   }
 
   //loops the output of a signal function asynchronuously back to

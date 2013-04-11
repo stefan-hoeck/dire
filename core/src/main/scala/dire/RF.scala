@@ -443,7 +443,7 @@ trait RFFunctions {
   def cached[A,B,I[+_],O[+_]]
     (sf: RF[A,B,I,O], tag: Any)
     (implicit TI: TypeTag[I[A]], TO: TypeTag[O[B]]): RF[A,B,I,O] =
-    RF[A,B,I,O]((ra,r) ⇒ r.cached[I[A],O[B]](sf.run(ra, _), tag))(
+    RF[A,B,I,O]((ra,r) ⇒ r.cached[I[A],O[B]](sf.run, tag)(ra))(
       sf.MI,sf.MO)
 
 

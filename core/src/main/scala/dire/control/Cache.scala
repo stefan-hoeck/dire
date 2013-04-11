@@ -4,6 +4,7 @@ import collection.mutable.{ListBuffer ⇒ MList, HashMap ⇒ MMap}
 import scala.reflect.runtime.universe._
 import scalaz.effect.IO
 
+/** A simple cache using `TypeTag`s for type safety **/
 private[control] class Cache {
   private[this] val cache = new MMap[Any,MList[(Type,Any)]]
 
