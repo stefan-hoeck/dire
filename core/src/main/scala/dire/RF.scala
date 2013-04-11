@@ -6,23 +6,32 @@ import scalaz._, Scalaz._, effect.IO
 import scalaz.Isomorphism.<~>
 import scalaz.Leibniz.===
 
-/** Represents a signal transformation.
+/** Represents a transformation from an input signal or 
+  * event stream to an output signal or event stream.
   *
-  * This class offers a rich set of combinators needed to describe
+  * This class is the main entry point into reactive programming
+  * with dire. It offers a rich set of combinators needed to describe
   * reactive networks.
+  *
+  * @tparam A  Type of events fired by the input signal or event stream
+  * @tparam B  Type of events fired by the output signal or event stream
+  * @tparam I  Container type that holds input events. This is either
+  *            `Id` for signals or `Event` for event streams
+  * @tparam O  Container type that holds output events. This is either
+  *            `Id` for signals or `Event` for event streams
   */
-class SfT[-A,+B,I[+_],O[+_]] private[dire](
+class RF[-A,+B,I[+_],O[+_]] private[dire](
     private[dire] val run: (RS[I[A]], Reactor) ⇒ IO[RS[O[B]]])
     (implicit private[dire] val MI: IdOrEvent[I],
               private[dire] val MO: IdOrEvent[O]) {
-  import SfT._, DataSink._
+  import RF._, DataSink._
 
   /** Applies a time-changing function to the signals values */
-  def ap[C,AA<:A](f: SfT[AA,B ⇒ C,I,O]): SfT[AA,C,I,O] =
+  def ap[C,AA<:A](f: RF[AA,B ⇒ C,I,O]): RF[AA,C,I,O] =
     (f <*> this)(_ apply _)
 
   /** Sequentially combines two signal functions */
-  def andThen[C,O1[+_]](that: SfT[B,C,O,O1]): SfT[A,C,I,O1] =
+  def andThen[C,O1[+_]](that: RF[B,C,O,O1]): RF[A,C,I,O1] =
     that compose this
 
   /** Like `syncTo` but performs side effects asynchronuously,
@@ -40,13 +49,13 @@ class SfT[-A,+B,I[+_],O[+_]] private[dire](
     * be used which guarantees that all access from a given
     * reactive graph will be sequential.
     */
-  def asyncTo(out: Out[B]): SfT[A,B,I,O] = to(DataSink async out)
+  def asyncTo(out: Out[B]): RF[A,B,I,O] = to(DataSink async out)
 
   /** Connect a reactive branch to this signal function but
     * return to the original branch afterwards.
     */
-  def branch[C,O1[+_]](that: SfT[B,C,O,O1]): SfT[A,B,I,O] = 
-    SfT { (ra,r) ⇒ run(ra, r) >>= { rb ⇒ that.run(rb,r) as rb } }
+  def branch[C,O1[+_]](that: RF[B,C,O,O1]): RF[A,B,I,O] = 
+    RF { (ra,r) ⇒ run(ra, r) >>= { rb ⇒ that.run(rb,r) as rb } }
 
   /** Creates an event stream that fires whenever this signal's
     * value changes to a new one that is distinct from the old
@@ -55,33 +64,33 @@ class SfT[-A,+B,I[+_],O[+_]] private[dire](
     * The resulting event stream starts with this signal's initial value
     */
   def changes[BB>:B:Equal](implicit W: AsId[O])
-    : SfT[A,BB,I,Event] = sfTo(this).distinct[BB].ef
+    : RF[A,BB,I,Event] = sfTo(this).distinct[BB].ef
 
   //Used in unit tests
-  private[dire] def changeTo(out: Out[Change[O[B]]]): SfT[A,B,I,O] =
+  private[dire] def changeTo(out: Out[Change[O[B]]]): RF[A,B,I,O] =
     toO(DataSink syncC out)
 
   /** Map and filter an event stream in one run */
   def collect[C](f: B ⇒ Option[C])
-                (implicit W: AsEv[O]): SfT[A,C,I,Event] =
+                (implicit W: AsEv[O]): RF[A,C,I,Event] =
     sync1(efTo(this))(_.v collect f)((ceb,_) ⇒ ceb.v collect f)
 
   /** Sequentially combines two signal functions */
-  def compose[C,O1[+_]](that: SfT[C,A,O1,I]): SfT[C,B,O1,O] =
-    SfT[C,B,O1,O]((rc, r) ⇒ that.run(rc,r) >>= { run(_, r) })(that.MI,MO)
+  def compose[C,O1[+_]](that: RF[C,A,O1,I]): RF[C,B,O1,O] =
+    RF[C,B,O1,O]((rc, r) ⇒ that.run(rc,r) >>= { run(_, r) })(that.MI,MO)
 
   /** Contravariant mapping */
-  def contramap[C](f: C ⇒ A): SfT[C,B,I,O] = compose(SfT.id[C,I] map f)
+  def contramap[C](f: C ⇒ A): RF[C,B,I,O] = compose(RF.id[C,I] map f)
 
   /** Counts the number of events this event stream fired and
     * stores the results in a signal
     */
-  def count(implicit W: AsEv[O]): SfT[A,Int,I,Id] = scanMap { _ ⇒ 1 }
+  def count(implicit W: AsEv[O]): RF[A,Int,I,Id] = scanMap { _ ⇒ 1 }
 
   /** Returns a signal that only fires an event if its new
     * value is different from its old one
     */
-  def distinct[BB>:B](implicit E: Equal[O[BB]]): SfT[A,BB,I,O] =
+  def distinct[BB>:B](implicit E: Equal[O[BB]]): RF[A,BB,I,O] =
     sync1O(this)(_.v)(
       (cb,cc) ⇒ if ((cb.v: O[BB]) ≟ cc.v) None else Some(cb.v))
 
@@ -93,7 +102,7 @@ class SfT[-A,+B,I[+_],O[+_]] private[dire](
     * `events` the first event will be fired at `T0` with the
     * signal's initial value.
     */
-  def ef(implicit W: AsId[O]): SfT[A,B,I,Event] = {
+  def ef(implicit W: AsId[O]): RF[A,B,I,Event] = {
     def f(c: Change[B]): Event[B] = Once(c.v)
 
     sync1(sfTo(this))(f)((cb,_) ⇒ f(cb))
@@ -105,22 +114,22 @@ class SfT[-A,+B,I[+_],O[+_]] private[dire](
     * Note that unlike with function `ef`, the resulting event stream
     * will skip the signal's initial value.
     */
-  def events(implicit W: AsId[O]): SfT[A,B,I,Event] = 
+  def events(implicit W: AsId[O]): RF[A,B,I,Event] = 
     sync1[A,B,B,I,Id,Event](sfTo(this))(_ ⇒ Never)((cb,_) ⇒ Once(cb.v))
 
 
   /** Filters an event stream according to the given predicate */
-  def filter(p: B ⇒ Boolean)(implicit W: AsEv[O]): SfT[A,B,I,Event] =
+  def filter(p: B ⇒ Boolean)(implicit W: AsEv[O]): RF[A,B,I,Event] =
     collect[B] { b ⇒ p(b) option b }
 
   /** Converts this event stream to a signal with initial value
     * `ini`
     */
-  def hold[C>:B](ini: C)(implicit W: AsEv[O]): SfT[A,C,I,Id] = 
+  def hold[C>:B](ini: C)(implicit W: AsEv[O]): RF[A,C,I,Id] = 
     scan[C](ini)((next,_) ⇒ next)
 
   /** Functor map */
-  def map[C](f: B ⇒ C): SfT[A,C,I,O] =
+  def map[C](f: B ⇒ C): RF[A,C,I,O] =
     sync1(this)(_.v map f)((cb,_) ⇒ cb.v map f)
 
   /** Returns an event stream that fires whenever one of the input streams
@@ -129,8 +138,8 @@ class SfT[-A,+B,I[+_],O[+_]] private[dire](
     * If both event streams fire at the same time, the event of the
     * second (right) stream is ignored
     */
-  def merge[AA<:A,BB>:B](that: SfT[AA,BB,I,Event])
-                        (implicit W: AsEv[O]): SfT[AA,BB,I,Event] = {
+  def merge[AA<:A,BB>:B](that: RF[AA,BB,I,Event])
+                        (implicit W: AsEv[O]): RF[AA,BB,I,Event] = {
     def later(c1: Change[Event[BB]], c2: Change[Event[BB]]) =
       (c1.v, c2.v) match {
         case (Once(x), Once(y)) ⇒ if (c1.at >= c2.at) Once(x) else Once(y)
@@ -143,9 +152,9 @@ class SfT[-A,+B,I[+_],O[+_]] private[dire](
   /** Returns an event stream that fires this signals actual value
     * whenever the given event stream fires
     */
-  def on[C,AA<:A](ef: SfT[AA,C,I,Event])
+  def on[C,AA<:A](ef: RF[AA,C,I,Event])
                  (implicit W: AsId[O])
-                 : SfT[AA,B,I,Event] = upon(ef)((b,_) ⇒ b)
+                 : RF[AA,B,I,Event] = upon(ef)((b,_) ⇒ b)
 
   /** Accumulates events fired by this event stream in a signal
     *
@@ -162,7 +171,7 @@ class SfT[-A,+B,I[+_],O[+_]] private[dire](
     *             value accumulated so far
     */
   def scan[C](ini: ⇒ C)(next: (B,C) ⇒ C)(implicit W: AsEv[O])
-    : SfT[A,C,I,Id] = {
+    : RF[A,C,I,Id] = {
       def in(cb: Change[Event[B]]) = cb.v.fold(next(_, ini), ini)
 
       def ne(cb: Change[Event[B]], cc: Change[C]) =
@@ -174,20 +183,20 @@ class SfT[-A,+B,I[+_],O[+_]] private[dire](
   /** Accumulates events by first transferring them to a value
     * with a Monoid instance
     */
-  def scanMap[C:Monoid](f: B ⇒ C)(implicit W: AsEv[O]): SfT[A,C,I,Id] = 
+  def scanMap[C:Monoid](f: B ⇒ C)(implicit W: AsEv[O]): RF[A,C,I,Id] = 
     scan(∅[C])((a,b) ⇒ b ⊹ f(a))
 
   /** Accumulates events in a container */
   def scanPlus[F[+_]](implicit P: ApplicativePlus[F], W: AsEv[O])
-    : SfT[A,F[B],I,Id] = scanMap(_.η[F])(P.monoid, W)
+    : RF[A,F[B],I,Id] = scanMap(_.η[F])(P.monoid, W)
 
   /** Accumulates the results of a stateful calculation */
   def scanSt[S,C](ini: S)(implicit WS: B <:< State[S,C], W: AsEv[O])
-    : SfT[A,(S,C),I,Event] = {
+    : RF[A,(S,C),I,Event] = {
     def sfE = scan[Event[(S,C)]](Never)((s: B, e: Event[(S,C)]) ⇒ 
       e map { s run _._1 } orElse Once(s run ini))
 
-    SfT[A,(S,C),I,Event](sfE.run)
+    RF[A,(S,C),I,Event](sfE.run)
   }
 
   /** Accumulates the results of a stateful calculation in a signal
@@ -198,7 +207,7 @@ class SfT[-A,+B,I[+_],O[+_]] private[dire](
     */
   def scanStHold[S,C]
     (ini: S)
-    (implicit WS: B <:< State[S,C], W: AsEv[O]): SfT[A,S,I,Id] =
+    (implicit WS: B <:< State[S,C], W: AsEv[O]): RF[A,S,I,Id] =
     scanStS[S,C](ini) hold ini
 
   /** Accumulates the results of a stateful calculation 
@@ -206,18 +215,18 @@ class SfT[-A,+B,I[+_],O[+_]] private[dire](
     */
   def scanStS[S,C]
     (ini: S)
-    (implicit WS: B <:< State[S,C], W: AsEv[O]): SfT[A,S,I,Event] =
+    (implicit WS: B <:< State[S,C], W: AsEv[O]): RF[A,S,I,Event] =
     scanSt[S,C](ini) map { _._1 }
 
   /** Accumulates the results of a stateful calculation 
     * discarding the new state
     */
   def scanStV[S,C](ini: S)
-    (implicit WS: B <:< State[S,C], W: AsEv[O]): SfT[A,C,I,Event] =
+    (implicit WS: B <:< State[S,C], W: AsEv[O]): RF[A,C,I,Event] =
     scanSt[S,C](ini) map { _._2 }
 
   /** Accumulates events using a Monoid */
-  def sum[BB>:B](implicit M: Monoid[BB], W: AsEv[O]): SfT[A,BB,I,Id] = 
+  def sum[BB>:B](implicit M: Monoid[BB], W: AsEv[O]): RF[A,BB,I,Id] = 
     scanMap[BB](identity)
 
   /** Performs the given IO-action with this signal's initial value
@@ -231,17 +240,17 @@ class SfT[-A,+B,I[+_],O[+_]] private[dire](
     * side effects or when side effects have to be performed in a
     * special type of thread (the Swing event dispatch thread for instance).
     */
-  def syncTo(out: Out[B]): SfT[A,B,I,O] = to(DataSink sync out)
+  def syncTo(out: Out[B]): RF[A,B,I,O] = to(DataSink sync out)
 
   /** Asynchronuously output the values of this signal to a data sink
     *
     * How the data sink operates and what concurrency strategy is
     * applied is defined in the [[dire.DataSink]] type class.
     */
-  def to(sink: DataSink[B]): SfT[A,B,I,O] = toO(sink.lift)
+  def to(sink: DataSink[B]): RF[A,B,I,O] = toO(sink.lift)
 
-  private def toO(s: DataSink[O[B]]): SfT[A,B,I,O] = 
-    SfT { (ra,r) ⇒ run(ra,r) >>= r.sink(s) }
+  private def toO(s: DataSink[O[B]]): RF[A,B,I,O] = 
+    RF { (ra,r) ⇒ run(ra,r) >>= r.sink(s) }
 
   /** Combines a signal with an event stream through a
     * function of arity two.
@@ -249,9 +258,9 @@ class SfT[-A,+B,I[+_],O[+_]] private[dire](
     * The resulting event stream fires only, when the given
     * event stream fires.
     */
-  def upon[C,D,AA<:A](ef: SfT[AA,C,I,Event])
+  def upon[C,D,AA<:A](ef: RF[AA,C,I,Event])
                      (f: (B,C) ⇒ D)
-                     (implicit W: AsId[O]): SfT[AA,D,I,Event] = {
+                     (implicit W: AsId[O]): RF[AA,D,I,Event] = {
     def g(cb: Change[B], cec: Change[Event[C]]): Option[Event[D]] =
       if (cec.at >= cb.at) Some(cec.v map { f(cb.v,_) } )
       else None
@@ -262,26 +271,26 @@ class SfT[-A,+B,I[+_],O[+_]] private[dire](
   }
 
   /** Alias for `andThen` */
-  def >=>[C,O1[+_]](that: SfT[B,C,O,O1]): SfT[A,C,I,O1] = andThen(that)
+  def >=>[C,O1[+_]](that: RF[B,C,O,O1]): RF[A,C,I,O1] = andThen(that)
 
   /** Alias for `compose` */
-  def <=<[C,O1[+_]](that: SfT[C,A,O1,I]): SfT[C,B,O1,O] = compose(that)
+  def <=<[C,O1[+_]](that: RF[C,A,O1,I]): RF[C,B,O1,O] = compose(that)
 
   /** Combines two signals with a pure function */
-  def <*>[C,D,AA<:A](that: SfT[AA,C,I,O])(f: (B,C) ⇒ D): SfT[AA,D,I,O] =
+  def <*>[C,D,AA<:A](that: RF[AA,C,I,O])(f: (B,C) ⇒ D): RF[AA,D,I,O] =
     sync2(this, that)((cb,cc) ⇒ ^(cb.v, cc.v)(f))((cb,cc,_) ⇒ ^(cb.v, cc.v)(f))
 
   /** Alias for `contramap`*/
-  def ∙ [C](f: C ⇒ A): SfT[C,B,I,O] = contramap(f)
+  def ∙ [C](f: C ⇒ A): RF[C,B,I,O] = contramap(f)
 
   /** Alias for `asyncTo` */
-  def -/->(out: Out[B]): SfT[A,B,I,O] = asyncTo(out)
+  def -/->(out: Out[B]): RF[A,B,I,O] = asyncTo(out)
 
   /** Alias for `syncTo` */
-  def -->(out: Out[B]): SfT[A,B,I,O] = syncTo(out)
+  def -->(out: Out[B]): RF[A,B,I,O] = syncTo(out)
 
   /** Alias for `to` */
-  def ==>(sink: DataSink[B]): SfT[A,B,I,O] = to(sink)
+  def ==>(sink: DataSink[B]): RF[A,B,I,O] = to(sink)
 
   /** Appends a signal or event source to this signal function
     *
@@ -289,26 +298,26 @@ class SfT[-A,+B,I[+_],O[+_]] private[dire](
     * and the new signal function. This is useful to concatenate
     * completely unrelated sources
     */
-  def >>[C,O1[+_]](that: SfT[⊥,C,Event,O1]): SfT[A,C,I,O1] =
-    SfT[A,C,I,O1]((ra,r) ⇒
+  def >>[C,O1[+_]](that: RF[⊥,C,Event,O1]): RF[A,C,I,O1] =
+    RF[A,C,I,O1]((ra,r) ⇒
       run(ra,r) >> that.run(Const(Never),r))(MI,that.MO)
 }
 
-object SfT extends SfTFunctions with SfTInstances {
+object RF extends RFFunctions with RFInstances {
 
   type AsId[O[+_]] = O[Any] === Id[Any]
 
   type AsEv[O[+_]] = O[Any] === Event[Any]
 
-  private def sfTo[A,B,I[+_],O[+_]:AsId](sf: SfT[A,B,I,O])
-    : SfT[A,B,I,Id] = sf.asInstanceOf[SfT[A,B,I,Id]]
+  private def sfTo[A,B,I[+_],O[+_]:AsId](sf: RF[A,B,I,O])
+    : RF[A,B,I,Id] = sf.asInstanceOf[RF[A,B,I,Id]]
 
-  private def efTo[A,B,I[+_],O[+_]:AsEv](sf: SfT[A,B,I,O])
-    : SfT[A,B,I,Event] = sf.asInstanceOf[SfT[A,B,I,Event]]
+  private def efTo[A,B,I[+_],O[+_]:AsEv](sf: RF[A,B,I,O])
+    : RF[A,B,I,Event] = sf.asInstanceOf[RF[A,B,I,Event]]
 
   private[dire] def apply[A,B,I[+_]:IdOrEvent,O[+_]:IdOrEvent]
-    (run: (RS[I[A]], Reactor) ⇒ IO[RS[O[B]]]): SfT[A,B,I,O] =
-    new SfT(run)
+    (run: (RS[I[A]], Reactor) ⇒ IO[RS[O[B]]]): RF[A,B,I,O] =
+    new RF(run)
 
   private[dire] def ein[A]
     (f: Reactor ⇒ IO[RS[Event[A]]]): EIn[A] =
@@ -322,7 +331,7 @@ object SfT extends SfTFunctions with SfTInstances {
     Runtime.getRuntime.availableProcessors
 }
 
-trait SfTFunctions {
+trait RFFunctions {
   lazy val ms = 1000L
 
   lazy val s = ms * 1000L
@@ -336,17 +345,17 @@ trait SfTFunctions {
   // ***                  *** //
 
 
-  private[dire] def constSfT[A,B,I[+_]:IdOrEvent,O[+_]:IdOrEvent]
-    (b: ⇒ O[B]): SfT[A,B,I,O] = SfT[A,B,I,O]((_,_) ⇒ RS const b)
+  private[dire] def constRF[A,B,I[+_]:IdOrEvent,O[+_]:IdOrEvent]
+    (b: ⇒ O[B]): RF[A,B,I,O] = RF[A,B,I,O]((_,_) ⇒ RS const b)
 
   /** A constant signal that never changes */
-  def const[A](a: ⇒ A): SIn[A] = constSfT[⊥,A,Event,Id](a)
+  def const[A](a: ⇒ A): SIn[A] = constRF[⊥,A,Event,Id](a)
 
   /** The empty event stream that never fires an event */
-  def never[A]: EIn[A] = constSfT[⊥,A,Event,Event](Never)
+  def never[A]: EIn[A] = constRF[⊥,A,Event,Event](Never)
 
   /** An event stream that fires only once at time zero */
-  def now[A](a: ⇒ A): EIn[A] = constSfT[⊥,A,Event,Event](Once(a))
+  def now[A](a: ⇒ A): EIn[A] = constRF[⊥,A,Event,Event](Once(a))
 
 
   // ***                                            *** //
@@ -372,13 +381,13 @@ trait SfTFunctions {
     * the result of `f` is ready.
     */
   def efIO[A,B](f: A ⇒ IO[B]): EF[A,B] =
-    SfT[A,B,Event,Event] { (ea,r) ⇒ r.trans(f)(ea) }
+    RF[A,B,Event,Event] { (ea,r) ⇒ r.trans(f)(ea) }
 
   /** Asynchronuously loops back the output of the given
     * event stream to its input
     */
   def loop[A](ef: EF[A,A]): EIn[A] = 
-    SfT[A,A,Event,Event] { (ea,r) ⇒ r.loop[Event[A]](Never)(ef.run) }
+    RF[A,A,Event,Event] { (ea,r) ⇒ r.loop[Event[A]](Never)(ef.run) }
 
   // ***                   *** //
   // *** Sources and Sinks *** //
@@ -405,14 +414,14 @@ trait SfTFunctions {
     * See the [[dire.DataSource]] type class for more details
     */
   def eventSrc[S,V](s: S)(implicit Src: DataSource[S,Event[V]]): EIn[V] =
-    SfT ein { _.source(Src ini s)(Src cb s) }
+    RF ein { _.source(Src ini s)(Src cb s) }
 
   /** Creates an input Signal from an external data source
     *
     * See the [[dire.DataSource]] type class for more details
     */
   def signalSrc[S,V](s: S)(implicit Src: DataSource[S,V]): SIn[V] =
-    SfT sin { _.source(Src ini s)(Src cb s) }
+    RF sin { _.source(Src ini s)(Src cb s) }
 
   /** Asynchronuously fires the given event once */
   def once[A](a: ⇒ A): EIn[A] = eventSrc(())(DataSource once a)
@@ -432,9 +441,9 @@ trait SfTFunctions {
     * method will result in the cached `RawSignal` being returned.
     */
   def cached[A,B,I[+_],O[+_]]
-    (sf: SfT[A,B,I,O], tag: Any)
-    (implicit TI: TypeTag[I[A]], TO: TypeTag[O[B]]): SfT[A,B,I,O] =
-    SfT[A,B,I,O]((ra,r) ⇒ r.cached[I[A],O[B]](sf.run(ra, _), tag))(
+    (sf: RF[A,B,I,O], tag: Any)
+    (implicit TI: TypeTag[I[A]], TO: TypeTag[O[B]]): RF[A,B,I,O] =
+    RF[A,B,I,O]((ra,r) ⇒ r.cached[I[A],O[B]](sf.run(ra, _), tag))(
       sf.MI,sf.MO)
 
 
@@ -446,7 +455,7 @@ trait SfTFunctions {
     *
     * In every isolated reactive system there is only one such signal
     */
-  def time: SIn[Time] = SfT.sin { _.timeSignal }
+  def time: SIn[Time] = RF.sin { _.timeSignal }
 
   /** Time signal that starts at 0 and updates every second */
   def seconds: SIn[Int] = time.events filter { _ % s == 0L } count
@@ -504,7 +513,7 @@ trait SfTFunctions {
     *             registered data sinks.
     */
   def runS[A]
-    (in: SIn[A], proc: Int = SfT.processors, step: Time = 1000L)
+    (in: SIn[A], proc: Int = RF.processors, step: Time = 1000L)
     (stop: A ⇒ Boolean)
     : IO[Unit] =
     run(in, proc, step)(stop)
@@ -541,7 +550,7 @@ trait SfTFunctions {
     *             registered data sinks.
     */
   def runE[A]
-    (in: EIn[A], proc: Int = SfT.processors, step: Time = 1000L)
+    (in: EIn[A], proc: Int = RF.processors, step: Time = 1000L)
     (stop: A ⇒ Boolean)
     : IO[Unit] =
     run[A,Event](in, proc, step)(stop)
@@ -551,7 +560,7 @@ trait SfTFunctions {
   // ***  package private helper functions *** //
   // ***                                   *** //
 
-  private[dire] def id[A,F[+_]:IdOrEvent]: SfT[A,A,F,F] = SfT((a,_) ⇒ IO(a))
+  private[dire] def id[A,F[+_]:IdOrEvent]: RF[A,A,F,F] = RF((a,_) ⇒ IO(a))
 
   /** Creates a derrived signal depending on two input signals
     * that is synchronously updated whenever one of the two
@@ -573,17 +582,17 @@ trait SfTFunctions {
     *              latest value
     */
   private[dire] def sync2[R,A,B,C,I[+_]:IdOrEvent,O1[+_],O2[+_],O3[+_]:IdOrEvent]
-    (sa: SfT[R,A,I,O1], sb: SfT[R,B,I,O2])
+    (sa: RF[R,A,I,O1], sb: RF[R,B,I,O2])
     (ini: (Change[O1[A]], Change[O2[B]]) ⇒ O3[C])
     (next: (Change[O1[A]], Change[O2[B]], Change[O3[C]]) ⇒ O3[C])
-    : SfT[R,C,I,O3] = sync2O(sa, sb)(ini)((ca,cb,cc) ⇒ isNeverToO(next(ca,cb,cc)))
+    : RF[R,C,I,O3] = sync2O(sa, sb)(ini)((ca,cb,cc) ⇒ isNeverToO(next(ca,cb,cc)))
 
   private[dire] def sync2O[R,A,B,C,I[+_]:IdOrEvent,O1[+_],O2[+_],O3[+_]:IdOrEvent]
-    (sa: SfT[R,A,I,O1], sb: SfT[R,B,I,O2])
+    (sa: RF[R,A,I,O1], sb: RF[R,B,I,O2])
     (ini: (Change[O1[A]], Change[O2[B]]) ⇒ O3[C])
     (next: (Change[O1[A]], Change[O2[B]], Change[O3[C]]) ⇒ Option[O3[C]])
-    : SfT[R,C,I,O3] =
-    SfT[R,C,I,O3]((rr, r) ⇒ 
+    : RF[R,C,I,O3] =
+    RF[R,C,I,O3]((rr, r) ⇒ 
       for {
         ra ← sa.run(rr, r)
         rb ← sb.run(rr, r)
@@ -607,16 +616,16 @@ trait SfTFunctions {
     *              latest value
     */
   private[dire] def sync1[R,A,B,I[+_]:IdOrEvent,O1[+_],O2[+_]:IdOrEvent]
-    (sa: SfT[R,A,I,O1])
+    (sa: RF[R,A,I,O1])
     (ini: Change[O1[A]] ⇒ O2[B])
     (next: (Change[O1[A]], Change[O2[B]]) ⇒ O2[B])
-    : SfT[R,B,I,O2] = sync1O(sa)(ini)((ca,cb) ⇒ isNeverToO(next(ca,cb)))
+    : RF[R,B,I,O2] = sync1O(sa)(ini)((ca,cb) ⇒ isNeverToO(next(ca,cb)))
 
   private[dire] def sync1O[R,A,B,I[+_]:IdOrEvent,O1[+_],O2[+_]:IdOrEvent]
-    (sa: SfT[R,A,I,O1])
+    (sa: RF[R,A,I,O1])
     (ini: Change[O1[A]] ⇒ O2[B])
-    (next: (Change[O1[A]], Change[O2[B]]) ⇒ Option[O2[B]]): SfT[R,B,I,O2] =
-    SfT[R,B,I,O2]((rr, r) ⇒ 
+    (next: (Change[O1[A]], Change[O2[B]]) ⇒ Option[O2[B]]): RF[R,B,I,O2] =
+    RF[R,B,I,O2]((rr, r) ⇒ 
       for {
         ra ← sa.run(rr, r)
         rb ← RS.sync1(ra)(ini)(next)
@@ -627,7 +636,7 @@ trait SfTFunctions {
     if (IdOrEvent[F] isNever f) None else Some(f)
 
   private[dire] def run[A,O[+_]]
-    (in: SfT[⊥,A,Event,O], proc: Int, step: Time)
+    (in: RF[⊥,A,Event,O], proc: Int, step: Time)
     (stop: A ⇒ Boolean): IO[Unit] = {
 
     //Minimum number of threads is 2
@@ -651,32 +660,32 @@ trait SfTFunctions {
   }
 }
 
-trait SfTInstances {
-  implicit val SFArrow: Arrow[SF] = new SfTArrow[Id]
+trait RFInstances {
+  implicit val SFArrow: Arrow[SF] = new RFArrow[Id]
 
-  implicit val EFArrow: Arrow[EF] = new SfTArrow[Event]
+  implicit val EFArrow: Arrow[EF] = new RFArrow[Event]
 
   implicit def SFApplicative[R]
-    : Applicative[({type λ[α]=SfT[R,α,Id,Id]})#λ] =
-    new SfTApplicative[R,Id,Id]
+    : Applicative[({type λ[α]=RF[R,α,Id,Id]})#λ] =
+    new RFApplicative[R,Id,Id]
 
   implicit def EFApplicative[R]
-    : Applicative[({type λ[α]=SfT[R,α,Event,Event]})#λ] =
-    new SfTApplicative[R,Event,Event]
+    : Applicative[({type λ[α]=RF[R,α,Event,Event]})#λ] =
+    new RFApplicative[R,Event,Event]
 
   implicit def SEFApplicative[R]
-    : Applicative[({type λ[α]=SfT[R,α,Id,Event]})#λ] =
-    new SfTApplicative[R,Id,Event]
+    : Applicative[({type λ[α]=RF[R,α,Id,Event]})#λ] =
+    new RFApplicative[R,Id,Event]
 
   implicit def ESFApplicative[R]
-    : Applicative[({type λ[α]=SfT[R,α,Event,Id]})#λ] =
-    new SfTApplicative[R,Event,Id]
+    : Applicative[({type λ[α]=RF[R,α,Event,Id]})#λ] =
+    new RFApplicative[R,Event,Id]
 
   implicit def EFPlus[R]: PlusEmpty[({type λ[α]=EF[R,α]})#λ] =
-    new SfTPlus[R,Event]
+    new RFPlus[R,Event]
 
   implicit def SEFPlus[R]: PlusEmpty[({type λ[α]=SEF[R,α]})#λ] =
-    new SfTPlus[R,Id]
+    new RFPlus[R,Id]
 
   implicit def EFMonoid[A,B]: Monoid[EF[A,B]] = EFPlus[A].monoid
 
@@ -705,31 +714,31 @@ private[dire] object IdOrEvent {
     }
 }
 
-private[dire] class SfTApplicative[R,I[+_]:IdOrEvent,O[+_]:IdOrEvent]
-  extends Applicative[({type λ[α]=SfT[R,α,I,O]})#λ] {
-  def point[A](a: ⇒ A): SfT[R,A,I,O] =
-    SfT.constSfT[R,A,I,O](IdOrEvent[O] point a)
+private[dire] class RFApplicative[R,I[+_]:IdOrEvent,O[+_]:IdOrEvent]
+  extends Applicative[({type λ[α]=RF[R,α,I,O]})#λ] {
+  def point[A](a: ⇒ A): RF[R,A,I,O] =
+    RF.constRF[R,A,I,O](IdOrEvent[O] point a)
 
-  def ap[A,B](fa: ⇒ SfT[R,A,I,O])(f: ⇒ SfT[R,A ⇒ B,I,O]) = fa ap f
+  def ap[A,B](fa: ⇒ RF[R,A,I,O])(f: ⇒ RF[R,A ⇒ B,I,O]) = fa ap f
 
-  override def map[A,B](s: SfT[R,A,I,O])(f: A ⇒ B) = s map f
+  override def map[A,B](s: RF[R,A,I,O])(f: A ⇒ B) = s map f
 }
 
-private[dire] class SfTPlus[R,I[+_]:IdOrEvent]
-   extends PlusEmpty[({type λ[α]=SfT[R,α,I,Event]})#λ] {
-  def empty[A] = SfT.constSfT[R,A,I,Event](Never)
-  def plus[A](a: SfT[R,A,I,Event], b: ⇒ SfT[R,A,I,Event]) = a merge b
+private[dire] class RFPlus[R,I[+_]:IdOrEvent]
+   extends PlusEmpty[({type λ[α]=RF[R,α,I,Event]})#λ] {
+  def empty[A] = RF.constRF[R,A,I,Event](Never)
+  def plus[A](a: RF[R,A,I,Event], b: ⇒ RF[R,A,I,Event]) = a merge b
 }
 
-private[dire] class SfTArrow[I[+_]:IdOrEvent]
-  extends Arrow[({type λ[α,b]=SfT[α,b,I,I]})#λ] {
-   def id[A]: SfT[A,A,I,I] = SfT.id
+private[dire] class RFArrow[I[+_]:IdOrEvent]
+  extends Arrow[({type λ[α,b]=RF[α,b,I,I]})#λ] {
+   def id[A]: RF[A,A,I,I] = RF.id
 
-  def arr[A,B](f: A ⇒ B): SfT[A,B,I,I] = id[A] map f
+  def arr[A,B](f: A ⇒ B): RF[A,B,I,I] = id[A] map f
 
-  def compose[A,B,C](f: SfT[B,C,I,I], g: SfT[A,B,I,I]) = f compose g
+  def compose[A,B,C](f: RF[B,C,I,I], g: RF[A,B,I,I]) = f compose g
 
-  def first[A,B,C](f: SfT[A,B,I,I]): SfT[(A,C),(B,C),I,I] = {
+  def first[A,B,C](f: RF[A,B,I,I]): RF[(A,C),(B,C),I,I] = {
     val sfAC = id[(A,C)]
     val sfACB = sfAC map { _._1 } andThen f
     val sfACC = sfAC map { _._2 }

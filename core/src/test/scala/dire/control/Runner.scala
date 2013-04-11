@@ -10,7 +10,7 @@ trait Runner {
     0 to 100 map { i ⇒ Change(i, i.toLong) } toList
 
   def test100[A,O[+_]:IdOrEvent]
-    (sf: SfT[Time,A,Id,O])
+    (sf: RF[Time,A,Id,O])
     (f: Time ⇒ Option[O[A]])
     (implicit E: Equal[O[A]]): Boolean = {
     val changes = runFor(sf, 100L)
@@ -21,7 +21,7 @@ trait Runner {
     * that fullfills the given predicate
     */
   def runUntil[A,O[+_]:IdOrEvent]
-    (in: SfT[⊥,A,Event,O])
+    (in: RF[⊥,A,Event,O])
     (stop: A ⇒ Boolean): List[Change[O[A]]] = {
     val as = new collection.mutable.ListBuffer[Change[O[A]]]
     val coll = in changeTo (a ⇒ IO(as += a))
@@ -34,10 +34,10 @@ trait Runner {
   /** Builds a reactive graph and runs it for t microseconds
     * while collecting change events of type A.
     */
-  def runFor[A,O[+_]:IdOrEvent](sf: SfT[Time,A,Id,O], t: Time)
+  def runFor[A,O[+_]:IdOrEvent](sf: RF[Time,A,Id,O], t: Time)
     : List[Change[O[A]]] = {
     val as = new collection.mutable.ListBuffer[Change[O[A]]]
-    val time = SfT.time branch sf.changeTo(a ⇒ IO(as += a))
+    val time = RF.time branch sf.changeTo(a ⇒ IO(as += a))
 
     SF.run(time, 4, step = 1L)(t <= _).unsafePerformIO
 
@@ -47,7 +47,7 @@ trait Runner {
   /** Compares the events fired by two signal functions
     */
   def compare[A,B,O1[+_]:IdOrEvent,O2[+_]:IdOrEvent]
-    (sfA: SfT[Time,A,Id,O1], sfB: SfT[Time,B,Id,O2], t: Time)
+    (sfA: RF[Time,A,Id,O1], sfB: RF[Time,B,Id,O2], t: Time)
     (exp: List[Change[O1[A]]] ⇒ List[Change[O2[B]]])
     (implicit E: Equal[O2[B]]): Boolean = {
     val as = new collection.mutable.ListBuffer[Change[O1[A]]]

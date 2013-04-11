@@ -34,7 +34,7 @@ object Random {
     * at regular intervals
     */
   def noise(seed: Long, interval: Time = 1000L): EIn[Double] =
-    SfT ticks interval as dbl01 scanStV seed
+    SF ticks interval as dbl01 scanStV seed
 }
 
 // vim: set ts=2 sw=2 et:

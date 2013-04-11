@@ -14,15 +14,15 @@ trait SFArbitrary {
 
   type ESFTT = ESF[Time,Time]
 
-  def const(t: Time): SFTT = SfT.idS[Time] >> SfT.const(t)
+  def const(t: Time): SFTT = RF.idS[Time] >> RF.const(t)
   
   val idTT: SFTT = Arrow[SF].id[Time]
 
-  val asyncTT: SFTT = SfT.idS[Time] >> (SfT ticks 1L scan 0L)((_,c) ⇒ c + 1L)
+  val asyncTT: SFTT = RF.idS[Time] >> (RF ticks 1L scan 0L)((_,c) ⇒ c + 1L)
 
-  val square: SFTT = SfT.sf[Time,Time] { x ⇒ x * x }
+  val square: SFTT = RF.sf[Time,Time] { x ⇒ x * x }
 
-  val inverse: SFTT = SfT.sf[Time,Time] { x ⇒ -x }
+  val inverse: SFTT = RF.sf[Time,Time] { x ⇒ -x }
 
   val distinct: SFTT = idTT.distinct
 

@@ -13,19 +13,19 @@ package object dire {
 
   type Out[-A] = A ⇒ IO[Unit]
 
-  type EF[-A,+B] = SfT[A,B,Event,Event]
+  type EF[-A,+B] = RF[A,B,Event,Event]
 
   type EIn[+A] = EF[⊥,A]
 
-  type ESF[-A,+B] = SfT[A,B,Event,Id]
+  type ESF[-A,+B] = RF[A,B,Event,Id]
 
-  type SF[-A,+B] = SfT[A,B,Id,Id]
+  type SF[-A,+B] = RF[A,B,Id,Id]
 
-  type SEF[-A,+B] = SfT[A,B,Id,Event]
+  type SEF[-A,+B] = RF[A,B,Id,Event]
 
   type SIn[+A] = ESF[⊥,A]
 
-  object SF extends SfTFunctions
+  object SF extends RFFunctions
 }
 
 // vim: set ts=2 sw=2 et:
