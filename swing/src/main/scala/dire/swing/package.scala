@@ -7,29 +7,22 @@ import scalaz.concurrent.Strategy.SwingInvokeLater
 
 package object swing {
 
-  type Sink[S,A] = DataSink[S,A]
+  type Sink[-A] = DataSink[A]
   type Source[S,A] = DataSource[S,A]
-  type ESource[S,A] = Source[S,Event[A]]
   type Callback[-S,+A] = S ⇒ (A ⇒ Unit) ⇒ (Unit ⇒ Unit)
 
   type Dim = (Int, Int)
 
   type Position = (Int, Int)
 
-  private[swing] def sink[S,A:TypeTag]
-    (s: S)(out: A ⇒ Unit): EF[Event[A],Nothing] = {
-      implicit val sink = DataSink.createE[S,A](s ⇒ a ⇒ IO(out(a)),
-                                                _ ⇒ IO.ioUnit,
-                                                Some(SwingInvokeLater))
-
-      SF.cached(SF sink s, s)
-    }
+  private[swing] def sink[A:TypeTag](out: A ⇒ Unit, key: Any): Sink[A] =
+    DataSink.cached[A](a ⇒ IO(out(a)), key, strategy = Some(SwingInvokeLater))
 
   private[swing] def blockedSink[S<:BlockedSignal,A:TypeTag]
-    (s: S)(out: A ⇒ Unit): EF[Event[A],Nothing] = 
-    sink(s){ a ⇒ s.blocked = true; out(a); s.blocked = false }
+    (s: S)(out: A ⇒ Unit): Sink[A] = 
+    sink(a ⇒ { s.blocked = true; out(a); s.blocked = false }, s)
 
-  private[swing] def eventSrc[S,A](out: Callback[S,A]): ESource[S,A] =
+  private[swing] def eventSrc[S,A](out: Callback[S,A]): Source[S,A] =
     DataSource eventSrcInpure out
 
   private[swing] def src[S,A](ini: S ⇒ A)(out: Callback[S,A]): Source[S,A] =

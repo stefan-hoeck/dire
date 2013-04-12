@@ -1,25 +1,25 @@
 package dire.swing
 
-import dire._, SF.EFOps
+import dire._
 import java.awt.event.{MouseMotionListener, MouseEvent}
 import javax.swing.JComponent
 
 trait Component[A<:JComponent] extends Wrapped[A] {
   import Component._
 
-  def enabled: EF[Event[Boolean],Nothing] = sink(this){ peer.setEnabled }
+  def enabled: Sink[Boolean] = sink(peer.setEnabled, this)
 
-  def mouseMoved: EIn[MotionEvent] = SF cachedSrc this
+  def mouseMoved: SIn[MotionEvent] = SF cachedSrc this
 
-  def mousePosition: SIn[Position] = mouseMoved mapE { _.pos } hold (0, 0)
+  def mousePosition: SIn[Position] = mouseMoved map { _.pos } hold (0, 0)
 
-  def tooltip: EF[Event[String],Nothing] = sink(this){ peer.setToolTipText }
+  def tooltip: Sink[String] = sink(peer.setToolTipText, this)
 }
 
 object Component {
 
   implicit def ComponentSource[A<:JComponent]
-    : ESource[Component[A],MotionEvent] = eventSrc { c ⇒ o ⇒ 
+    : Source[Component[A],MotionEvent] = eventSrc { c ⇒ o ⇒ 
       val l = listener(o)
       c.peer.addMouseMotionListener(l)
       _ ⇒ c.peer.removeMouseMotionListener(l)

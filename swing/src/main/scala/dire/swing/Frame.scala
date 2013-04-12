@@ -9,9 +9,9 @@ import scalaz._, Scalaz._, effect.IO
 case class Frame(peer: JFrame) extends Wrapped[JFrame] {
   import Frame._
 
-  def events: EIn[FrameEvent] = SF cachedSrc this
+  def events: SIn[FrameEvent] = SF cachedSrc this
 
-  def title: EF[Event[String],Nothing] = sink(this) { peer.setTitle }
+  def title: Sink[String] = sink(peer.setTitle, this)
 
   def addElem(e: Elem, l: FrameLayout = Center): IO[Unit] = for {
     p  ← e.panel
@@ -20,9 +20,7 @@ case class Frame(peer: JFrame) extends Wrapped[JFrame] {
     _  ← IO(peer.setSize(new Dimension(nd._1, nd._2)))
   } yield ()
 
-  def show: IO[Unit] = IO {
-    peer.setVisible(true)
-  }
+  def show: IO[Unit] = IO { peer.setVisible(true) }
 }
 
 object Frame {
@@ -30,7 +28,7 @@ object Frame {
 
   def apply(title: String): IO[Frame] = IO(Frame(new JFrame(title)))
 
-  implicit val FrameSource: ESource[Frame,FrameEvent] = eventSrc { f ⇒ o ⇒ 
+  implicit val FrameSource: Source[Frame,FrameEvent] = eventSrc { f ⇒ o ⇒ 
     val l = listener(o)
     f.peer.addWindowListener(l)
     _ ⇒ f.peer.removeWindowListener(l)

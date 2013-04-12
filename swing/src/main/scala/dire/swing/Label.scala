@@ -5,10 +5,11 @@ import javax.swing.JLabel
 import scalaz._, Scalaz._, effect.IO
 
 case class Label(peer: JLabel) extends Component[JLabel] {
-  def text: EF[Event[String],Nothing] = sink(this){ peer.setText }
+  def text: Sink[String] = sink(peer.setText, this)
 
-  def textA[A]: EF[Event[A],Nothing] = 
-    EF.id[A] mapE { _.toString } andThen text
+  def textA[A]: Sink[A] = text ∙ { _.toString }
+
+  def textS[A:Show]: Sink[A] = text ∙ { _.shows }
 }
 
 object Label {

@@ -7,9 +7,9 @@ import scalaz._, Scalaz._, effect.IO
 case class Button(peer: JButton) extends Component[JButton] {
   import Button._
 
-  def clicks: EIn[Unit] = SF cachedSrc this
+  def clicks: SIn[Unit] = SF cachedSrc this
 
-  def text: EF[Event[String],Nothing] = sink(this){ peer.setText }
+  def text: Sink[String] = sink(peer.setText, this)
 }
 
 object Button {
@@ -17,7 +17,7 @@ object Button {
 
   def apply(text: String): IO[Button] = IO(Button(new JButton(text)))
 
-  implicit val ButtonSource: ESource[Button,Unit] = eventSrc { b ⇒ o ⇒ 
+  implicit val ButtonSource: Source[Button,Unit] = eventSrc { b ⇒ o ⇒ 
     val a = ali(o)
     b.peer.addActionListener(a)
     _ ⇒ b.peer.removeActionListener(a)

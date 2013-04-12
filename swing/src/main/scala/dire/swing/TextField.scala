@@ -10,7 +10,7 @@ case class TextField(peer: JTextField)
   with BlockedSignal {
   import TextField._
 
-  def text: EF[Event[String],Nothing] = blockedSink(this){ peer.setText }
+  def text: Sink[String] = blockedSink(this)(peer.setText)
 
   def value: SIn[String] = SF cachedSrc this
 }

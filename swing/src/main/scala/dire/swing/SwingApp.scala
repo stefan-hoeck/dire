@@ -12,7 +12,7 @@ trait SwingApp {
     frame   ← Frame()
     sf      ← behavior(frame)
     _       ← frame.show
-    _       ← EF.run(sf >>> frame.events){ Frame.Closing == _ }
+    _       ← SF.run(sf >> frame.events){ Frame.Closing == _ }
     _       ← IO(System.exit(0))
   } yield ()
 }
