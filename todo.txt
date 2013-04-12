@@ -31,4 +31,4 @@
 0010  #Done		Implement Arrow for EF and check that it takes precedence
                 over Arrow implementation for SF. No longer needed
 
-0011  #High		Implement Monoid for data sink
+0011  #Done		Implement Monoid for data sink

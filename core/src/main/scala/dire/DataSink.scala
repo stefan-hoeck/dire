@@ -52,12 +52,23 @@ trait DataSinkFunctions {
     createE(o, strategy = Some(Strategy.Sequential))
 
   private def eOut[A](o: Out[A]): Out[Event[A]] = _.fold(o, IO.ioUnit)
+
+  private final def empty[A]: DataSink[A] = sync[A](_ ⇒ IO.ioUnit)
 }
 
 trait DataSinkInstances {
   implicit val DataSinkContravariant: Contravariant[DataSink] =
     new Contravariant[DataSink] {
       def contramap[A,B](r: DataSink[A])(f: B ⇒ A) = r contramap f
+    }
+
+  implicit def DataSinkMonoid[A]: Monoid[DataSink[A]] =
+    new Monoid[DataSink[A]] {
+      val zero = DataSink.sync[A](_ ⇒ IO.ioUnit)
+      def append(a: DataSink[A], b: ⇒ DataSink[A]) = new DataSink[A] {
+        private[dire] def connect(raw: RS[A], r: Reactor): IO[Unit] =
+          a.connect(raw, r) >> b.connect(raw, r)
+      }
     }
 }
 
