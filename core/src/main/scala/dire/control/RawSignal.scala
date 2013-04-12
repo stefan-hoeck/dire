@@ -15,7 +15,7 @@ sealed trait RawSignal[+A] { self ⇒
   private[control] def last: Event[A]
 
   private[dire] def map[B](f: A ⇒ B): IO[RawSignal[B]] =
-    RawSignal.sync1(this)(_ map f toOption)((c,_) ⇒ c map f toOption)
+    RawSignal.sync1(this)(_ map f)((c,_) ⇒ c map f)
 }
 
 /** Represents a signal that never changes */
@@ -60,12 +60,12 @@ private[dire] object RawSignal {
     */
   private[dire] def sync1[A,B]
     (a: RawSignal[A])
-    (ini: Event[A] ⇒ Option[B])
-    (next: (Event[A],Event[B]) ⇒ Option[B])
+    (ini: Event[A] ⇒ Event[B])
+    (next: (Event[A],Event[B]) ⇒ Event[B])
     : IO[RawSignal[B]] = IO {
     val sync = new Sync[B](
-      Event(ini(a.last)) orAt a.last.at,
-      eb ⇒ Event(next(a.last, eb)) orAt a.last.at
+      ini(a.last) orAt a.last.at,
+      eb ⇒ next(a.last, eb) orAt a.last.at
     )
 
     a.node connectChild sync.node
@@ -78,12 +78,12 @@ private[dire] object RawSignal {
     */
   private[dire] def sync2[A,B,C]
     (a: RawSignal[A], b: RawSignal[B])
-    (ini: (Event[A],Event[B]) ⇒ Option[C])
-    (next: (Event[A],Event[B],Event[C]) ⇒ Option[C])
+    (ini: (Event[A],Event[B]) ⇒ Event[C])
+    (next: (Event[A],Event[B],Event[C]) ⇒ Event[C])
     : IO[RawSignal[C]] = IO {
     val sync = new Sync[C](
-      Event(ini(a.last, b.last)) orAt a.last.at orAt b.last.at,
-      eb ⇒ Event(next(a.last, b.last, eb)) orAt a.last.at orAt b.last.at
+      ini(a.last, b.last) orAt (a.last.at max b.last.at),
+      eb ⇒ next(a.last, b.last, eb) orAt (a.last.at max b.last.at)
     )
 
     a.node connectChild sync.node

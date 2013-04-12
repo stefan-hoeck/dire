@@ -38,25 +38,25 @@ final private[dire] class Reactor(
   //creates a new anychronous data sink
   //must only be called when initializing the reactive graph
   //or (probably) when processing a signal's update event
-//  private[dire] def sink[O](
-//    out: Out[Change[O]],
-//    clean: IO[Unit],
-//    st: Option[Strategy],
-//    key: Option[(Any,TypeTag[O])])
-//    (r: RawSignal[O]): IO[Unit] = {
-//      def tag(implicit T:TypeTag[O]) = implicitly[TypeTag[Var[Change[O]]]]
-//
-//      def newVar = Var(r.last, st getOrElse strategy)
-//
-//      def getVar = key.fold(newVar)(p ⇒ cache(newVar, p._1)(tag(p._2)))
-//
-//      def connect(v: Var[Change[O]]) = IO {
-//        r.node connectChild Node.child{ t ⇒ v.set(r.last); false }
-//        v.addListener(out)
-//      }
-//
-//      getVar flatMap connect
-//    }
+  private[dire] def sink[O](
+    out: Out[Event[O]],
+    clean: IO[Unit],
+    st: Option[Strategy],
+    key: Option[(Any,TypeTag[O])])
+    (r: RawSignal[O]): IO[Unit] = {
+      def tag(implicit T:TypeTag[O]) = implicitly[TypeTag[Var[Event[O]]]]
+
+      def newVar = Var(r.last, st getOrElse strategy)
+
+      def getVar = key.fold(newVar)(p ⇒ cache(newVar, p._1)(tag(p._2)))
+
+      def connect(v: Var[Event[O]]) = IO {
+        r.node connectChild Node.child{ t ⇒ v.set(r.last); false }
+        v.addListener(out)
+      }
+
+      getVar flatMap connect
+    }
 //
 //  //@TODO
 //  private[dire] def trans[A,B](f: A ⇒ IO[B])(in: RawSignal[Event[A]])

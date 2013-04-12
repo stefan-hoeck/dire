@@ -16,7 +16,7 @@ import scalaz._, Scalaz._, effect.IO
   */
 class SF[-A,+B] private[dire](
     private[dire] val run: (RS[A], Reactor) ⇒ IO[RS[B]]) {
-  import SF._ //, DataSink._
+  import SF._
 
   /** Applies a time-changing function to the signals values */
   def ap[C,AA<:A](f: SF[AA,B ⇒ C]): SF[AA,C] = (f <*> this)(_ apply _)
@@ -24,22 +24,22 @@ class SF[-A,+B] private[dire](
   /** Sequentially combines two signal functions */
   def andThen[C](that: SF[B,C]): SF[A,C] = that compose this
 
-//  /** Like `syncTo` but performs side effects asynchronuously,
-//    * that is, the main `Reactor` thread is not blocked.
-//    *
-//    * The reactive system guarantees that, as long as the given
-//    * `out` is not used as a data sink for other signals, it will
-//    * only be accessed sequentially from this signal, i.e. it
-//    * need not be thread safe. It is for instance possible to
-//    * write all values of this signal to a file without being
-//    * afraid of race conditions or other ugliness. If the same
-//    * file is used to monitor several distinct signals or
-//    * event streams they should either be merged in a single
-//    * signal (event stream) first, or function `to` should
-//    * be used which guarantees that all access from a given
-//    * reactive graph will be sequential.
-//    */
-//  def asyncTo(out: Out[B]): SF[A,B,I,O] = to(DataSink async out)
+  /** Like `syncTo` but performs side effects asynchronuously,
+    * that is, the main `Reactor` thread is not blocked.
+    *
+    * The reactive system guarantees that, as long as the given
+    * `out` is not used as a data sink for other signals, it will
+    * only be accessed sequentially from this signal, i.e. it
+    * need not be thread safe. It is for instance possible to
+    * write all values of this signal to a file without being
+    * afraid of race conditions or other ugliness. If the same
+    * file is used to monitor several distinct signals or
+    * event streams they should either be merged in a single
+    * signal (event stream) first, or function `to` should
+    * be used which guarantees that all access from a given
+    * reactive graph will be sequential.
+    */
+  def asyncTo(out: Out[B]): SF[A,B] = to(DataSink async out)
 
   /** Connect a reactive branch to this signal function but
     * return to the original branch afterwards.
@@ -138,64 +138,50 @@ class SF[-A,+B] private[dire](
   def scanPlus[F[+_]](implicit P: ApplicativePlus[F])
     : SF[A,F[B]] = scanMap(_.η[F])(P.monoid)
 
-//  /** Accumulates the results of a stateful calculation */
-//  def scanSt[S,C](ini: S)(implicit WS: B <:< State[S,C], W: AsEv[O])
-//    : SF[A,(S,C),I,Event] = {
-//    def sfE = scan[Event[(S,C)]](Never)((s: B, e: Event[(S,C)]) ⇒ 
-//      e map { s run _._1 } orElse Once(s run ini))
-//
-//    SF[A,(S,C),I,Event](sfE.run)
-//  }
-//
-//  /** Accumulates the results of a stateful calculation in a signal
-//    * starting at value `ini`.
-//    *
-//    * Note that the stateful calculation is performed purely for its
-//    * effects on the state and the result is discarded.
-//    */
-//  def scanStHold[S,C]
-//    (ini: S)
-//    (implicit WS: B <:< State[S,C], W: AsEv[O]): SF[A,S,I,Id] =
-//    scanStS[S,C](ini) hold ini
-//
-//  /** Accumulates the results of a stateful calculation 
-//    * keeping the state and discarding the result
-//    */
-//  def scanStS[S,C]
-//    (ini: S)
-//    (implicit WS: B <:< State[S,C], W: AsEv[O]): SF[A,S,I,Event] =
-//    scanSt[S,C](ini) map { _._1 }
-//
-//  /** Accumulates the results of a stateful calculation 
-//    * discarding the new state
-//    */
-//  def scanStV[S,C](ini: S)
-//    (implicit WS: B <:< State[S,C], W: AsEv[O]): SF[A,C,I,Event] =
-//    scanSt[S,C](ini) map { _._2 }
+  /** Accumulates the results of a stateful calculation */
+  def scanSt[S,C](ini: S)(implicit WS: B <:< State[S,C]): SF[A,(S,C)] = {
+    def iniE(e: Event[B]) = e map { _ run ini }
+    def next(e: Event[B], s: Event[(S,C)]) =
+      e map { _ run s.fold(_._1, ini) }
+
+    sync1(this)(iniE)(next)
+  }
+
+  /** Accumulates the results of a stateful calculation 
+    * keeping the state and discarding the result
+    */
+  def scanStS[S,C](ini: S)(implicit WS: B <:< State[S,C]): SF[A,S] =
+    scanSt[S,C](ini) map { _._1 }
+
+  /** Accumulates the results of a stateful calculation 
+    * discarding the new state
+    */
+  def scanStV[S,C](ini: S)(implicit WS: B <:< State[S,C]): SF[A,C] =
+    scanSt[S,C](ini) map { _._2 }
 
   /** Accumulates events using a Monoid */
   def sum[BB>:B](implicit M: Monoid[BB]): SF[A,BB] = scanMap[BB](identity)
 
-//  /** Performs the given IO-action with this signal's initial value
-//    * and whenever this signal changes.
-//    *
-//    * Note that `out` will be called by the `Reactor`'s
-//    * running thread that updates
-//    * the main reactive graph. Therefore, side effects performed
-//    * by `out` need to be fast if the system should stay reactive.
-//    * Consider using `asyncTo` instead for fully asynchronuous
-//    * side effects or when side effects have to be performed in a
-//    * special type of thread (the Swing event dispatch thread for instance).
-//    */
-//  def syncTo(out: Out[B]): SF[A,B,I,O] = to(DataSink sync out)
-//
-//  /** Asynchronuously output the values of this signal to a data sink
-//    *
-//    * How the data sink operates and what concurrency strategy is
-//    * applied is defined in the [[dire.DataSink]] type class.
-//    */
-//  def to(sink: DataSink[B]): SF[A,B,I,O] = 
-//    SF((ra,r) ⇒ run(ra,r) >>= { rb ⇒ sink.connect[O](rb,r) as rb })
+  /** Performs the given IO-action with this signal's initial value
+    * and whenever this signal changes.
+    *
+    * Note that `out` will be called by the `Reactor`'s
+    * running thread that updates
+    * the main reactive graph. Therefore, side effects performed
+    * by `out` need to be fast if the system should stay reactive.
+    * Consider using `asyncTo` instead for fully asynchronuous
+    * side effects or when side effects have to be performed in a
+    * special type of thread (the Swing event dispatch thread for instance).
+    */
+  def syncTo(out: Out[B]): SF[A,B] = to(DataSink sync out)
+
+  /** Asynchronuously output the values of this signal to a data sink
+    *
+    * How the data sink operates and what concurrency strategy is
+    * applied is defined in the [[dire.DataSink]] type class.
+    */
+  def to(sink: DataSink[B]): SF[A,B] = 
+    SF { (ra,r) ⇒ run(ra,r) >>= { rb ⇒ sink.connect(rb,r) as rb } }
 
   /** Combines a signal with an event stream through a
     * function of arity two.
@@ -220,18 +206,18 @@ class SF[-A,+B] private[dire](
   /** Combines two signals with a pure function */
   def <*>[C,D,AA<:A](that: SF[AA,C])(f: (B,C) ⇒ D): SF[AA,D] =
     sync2(this, that)(^(_,_)(f))((cb,cc,_) ⇒ ^(cb, cc)(f))
-//
-//  /** Alias for `contramap`*/
-//  def ∙ [C](f: C ⇒ A): SF[C,B,I,O] = contramap(f)
-//
-//  /** Alias for `asyncTo` */
-//  def -/->(out: Out[B]): SF[A,B,I,O] = asyncTo(out)
-//
-//  /** Alias for `syncTo` */
-//  def -->(out: Out[B]): SF[A,B,I,O] = syncTo(out)
-//
-//  /** Alias for `to` */
-//  def ==>(sink: DataSink[B]): SF[A,B,I,O] = to(sink)
+
+  /** Alias for `contramap`*/
+  def ∙ [C](f: C ⇒ A): SF[C,B] = contramap(f)
+
+  /** Alias for `asyncTo` */
+  def -/->(out: Out[B]): SF[A,B] = asyncTo(out)
+
+  /** Alias for `syncTo` */
+  def -->(out: Out[B]): SF[A,B] = syncTo(out)
+
+  /** Alias for `to` */
+  def ==>(sink: DataSink[B]): SF[A,B] = to(sink)
 
   /** Appends a signal or event source to this signal function
     *
@@ -365,92 +351,71 @@ trait SFFunctions {
     * event streams can thus be created. 
     */
   def ticks(step: Time): SIn[Unit] = src[Time,Unit](step)
-//
-//
-//  // ***                          *** //
-//  // *** Running signal functions *** //
-//  // ***                          *** //
-//
-//  /** Sets up a reactive network and runs it until the given
-//    * abort condition is fullfilled.
-//    *
-//    * Note that the calling thread is blocked until the abbort
-//    * condition is fullfilled and the reactive system shutdown
-//    *
-//    * @param in  The signal function that describes the reactive
-//    *            network
-//    *
-//    * @param step  Time resolution in microseconds. If the given
-//    *              signal function depends on the `Time` signal
-//    *              this number denotes how frequently `Time` is
-//    *              being updated. The default value is `1000L`
-//    *              (one millisecond)
-//    *
-//    * @param proc Number of processors (threads) available to the
-//    *             actors running in the background. The default
-//    *             value is the total number of processors of the
-//    *             system the application is running on. Note that
-//    *             a minimum of two threads is chosen if `proc` is
-//    *             less than two.
-//    *
-//    * @param stop This function should return `true` when a certain
-//    *             abbort condition is fulfilled. In that case, the
-//    *             reactive framework will cease to run and release
-//    *             all its resources. Note that the framework will
-//    *             stop immediately AFTER `stop` has returned true
-//    *             but that the event that lead to abortion
-//    *             is still processed and passed to all
-//    *             registered data sinks.
-//    */
-//  def runS[A]
-//    (in: SIn[A], proc: Int = SF.processors, step: Time = 1000L)
-//    (stop: A ⇒ Boolean)
-//    : IO[Unit] =
-//    run(in, proc, step)(stop)
-//
-//  /** Sets up a reactive network and runs it until the given
-//    * abort condition is fullfilled.
-//    *
-//    * Note that the calling thread is blocked until the abbort
-//    * condition is fullfilled and the reactive system shutdown
-//    *
-//    * @param in  The event source that describes the reactive
-//    *            network
-//    *
-//    * @param step  Time resolution in microseconds. If the given
-//    *              signal function depends on the `Time` signal
-//    *              this number denotes how frequently `Time` is
-//    *              being updated. The default value is `1000L`
-//    *              (one millisecond)
-//    *
-//    * @param proc Number of processors (threads) available to the
-//    *             actors running in the background. The default
-//    *             value is the total number of processors of the
-//    *             system the application is running on. Note that
-//    *             a minimum of two threads is chosen if `proc` is
-//    *             less than two.
-//    *
-//    * @param stop This function should return `true` when a certain
-//    *             abbort condition is fulfilled. In that case, the
-//    *             reactive framework will cease to run and release
-//    *             all its resources. Note that the framework will
-//    *             stop immediately AFTER `stop` has returned true
-//    *             but that the event that lead to abortion
-//    *             is still processed and passed to all
-//    *             registered data sinks.
-//    */
-//  def runE[A]
-//    (in: EIn[A], proc: Int = SF.processors, step: Time = 1000L)
-//    (stop: A ⇒ Boolean)
-//    : IO[Unit] =
-//    run[A,Event](in, proc, step)(stop)
-//
-//
-//  // ***                                   *** //
-//  // ***  package private helper functions *** //
-//  // ***                                   *** //
-//
-//  private[dire] def id[A,F[+_]:IdOrEvent]: SF[A,A,F,F] = SF((a,_) ⇒ IO(a))
+
+
+  // ***                          *** //
+  // *** Running signal functions *** //
+  // ***                          *** //
+
+  /** Sets up a reactive network and runs it until the given
+    * abort condition is fullfilled.
+    *
+    * Note that the calling thread is blocked until the abbort
+    * condition is fullfilled and the reactive system shutdown
+    *
+    * @param in  The signal function that describes the reactive
+    *            network
+    *
+    * @param step  Time resolution in microseconds. If the given
+    *              signal function depends on the `Time` signal
+    *              this number denotes how frequently `Time` is
+    *              being updated. The default value is `1000L`
+    *              (one millisecond)
+    *
+    * @param proc Number of processors (threads) available to the
+    *             actors running in the background. The default
+    *             value is the total number of processors of the
+    *             system the application is running on. Note that
+    *             a minimum of two threads is chosen if `proc` is
+    *             less than two.
+    *
+    * @param stop This function should return `true` when a certain
+    *             abbort condition is fulfilled. In that case, the
+    *             reactive framework will cease to run and release
+    *             all its resources. Note that the framework will
+    *             stop immediately AFTER `stop` has returned true
+    *             but that the event that lead to abortion
+    *             is still processed and passed to all
+    *             registered data sinks.
+    */
+  private[dire] def run[A]
+    (in: SIn[A], proc: Int = SF.processors, step: Time = 1000L)
+    (stop: A ⇒ Boolean): IO[Unit] = {
+
+    //Minimum number of threads is 2
+    lazy val ex =
+      java.util.concurrent.Executors.newFixedThreadPool(proc max 2)
+    lazy val s = scalaz.concurrent.Strategy.Executor(ex)
+
+    //flag to be set to true if reactive system should be shutdown
+    var doKill = false
+
+    //blocks the calling thread
+    val cdl = new java.util.concurrent.CountDownLatch(1)
+
+    for {
+      r ← IO(new Reactor(step, () ⇒ doKill, cdl, s))
+      _ ← in.syncTo { stop(_) ? IO{ doKill = true } | IO.ioUnit }
+            .run(RS.empty, r)
+      _ ← IO(r.start())
+      _ ← IO { cdl.await(); ex.shutdown() }
+    } yield ()
+  }
+
+
+  // ***                                   *** //
+  // ***  package private helper functions *** //
+  // ***                                   *** //
 
   /** Creates a derrived signal depending on two input signals
     * that is synchronously updated whenever one of the two
@@ -474,14 +439,7 @@ trait SFFunctions {
   private[dire] def sync2[R,A,B,C]
     (sa: SF[R,A], sb: SF[R,B])
     (ini: (Event[A], Event[B]) ⇒ Event[C])
-    (next: (Event[A], Event[B], Event[C]) ⇒ Event[C])
-    : SF[R,C] = 
-    sync2O(sa, sb)(ini(_,_).toOption)(next(_,_,_).toOption)
-
-  private[dire] def sync2O[R,A,B,C]
-    (sa: SF[R,A], sb: SF[R,B])
-    (ini: (Event[A], Event[B]) ⇒ Option[C])
-    (next: (Event[A], Event[B], Event[C]) ⇒ Option[C]): SF[R,C] =
+    (next: (Event[A], Event[B], Event[C]) ⇒ Event[C]): SF[R,C] =
     SF[R,C]((rr, r) ⇒ 
       for {
         ra ← sa.run(rr, r)
@@ -508,108 +466,52 @@ trait SFFunctions {
   private[dire] def sync1[R,A,B]
     (sa: SF[R,A])
     (ini: Event[A] ⇒ Event[B])
-    (next: (Event[A], Event[B]) ⇒ Event[B])
-    : SF[R,B] = sync1O(sa)(ini(_).toOption)(next(_,_).toOption)
-
-  private[dire] def sync1O[R,A,B]
-    (sa: SF[R,A])
-    (ini: Event[A] ⇒ Option[B])
-    (next: (Event[A], Event[B]) ⇒ Option[B]): SF[R,B] =
+    (next: (Event[A], Event[B]) ⇒ Event[B]): SF[R,B] =
     SF[R,B]((rr, r) ⇒ 
       for {
         ra ← sa.run(rr, r)
         rb ← RS.sync1(ra)(ini)(next)
       } yield rb
     )
-
-//  private[dire] def run[A]
-//    (in: SIn[A], proc: Int, step: Time)
-//    (stop: A ⇒ Boolean): IO[Unit] = {
-//
-//    //Minimum number of threads is 2
-//    lazy val ex =
-//      java.util.concurrent.Executors.newFixedThreadPool(proc max 2)
-//    lazy val s = scalaz.concurrent.Strategy.Executor(ex)
-//
-//    //flag to be set to true if reactive system should be shutdown
-//    var doKill = false
-//
-//    //blocks the calling thread
-//    val cdl = new java.util.concurrent.CountDownLatch(1)
-//
-//    for {
-//      r ← IO(new Reactor(step, () ⇒ doKill, cdl, s))
-//      _ ← in.syncTo { stop(_) ? IO{doKill = true} | IO.ioUnit }
-//            .run(RS.empty, r)
-//      _ ← IO(r.start())
-//      _ ← IO { cdl.await(); ex.shutdown() }
-//    } yield ()
-//  }
 }
 
 trait SFInstances {
-//  implicit val SFArrow: Arrow[SF] = new SFArrow[Id]
-//
-//  implicit val EFArrow: Arrow[EF] = new SFArrow[Event]
-//
-//  implicit def SFApplicative[R]
-//    : Applicative[({type λ[α]=SF[R,α,Id,Id]})#λ] =
-//    new SFApplicative[R,Id,Id]
-//
-//  implicit def EFApplicative[R]
-//    : Applicative[({type λ[α]=SF[R,α,Event,Event]})#λ] =
-//    new SFApplicative[R,Event,Event]
-//
-//  implicit def SEFApplicative[R]
-//    : Applicative[({type λ[α]=SF[R,α,Id,Event]})#λ] =
-//    new SFApplicative[R,Id,Event]
-//
-//  implicit def ESFApplicative[R]
-//    : Applicative[({type λ[α]=SF[R,α,Event,Id]})#λ] =
-//    new SFApplicative[R,Event,Id]
-//
-//  implicit def EFPlus[R]: PlusEmpty[({type λ[α]=EF[R,α]})#λ] =
-//    new SFPlus[R,Event]
-//
-//  implicit def SEFPlus[R]: PlusEmpty[({type λ[α]=SEF[R,α]})#λ] =
-//    new SFPlus[R,Id]
-//
-//  implicit def EFMonoid[A,B]: Monoid[EF[A,B]] = EFPlus[A].monoid
-//
-//  implicit def SEFMonoid[A,B]: Monoid[SEF[A,B]] = SEFPlus[A].monoid
+  implicit def SFArrow: Arrow[SF] = SFArrowImpl
+
+  implicit def SFApplicative[R]: Applicative[({type λ[α]=SF[R,α]})#λ] =
+    new SFApplicativeImpl[R]
+
+  implicit def SFPlus[R]: PlusEmpty[({type λ[α]=SF[R,α]})#λ] =
+    new SFPlusImpl[R]
+
+  implicit def SFMonoid[A,B]: Monoid[SF[A,B]] = SFPlus[A].monoid
 }
 
-//private[dire] class SFApplicative[R,I[+_]:IdOrEvent,O[+_]:IdOrEvent]
-//  extends Applicative[({type λ[α]=SF[R,α,I,O]})#λ] {
-//  def point[A](a: ⇒ A): SF[R,A,I,O] =
-//    SF.constSF[R,A,I,O](IdOrEvent[O] point a)
-//
-//  def ap[A,B](fa: ⇒ SF[R,A,I,O])(f: ⇒ SF[R,A ⇒ B,I,O]) = fa ap f
-//
-//  override def map[A,B](s: SF[R,A,I,O])(f: A ⇒ B) = s map f
-//}
-//
-//private[dire] class SFPlus[R,I[+_]:IdOrEvent]
-//   extends PlusEmpty[({type λ[α]=SF[R,α,I,Event]})#λ] {
-//  def empty[A] = SF.constSF[R,A,I,Event](Never)
-//  def plus[A](a: SF[R,A,I,Event], b: ⇒ SF[R,A,I,Event]) = a merge b
-//}
-//
-//private[dire] class SFArrow[I[+_]:IdOrEvent]
-//  extends Arrow[({type λ[α,b]=SF[α,b,I,I]})#λ] {
-//   def id[A]: SF[A,A,I,I] = SF.id
-//
-//  def arr[A,B](f: A ⇒ B): SF[A,B,I,I] = id[A] map f
-//
-//  def compose[A,B,C](f: SF[B,C,I,I], g: SF[A,B,I,I]) = f compose g
-//
-//  def first[A,B,C](f: SF[A,B,I,I]): SF[(A,C),(B,C),I,I] = {
-//    val sfAC = id[(A,C)]
-//    val sfACB = sfAC map { _._1 } andThen f
-//    val sfACC = sfAC map { _._2 }
-//
-//    (sfACB <*> sfACC){ Tuple2.apply }
-//  }
-//}
+private[dire] class SFApplicativeImpl[R]
+   extends Applicative[({type λ[α]=SF[R,α]})#λ] {
+  def point[A](a: ⇒ A): SF[R,A] = SF.id[R] >> SF.const(a)
+  def ap[A,B](fa: ⇒ SF[R,A])(f: ⇒ SF[R,A ⇒ B]) = fa ap f
+  override def map[A,B](s: SF[R,A])(f: A ⇒ B) = s map f
+}
+
+private[dire] class SFPlusImpl[R]
+   extends PlusEmpty[({type λ[α]=SF[R,α]})#λ] {
+  def empty[A] = SF.id[R] >> SF.never[A]
+  def plus[A](a: SF[R,A], b: ⇒ SF[R,A]) = a merge b
+}
+
+private[dire] object SFArrowImpl extends Arrow[SF] {
+  def id[A]: SF[A,A] = SF.id
+  def arr[A,B](f: A ⇒ B): SF[A,B] = id[A] map f
+  def compose[A,B,C](f: SF[B,C], g: SF[A,B]) = f compose g
+
+  def first[A,B,C](f: SF[A,B]): SF[(A,C),(B,C)] = {
+    val sfAC = id[(A,C)]
+    val sfACB = sfAC map { _._1 } andThen f
+    val sfACC = sfAC map { _._2 }
+
+    (sfACB <*> sfACC){ Tuple2.apply }
+  }
+}
 
 // vim: set ts=2 sw=2 nowrap et:
