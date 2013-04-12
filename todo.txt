@@ -14,19 +14,21 @@
                 'seconds' and so on as well as the final counter in the
                 user bob example.
 
-0005  #High		Change type aliases for EF. EF[A,B] should be
-                SF[Event[A],Event[B].
+0005  #Done		Change type aliases for EF. EF[A,B] should be
+                SF[Event[A],Event[B]. No longer needed with new design
 
-0006  #High		Add symbolic aliases >=> and <=< for andThen and compose.
+0006  #Done		Add symbolic aliases >=> and <=< for andThen and compose.
 
-0007  #High		Add type aliases SEF and ESF.
+0007  #Done		Add type aliases SEF and ESF. No longer needed.
 
 0008  #High		Implement Contravariant for SF and EF. Test that in
                 case of EF its Contravariant implementation takes
                 precedence
 
-0009  #High		Implement Applicative for EF and check that it takes precedence
-                over Applicative implementation for SF
+0009  #Done		Implement Applicative for EF and check that it takes precedence
+                over Applicative implementation for SF. No longer needed
 
-0010  #High		Implement Arrow for EF and check that it takes precedence
-                over Arrow implementation for SF
+0010  #Done		Implement Arrow for EF and check that it takes precedence
+                over Arrow implementation for SF. No longer needed
+
+0011  #High		Implement Monoid for data sink
