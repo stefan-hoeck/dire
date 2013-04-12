@@ -3,6 +3,7 @@ package dire
 import dire.control.{RawSignal ⇒ RS, Reactor}
 import scala.reflect.runtime.universe.TypeTag
 import scalaz._, Scalaz._, effect.IO
+import scalaz.concurrent.Strategy
 
 /** Represents a transformation from an input signal or 
   * event stream to an output signal or event stream.
@@ -266,21 +267,20 @@ trait SFFunctions {
 
   /** Signal function from a pure function */
   def sf[A,B](f: A ⇒ B): SF[A,B] = id map f
-//  
-//  /** Asynchronously runs the given IO action whenever the
-//    * input event stream fires.
-//    *
-//    * The resulting event stream fires its own even, whenever
-//    * the result of `f` is ready.
-//    */
-//  def efIO[A,B](f: A ⇒ IO[B]): EF[A,B] =
-//    SF[A,B,Event,Event] { (ea,r) ⇒ r.trans(f)(ea) }
-//
-//  /** Asynchronuously loops back the output of the given
-//    * event stream to its input
-//    */
-//  def loop[A](ef: EF[A,A]): EIn[A] = 
-//    SF[A,A,Event,Event] { (ea,r) ⇒ r.loop[Event[A]](Never)(ef.run) }
+  
+  /** Asynchronously runs the given IO action whenever the
+    * input event stream fires.
+    *
+    * The resulting event stream fires its own even, whenever
+    * the result of `f` is ready.
+    */
+  def sfIO[A,B](f: A ⇒ IO[B], s: Option[Strategy] = None): SF[A,B] =
+    SF { (ra,r) ⇒ r.trans(f, s)(ra) }
+
+  /** Asynchronuously loops back the output of the given
+    * event stream to its input
+    */
+  def loop[A](sf: SF[A,A]): SIn[A] = SF[⊥,A] { (_,r) ⇒ r.loop(sf.run) }
 
   // ***                   *** //
   // *** Sources and Sinks *** //

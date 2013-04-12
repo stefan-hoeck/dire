@@ -12,9 +12,14 @@ private[control] trait Reactive {
 }
 
 private[control] object Reactive {
-  def source[A](ini: IO[Event[A]], r: Reactor)
-               (cb: Out[A] ⇒ IO[IO[Unit]]):IO[RSource[A]] =
-    ini flatMap { a ⇒ IO(new RSource[A](a, r, cb)) }
+  def source[A](ini: Event[A], r: Reactor, st: Option[Strategy] = None)
+               (cb: Out[A] ⇒ IO[IO[Unit]]): IO[RSource[A]] = for {
+    s ← IO(new RSource[A](ini, r, cb, st))
+    _ ← r addReactive s
+  } yield s
+
+  def sourceNoCb[A](ini: Event[A], r: Reactor, st: Option[Strategy] = None)
+    : IO[RSource[A]] = source[A](ini, r, st)(_ ⇒ IO(IO.ioUnit))
 }
 
 private[control] abstract class DireActor[A](s: Strategy) extends Reactive {
@@ -68,8 +73,9 @@ private object DireActor {
 final private[control] class RSource[A](
     initial: Event[A],
     reactor: Reactor,
-    setup: Out[A] ⇒ IO[IO[Unit]])
-  extends DireActor[A](reactor.strategy) {
+    setup: Out[A] ⇒ IO[IO[Unit]],
+    strategy: Option[Strategy])
+  extends DireActor[A](strategy getOrElse reactor.strategy) {
 
   private[control] val node = new RootNode
   private[this] var stop: IO[Unit] = IO.ioUnit

@@ -68,6 +68,10 @@ object Var {
   private[control] def apply[A](a: A, s: Strategy): IO[Var[A]] = 
     IO { new Var(a, s){} }
 
+  private[control] def forReactor[A](
+    a: A, r: Reactor, s: Option[Strategy]): IO[Var[A]] = 
+    apply(a, s getOrElse r.strategy) >>= { v ⇒ r.addReactive(v) as v }
+
   implicit def VarSource[A]: DataSource[Var[A],A] = 
     DataSource.signalSrc[Var[A],A](s ⇒ IO(s.get))(
       s ⇒ o ⇒ IO(s.addListener(o)) as IO(s.removeListener(o))) 

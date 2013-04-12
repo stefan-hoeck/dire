@@ -26,9 +26,14 @@ final private[dire] case class Const[+A](last: Event[A]) extends RawSignal[A] {
     IO(Const(last map f))
 }
 
-final private[dire] class RawSource[A](s: RSource[A]) extends RawSignal[A] {
+final private[dire] class RawSource[A] private(s: RSource[A])
+   extends RawSignal[A] {
   def node = s.node
   def last = s.last
+}
+
+private[dire] object RawSource {
+  def apply[A](s: RSource[A]): IO[RawSource[A]] = IO(new RawSource(s))
 }
 
 /** A derived signal that updates synchronously when its parent

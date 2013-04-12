@@ -5,6 +5,7 @@ import collection.mutable.ListBuffer
 import java.util.concurrent.CountDownLatch
 import scala.reflect.runtime.universe._
 import scalaz.effect.IO
+import scalaz.syntax.monad._
 import scalaz.concurrent.{Actor, Strategy}
 
 final private[dire] class Reactor(
@@ -25,19 +26,24 @@ final private[dire] class Reactor(
   //framework, since it is just a counter
   private[this] var time = T0
 
+  //connect a reactive with this Reactor
+  //the connected reactive's lifetime will depend on the lifetime
+  //of this Reactor. It will be started, when this is started,
+  //and it will be stopped when this is stopped
+  private[dire] def addReactive(r: Reactive): IO[Unit] = IO(reactives += r)
+
   //creates a new source of events
   //must only be called when initializing the reactive graph
   //or (probably) when processing a signal's update event
   private[dire] def source[A]
     (ini: IO[Event[A]])
-    (cb: Out[A] ⇒ IO[IO[Unit]]): IO[RawSignal[A]] = for {
-      s ← Reactive.source(ini, this)(cb)
-      _ ← IO(reactives += s)
-    } yield new RawSource(s)
+    (cb: Out[A] ⇒ IO[IO[Unit]]): IO[RawSignal[A]] =
+      ini >>= { Reactive.source(_, this)(cb) } >>= RawSource.apply
 
   //creates a new anychronous data sink
   //must only be called when initializing the reactive graph
   //or (probably) when processing a signal's update event
+  //sinks can be cached, therefor the optional key plus typetag
   private[dire] def sink[O](
     out: Out[Event[O]],
     clean: IO[Unit],
@@ -46,32 +52,28 @@ final private[dire] class Reactor(
     (r: RawSignal[O]): IO[Unit] = {
       def tag(implicit T:TypeTag[O]) = implicitly[TypeTag[Var[Event[O]]]]
 
-      def newVar = Var(r.last, st getOrElse strategy)
-
-      def getVar = key.fold(newVar)(p ⇒ cache(newVar, p._1)(tag(p._2)))
+      val newVar = Var.forReactor(r.last, this, st)
+      val getVar = key.fold(newVar){ case(k,t) ⇒ cache(newVar, k)(tag(t)) }
 
       def connect(v: Var[Event[O]]) = IO {
-        r.node connectChild Node.child{ t ⇒ v.set(r.last); false }
+        r.node connectChild Node.child{ _ ⇒ v.set(r.last); false }
         v.addListener(out)
       }
 
       getVar flatMap connect
     }
-//
-//  //@TODO
-//  private[dire] def trans[A,B](f: A ⇒ IO[B])(in: RawSignal[Event[A]])
-//    : IO[RawSignal[Event[B]]] = ??? //for {
-////      v  ← Varhhh
-////
-////      si = DataSink.create[Event[A]](
-////        _.fold(f(_) flatMap { b ⇒ IO(v.fire(Once(b))) }, IO.ioUnit)
-////      )
-////
-////      so = Var.VarSource[Event[B]]
-////      _  ← sink(si)(in)
-////      s  ← source[Event[B]](so ini v)(so cb  v)
-////      _  ← IO(reactives += v)
-////    } yield ???
+
+  private[dire] def trans[A,B]
+    (f: A ⇒ IO[B], s: Option[Strategy])
+    (in: RawSignal[A]): IO[RawSignal[B]] = for {
+      v ← Var.forReactor[Event[IO[B]]](in.last map f, this, s)
+      s ← Reactive.sourceNoCb[B](Never, this, s)
+      r ← RawSource(s)
+      _ ← IO {
+            in.node.connectChild(Node.child{_ ⇒ v.set(in.last map f); false})
+            v.addListener(_.fold(_ flatMap { b ⇒ IO(s.fire(b)) }, IO.ioUnit))
+          }
+    } yield r
 
   private[dire] def timeSignal: IO[RawSignal[Time]] =
     cached[Nothing,Time](
@@ -84,17 +86,23 @@ final private[dire] class Reactor(
     (in: RawSignal[In]): IO[RawSignal[Out]] =
     cache(sig(in,this) map { (in,_) }, key) map { _._2 }
 
-//  //loops the output of a signal function asynchronuously back to
-//  //its input
-//  private[dire] def loop[A]
-//    (ini: ⇒ A)
-//    (f: (RawSignal[A], Reactor) ⇒ IO[RawSignal[A]]): IO[RawSignal[A]] = for {
-//    s   ← IO(new RSource[A](ini, this, _ ⇒ IO(IO.ioUnit)))
-//    _   ← IO(reactives += s)
-//    r   ← IO(new RawSource(s))
-//    re  ← f(r, this)
-//    _   ← IO(re.node connectChild Node.child {t ⇒ s.fire(re.last.v); false })
-//  } yield re
+  //loops the output of a signal function asynchronuously back to
+  //its input
+  private[dire] def loop[A]
+    (f: (RawSignal[A], Reactor) ⇒ IO[RawSignal[A]]): IO[RawSignal[A]] = for {
+    s   ← Reactive.sourceNoCb[A](Never, this)
+    r   ← RawSource(s)
+    re  ← f(r, this)
+    v   ← Var.forReactor(re.last, this, None)
+    _   ← IO {
+            re.node connectChild Node.child { _ ⇒ 
+              re.last.fold(_ ⇒ v.set(re.last), ())
+              false
+            }
+
+            v addListener { _.fold(a ⇒ IO(s.fire(a)), IO.ioUnit) }
+          }
+  } yield re
 
   protected def doRun(update: Sink[Time], act: Boolean) = if (act) {
     time += 1L //increase time
