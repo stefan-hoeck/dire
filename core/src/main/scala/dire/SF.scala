@@ -76,6 +76,10 @@ class SF[-A,+B] private[dire](
     */
   def events: SF[A,B] = sync1[A,B,B](this)(_ ⇒ Never)((cb,_) ⇒ cb)
 
+  // used in unit tests
+  private[dire] def eventsTo(out: Out[Event[B]]): SF[A,B] =
+    to(DataSink syncE out)
+
   /** Filters an event stream according to the given predicate */
   def filter(p: B ⇒ Boolean): SF[A,B] = collect[B] { b ⇒ p(b) option b }
 
