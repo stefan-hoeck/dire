@@ -1,6 +1,6 @@
 package dire.example
 
-import dire._, SF.{EFOps, const}, EF.now
+import dire._
 import dire.swing.{Elem, SwingApp, Frame, Position}
 import dire.swing.Animation._
 import math.{Pi, sin, cos}
@@ -24,19 +24,20 @@ object Animation extends SwingApp {
     //Behavior:
     //Combine shape signals s1 to s5 through monoid append and display
     //then set title of frame to "Animation"
-    sf    = (s1 ⊹ s2 ⊹ s3 ⊹ s4 ⊹ s5(scene)) toE scene.display andThen
-            now("Animation").to(f.title)
+    sf    = ((s1 ⊹ s2 ⊹ s3 ⊹ s4 ⊹ s5(scene)) to scene.display) >>
+            (SF const "Animation" to f.title)
   } yield sf
 
   //time signal that updates every 10 milliseconds
-  val ticks = SF.cached(EF ticks 10000L count, "ticks")
+  val ticks = SF.cached[⊥,Int](SF ticks 10000L count, "ticks")
 
   // sine wave signal that updates every 10 milliseconds:
   // f: Frequency [Hz]
   // a: amplitude [Pixels]
   // offset [Pixels]
   // phi: phase [radians]
-  def wave(f: Double, a: Double, offset: Double, phi: Double = 0D) =
+  def wave(f: Double, a: Double, offset: Double, phi: Double = 0D)
+    : SIn[Double] =
     ticks map { t ⇒ sin(t * 2 * Pi * f / 100 + phi) * a + offset }
 
   //a red circle that rotates arount point (200, 200)

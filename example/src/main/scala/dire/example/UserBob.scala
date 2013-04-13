@@ -1,6 +1,6 @@
 package dire.example
 
-import dire._, SF.EFOps
+import dire._
 import scalaz._, Scalaz._, effect.IO
 
 /** Simulation of asynchronuous client accesses to a server
@@ -41,7 +41,7 @@ object UserBob {
       val freq = 1.0 - rate / slowdownFactor
       val accesses = Random noise seed filter { freq <= } count
 
-      SF cached (accesses --> printAccess(name), name)
+      SF.cached[⊥,Int](accesses --> printAccess(name), name)
     }
   }
 

@@ -1,6 +1,6 @@
 package dire.example
 
-import dire._, SF.EFOps, EF.{id, loop, once}
+import dire._, SF.{id, loop, once}
 import scalaz._, Scalaz._, effect.IO
 
 /** An event stream that uses its own output as input
@@ -12,14 +12,13 @@ import scalaz._, Scalaz._, effect.IO
   * The application will have to be forcibly terminated
   */
 object Looping {
-  def run = EF.run(looping)(_ ⇒ false)
+  def run = SF.run(looping)(_ ⇒ false)
 
-  //add two to incoming long events
-  def plus2 = id[Long] mapE (1L +)
+  //add one to incoming long events and start at 1L
+  def plus = id[Long] map (1L +) hold 1L
 
   //feedback output of the event stream to its input
-  //the loop is started by the one-time event 1L
-  def looping = loop(plus2 merge once(1L)).filter(_ % 100000L == 0L) --> display
+  def looping = loop(plus) filter (_ % 100000L == 0L) syncTo display
   
   private def display(l: Long) = IO putStrLn l.toString
 }

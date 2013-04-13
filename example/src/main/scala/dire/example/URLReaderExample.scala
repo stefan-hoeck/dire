@@ -1,13 +1,13 @@
 package dire.example
 
-import dire._, SF.EFOps
+import dire._
 import dire.swing._, Frame.North, Elem._
 import scalaz._, Scalaz._, effect.IO
 import scala.io.Source
 import scala.xml.XML
 import util.control.NonFatal
 
-object URLReaderExample extends SwingApp {
+object URLReaderExample extends SwingApp with SFInstances {
   type Coords = (Double, Double)
 
   override def behavior(f: Frame) = for {
@@ -25,21 +25,21 @@ object URLReaderExample extends SwingApp {
         ("UTC time" beside utcTime) above
         ("Difference" beside diffTime) prefWidth 500 addToFrame (f, North)
 
-    coords = (city.value on set.clicks) andThen 
-             (EF(readCoords) hold (0D, 0D) toE coordinates.textA)
-    utc = utcIn to utcTime.textA hold HMZero
-    ct  = cityIn(coords) to cityTime.textA hold HMZero
-    sf  = (utc ⊛ ct)(diff) toE diffTime.textA
+    coords = (city.value on set.clicks) andThen
+             (SF sfIO readCoords hold (0D, 0D) to coordinates.textA)
+    utc: SIn[HMTime] = utcIn to utcTime.textA
+    ct  = cityIn(coords) to cityTime.textA
+    sf  = (utc ⊛ ct)(diff) to diffTime.textA
   } yield sf
 
   //Fires an event every second
-  val ticks = EF ticks 1000000L
+  val ticks = SF ticks 1000000L
 
   //Reads the actual time in a city (given as a string signal) every second
-  def cityIn(c: SIn[Coords]) = c on ticks andThen EF(readCity)
+  def cityIn(c: SIn[Coords]) = c on ticks andThen SF.sfIO(readCity)
 
   //Reads the actual UTC time every second
-  val utcIn = ticks andThen EF(_ ⇒ readUTC)
+  val utcIn = ticks andThen SF.sfIO(_ ⇒ readUTC)
 
   // *** Business Logic: Reading stuff from URLs *** //
 

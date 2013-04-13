@@ -30,10 +30,9 @@ object TextFieldsValidated extends SwingApp {
     fullV = ^(validate("First name")(first.value),
               validate("Last name")(last.value)){ _ + " " + _ }
 
-    sf = fullV.to(enable(btn)) //disable btn if invalid
-              .to(printError(msg)) //display error message if invalid
+    sf = fullV.branch(enable(btn)) //disable btn if invalid
+              .branch(printError(msg)) //display error message if invalid
               .andThen(display(full)) //print to full name label if valid
-              .hold("") //event stream of strings to signal of strings
               .on(btn.clicks) //fires signal's actual value if btn is clicked
               .to(acc.text) //display events in label acc
   } yield sf
@@ -48,14 +47,14 @@ object TextFieldsValidated extends SwingApp {
   private val id = SF.id[ValRes[String]]
 
   //disables button if input is invalid
-  private def enable(b: Button) = id mapS { _.isSuccess } toE b.enabled
+  private def enable(b: Button) = id map { _.isSuccess } to b.enabled
 
   //displays error message if invalid
   private def printError(l: Label) = 
-    id mapS { _.fold(_.head, _ ⇒ "") } toE l.text
+    id map { _.fold(_.head, _ ⇒ "") } to l.text
 
   //collects valid inputs and displays them in label
-  private def display(l: Label) = id.ef collect { _.toOption } to l.text
+  private def display(l: Label) = id collect { _.toOption } to l.text
 }
 
 // vim: set ts=2 sw=2 et:

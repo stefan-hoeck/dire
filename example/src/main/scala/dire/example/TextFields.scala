@@ -1,6 +1,6 @@
 package dire.example
 
-import dire._, SF.EFOps
+import dire._
 import dire.swing._, Frame.North, Elem._
 import scalaz._, Scalaz._
 
@@ -18,7 +18,7 @@ object TextFields extends SwingApp {
 
     //Behavior:
     //Concatenate values of signals first and last and output to full
-    sf  = ^(first.value, last.value){ _ + " " + _ } toE full.text
+    sf  = ^(first.value, last.value){ _ + " " + _ } to full.text
   } yield sf
 
 }

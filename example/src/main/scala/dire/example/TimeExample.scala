@@ -1,6 +1,6 @@
 package dire.example
 
-import dire._, SF.EFOps
+import dire._
 import scalaz._, Scalaz._, effect.IO
 
 /** Very basic example of a signal and an event stream
@@ -17,13 +17,12 @@ object TimeExample {
 
   val timeOnly = SF.time --> printTime
 
-  val timeFiltered = SF.time.changes
-                            .filter { _ % 7L == 0L }
+  val timeFiltered = SF.time.filter { _ % 7L == 0L }
                             .syncTo(printTime)
 
   def runTimeOnly: IO[Unit] = SF.run(timeOnly)(_ >= stopAbove)
 
-  def runTimeFiltered: IO[Unit] = EF.run(timeFiltered)(_ >= stopAbove)
+  def runTimeFiltered: IO[Unit] = SF.run(timeFiltered)(_ >= stopAbove)
 }
 
 // vim: set ts=2 sw=2 et:

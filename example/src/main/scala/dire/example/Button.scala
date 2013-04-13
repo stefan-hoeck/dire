@@ -1,6 +1,6 @@
 package dire.example
 
-import dire._, SF.EFOps
+import dire._
 import dire.swing._, Frame.North, Elem._
 import scalaz._, Scalaz._
 
@@ -20,8 +20,8 @@ object ButtonApp extends SwingApp {
     //Behavior:
     //Count number of button clicks and output to button's actual text >>>
     //Keep track of time for which application ran and output to frame's title
-    sf  = (btn.clicks.count map clicksStr toE btn.text) >>>
-          (SF.seconds map timeStr toE f.title)
+    sf  = (btn.clicks.count map clicksStr to btn.text) >>
+          (SF.seconds map timeStr to f.title)
   } yield sf
 
   private def clicksStr(c: Int) = s"$c clicks"

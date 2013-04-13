@@ -93,7 +93,7 @@ final private[dire] class Reactor(
     s   ← Reactive.sourceNoCb[A](Never, this)
     r   ← RawSource(s)
     re  ← f(r, this)
-    v   ← Var.forReactor(re.last, this, None)
+    v   ← Var.forReactor(re.last, this, Some(Strategy.Sequential))
     _   ← IO {
             re.node connectChild Node.child { _ ⇒ 
               re.last.fold(_ ⇒ v.set(re.last), ())
