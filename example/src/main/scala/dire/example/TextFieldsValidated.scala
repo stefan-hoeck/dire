@@ -54,7 +54,7 @@ object TextFieldsValidated extends SwingApp {
     id map { _.fold(_.head, _ ⇒ "") } to l.text
 
   //collects valid inputs and displays them in label
-  private def display(l: Label) = id collect { _.toOption } to l.text
+  private def display(l: Label) = id collectO { _.toOption } to l.text
 }
 
 // vim: set ts=2 sw=2 et:

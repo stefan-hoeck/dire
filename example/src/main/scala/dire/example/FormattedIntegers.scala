@@ -36,7 +36,7 @@ object FormattedIntegers extends SwingApp {
             (bin.value map parse(2, "binary"))
 
     //Errors to label and then collect successes only; start with 0
-    validInput = input branch printError(msg) collect { _.toOption }
+    validInput = input branch printError(msg) collectO { _.toOption }
 
     //Combined output of valid integers
     output = (toDec to dec.text) ⊹ 

@@ -49,7 +49,11 @@ class SF[-A,+B] private[dire](
     SF { (ra,r) ⇒ run(ra, r) >>= { rb ⇒ that.run(rb,r) as rb } }
 
   /** Map and filter an event stream in one run */
-  def collect[C](f: B ⇒ Option[C]): SF[A,C] =
+  def collect[C](f: PartialFunction[B,C]): SF[A,C] =
+    collectO(f.lift)
+
+  /** Map and filter an event stream in one run */
+  def collectO[C](f: B ⇒ Option[C]): SF[A,C] =
     sync1(this)(_ collect f)((ceb,_) ⇒ ceb collect f)
 
   /** Sequentially combines two signal functions */
@@ -81,7 +85,7 @@ class SF[-A,+B] private[dire](
     to(DataSink syncE out)
 
   /** Filters an event stream according to the given predicate */
-  def filter(p: B ⇒ Boolean): SF[A,B] = collect[B] { b ⇒ p(b) option b }
+  def filter(p: B ⇒ Boolean): SF[A,B] = collectO[B] { b ⇒ p(b) option b }
 
   /** Converts this event stream to a signal with initial value
     * `ini`

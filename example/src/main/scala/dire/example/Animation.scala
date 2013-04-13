@@ -5,7 +5,9 @@ import dire.swing.{Elem, SwingApp, Frame, Position}
 import dire.swing.Animation._
 import math.{Pi, sin, cos}
 import java.awt.Color._
+import scala.collection.immutable.{IndexedSeq ⇒ IxSeq}
 import scalaz._, Scalaz._
+import scalaz.std.indexedSeq._
 
 /** A combination of simple animations
   *
@@ -24,7 +26,7 @@ object Animation extends SwingApp {
     //Behavior:
     //Combine shape signals s1 to s5 through monoid append and display
     //then set title of frame to "Animation"
-    sf    = ((s1 ⊹ s2 ⊹ s3 ⊹ s4 ⊹ s5(scene)) to scene.display) >>
+    sf    = ((s1 ⊹ s2 ⊹ s3 ⊹ s4 ⊹ s5(scene) ⊹ s6(scene)) to scene.display) >>
             (SF const "Animation" to f.title)
   } yield sf
 
@@ -69,6 +71,12 @@ object Animation extends SwingApp {
   //a cyan circle that follows the mouse pointer
   def s5(s: Scene): SIn[Shape]=
     s.mousePosition map { case (x, y) ⇒ circle(x-20, y-20, 40, CYAN) }
+
+  //a ever growing poly line
+  def s6(s: Scene): SIn[Shape]=
+    (s.mousePosition on s.leftClicks).scanPlus[IxSeq]
+                                     .map { polyLine(_, MAGENTA) }
+
 }
 
 // vim: set ts=2 sw=2 et:

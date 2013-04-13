@@ -2,6 +2,7 @@ package dire.swing
 
 import java.awt.{Graphics, Color, Graphics2D, Toolkit}
 import javax.swing.JPanel
+import scala.collection.immutable.{IndexedSeq ⇒ IxSeq}
 import scalaz._, Scalaz._, effect.IO
 
 object Animation {
@@ -48,6 +49,16 @@ object Animation {
 
   def circle(x: Double, y: Double, r: Double, c: Color): Shape =
     oval(x, y, r, r, c)
+
+  def polyLine(points: IxSeq[Position], c: Color): Shape = new Shape {
+    private[swing] def paint(g: Graphics2D) {
+      g.setColor(c)
+      val xs = points map { _._1 } toArray
+      val ys = points map { _._2 } toArray
+
+      g.drawPolyline(xs, ys, points.size)
+    }
+  }
 
   def rectangle(x: Double, y: Double, rx: Double, ry: Double, c: Color)
     : Shape = new Shape {
