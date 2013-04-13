@@ -41,7 +41,7 @@ object UserBob {
       val freq = 1.0 - rate / slowdownFactor
       val accesses = Random noise seed filter { freq <= } count
 
-      SF.cached[⊥,Int](accesses --> printAccess(name), name)
+      SF.cached(accesses --> printAccess(name), name)
     }
   }
 

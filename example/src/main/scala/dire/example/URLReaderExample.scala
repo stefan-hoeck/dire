@@ -27,7 +27,7 @@ object URLReaderExample extends SwingApp with SFInstances {
 
     coords = (city.value on set.clicks) andThen
              (SF sfIO readCoords hold (0D, 0D) to coordinates.textA)
-    utc: SIn[HMTime] = utcIn to utcTime.textA
+    utc = utcIn to utcTime.textA
     ct  = cityIn(coords) to cityTime.textA
     sf  = (utc ⊛ ct)(diff) to diffTime.textA
   } yield sf

@@ -257,10 +257,10 @@ trait SFFunctions {
   // ***                  *** //
 
   /** A constant signal that never changes */
-  def const[A](a: ⇒ A): SIn[A] = SF[⊥,A] { (_,_) ⇒ RS const a }
+  def const[A](a: ⇒ A): SIn[A] = SF { (_,_) ⇒ RS const a }
 
   /** The empty event stream that never fires an event */
-  def never[A]: SIn[A] = SF[⊥,A] { (_,_) ⇒ RS.never }
+  def never[A]: SIn[A] = SF { (_,_) ⇒ RS.never }
 
   // ***                                            *** //
   // *** Basic signal and event stream transformers *** //
@@ -284,7 +284,7 @@ trait SFFunctions {
   /** Asynchronuously loops back the output of the given
     * event stream to its input
     */
-  def loop[A](sf: SF[A,A]): SIn[A] = SF[⊥,A] { (_,r) ⇒ r.loop(sf.run) }
+  def loop[A](sf: SF[A,A]): SIn[A] = SF { (_,r) ⇒ r.loop(sf.run) }
 
   // ***                   *** //
   // *** Sources and Sinks *** //
@@ -296,14 +296,14 @@ trait SFFunctions {
     * as a key.
     */
   def cachedSrc[S,V:TypeTag](s: S)(implicit Src: DataSource[S,V])
-    : SIn[V] = cached[⊥,V](src(s), s)
+    : SIn[V] = cached[In,V](src(s), s)
 
   /** Creates a source signal from an external data source
     *
     * See the [[dire.DataSource]] type class for more details
     */
   def src[S,V](s: S)(implicit Src: DataSource[S,V]): SIn[V] =
-    SF[⊥,V] { (_,r) ⇒ r.source(Src ini s)(Src cb s) }
+    SF { (_,r) ⇒ r.source(Src ini s)(Src cb s) }
 
   /** Asynchronuously fires the given event once */
   def once[A](a: ⇒ A): SIn[A] = src(())(DataSource once a)
@@ -335,7 +335,7 @@ trait SFFunctions {
     *
     * In every isolated reactive system there is only one such signal
     */
-  def time: SIn[Time] = SF[⊥,Time] { (_,r) ⇒ r.timeSignal }
+  def time: SIn[Time] = SF { (_,r) ⇒ r.timeSignal }
 
   /** Time signal that starts at 0 and updates every second */
   def seconds: SIn[Int] = time.events filter { _ % s == 0L } count

@@ -29,7 +29,7 @@ object Animation extends SwingApp {
   } yield sf
 
   //time signal that updates every 10 milliseconds
-  val ticks = SF.cached[⊥,Int](SF ticks 10000L count, "ticks")
+  val ticks = SF.cached(SF ticks 10000L count, "ticks")
 
   // sine wave signal that updates every 10 milliseconds:
   // f: Frequency [Hz]
