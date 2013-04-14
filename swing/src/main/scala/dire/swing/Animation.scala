@@ -51,12 +51,14 @@ object Animation {
     oval(x, y, r, r, c)
 
   def polyLine(points: IxSeq[Position], c: Color): Shape = new Shape {
+    val xs = points map { _._1 } toArray
+    val ys = points map { _._2 } toArray
+    val size = points.size
+
     private[swing] def paint(g: Graphics2D) {
       g.setColor(c)
-      val xs = points map { _._1 } toArray
-      val ys = points map { _._2 } toArray
 
-      g.drawPolyline(xs, ys, points.size)
+      g.drawPolyline(xs, ys, size)
     }
   }
 

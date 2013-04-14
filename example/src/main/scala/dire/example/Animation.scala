@@ -15,7 +15,7 @@ import scalaz.std.indexedSeq._
   *
   * `def runc = Animation.run`
   */
-object Animation extends SwingApp {
+object AnimationApp extends SwingApp {
 
   implicit def SMonoid[A:Monoid] = Monoid.liftMonoid[SIn,A]
 

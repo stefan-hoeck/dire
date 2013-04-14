@@ -27,7 +27,7 @@ trait Component[A<:JComponent] extends Wrapped[A] {
 
   def mousePosition: SIn[Position] = mouseMoved map { _.pos }
 
-  def rightClicks: SIn[Unit] = mouse collect { case Clicked(Button2) ⇒ () }
+  def rightClicks: SIn[Unit] = mouse collect { case Clicked(Button3) ⇒ () }
 
   def tooltip: Sink[String] = sink(peer.setToolTipText, this)
 }

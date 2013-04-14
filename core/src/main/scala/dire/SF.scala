@@ -118,6 +118,10 @@ class SF[-A,+B] private[dire](
     */
   def on[C,AA<:A](ef: SF[AA,C]): SF[AA,B] = upon(ef)((b,_) ⇒ b)
 
+  /** Merges two event streams returning an event stream of a disjunction */
+  def or[C,AA<:A](sf: SF[AA,C]): SF[AA,B \/ C] =
+    map{ _.left[C] } merge sf.map{ _.right[B] }
+
   /** Accumulates events fired by this event stream in a signal
     *
     * If the original event stream fires its first event `a` at time
