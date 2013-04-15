@@ -17,7 +17,7 @@ object BuildSettings {
     scalacOptions ++= Seq ("-deprecation", "-feature",
       "-language:postfixOps", "-language:implicitConversions",
       "-language:higherKinds")
-  ) ++ osgiSettings
+  )
 } 
 
 object Dependencies {
@@ -55,7 +55,6 @@ object UtilBuild extends Build {
     "dire-core",
     file("core"),
     settings = addDeps(scala_reflect) :+
-               (OsgiKeys.exportPackage := Seq("dire")) :+
                //the following line can be removed once
                //scala.reflection is thread safe (we use some
                //TypeTags in our tests)
@@ -73,7 +72,6 @@ object UtilBuild extends Build {
     "dire-swing",
     file("swing"),
     settings = addDeps(scala_reflect) :+
-               (OsgiKeys.exportPackage := Seq("dire.swing")) :+
                //the following line can be removed once
                //scala.reflection is thread safe (we use some
                //TypeTags in our tests)
