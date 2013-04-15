@@ -13,9 +13,7 @@ case class Label(peer: JLabel) extends Component[JLabel] {
 }
 
 object Label {
-  def apply(): IO[Label] = apply("")
-
-  def apply(text: String): IO[Label] =
+  def apply(text: String = ""): IO[Label] =
     IO(Label(new JLabel(text)))
 
   implicit val LabelElem: AsSingleElem[Label] = Elem noFill { _.peer }

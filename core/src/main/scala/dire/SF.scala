@@ -93,7 +93,7 @@ class SF[-A,+B] private[dire](
     * If the original event stream fires an event at T0 its value is replaced
     * by `ini`.
     */
-  def hold[C>:B](ini: C): SF[A,C] = scan[C](ini)((next,_) ⇒ next)
+  def hold[C>:B](ini: ⇒ C): SF[A,C] = scan[C](ini)((next,_) ⇒ next)
 
   /** Functor map */
   def map[C](f: B ⇒ C): SF[A,C] = SF { (ra,r) ⇒ run(ra,r) >>= { _ map f } }

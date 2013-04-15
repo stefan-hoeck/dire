@@ -2,42 +2,27 @@ package dire.swing
 
 import dire._
 import javax.swing.JTextField
-import javax.swing.event.{DocumentListener, DocumentEvent}
 import scalaz._, Scalaz._, effect.IO
 
-case class TextField(peer: JTextField)
-  extends Component[JTextField] 
-  with BlockedSignal {
+case class TextField(peer: JTextField) extends TextComponent[JTextField] {
   import TextField._
 
-  def text: Sink[String] = blockedSink(this)(peer.setText)
+  def actions: SIn[Unit] = SF cachedSrc this
 
-  def value: SIn[String] = SF cachedSrc this
+  def textEvents: SIn[String] = value on actions
 }
 
 object TextField {
-  def apply(): IO[TextField] = apply("")
-
-  def apply(text: String): IO[TextField] =
+  def apply(text: String = ""): IO[TextField] =
     IO(TextField(new JTextField(text)))
-
-  implicit val TextFieldSource: Source[TextField,String] = 
-    src[TextField,String](_.peer.getText) { t ⇒ o ⇒ 
-      val l = listener(t, o)
-      t.peer.getDocument.addDocumentListener(l)
-      _ ⇒ t.peer.getDocument.removeDocumentListener(l)
-    }
 
   implicit val TextFieldElem: AsSingleElem[TextField] = Elem hFill { _.peer }
 
-  private def listener(t: TextField, o: String ⇒ Unit) =
-    new DocumentListener {
-      def changedUpdate(e: DocumentEvent) { adjust() }
-      def insertUpdate(e: DocumentEvent) { adjust() }
-      def removeUpdate(e: DocumentEvent) { adjust() }
-
-      private def adjust() { if (! t.blocked) o(t.peer.getText) }
-    }
+  implicit val TextFieldSource: Source[TextField,Unit] = eventSrc { t ⇒ o ⇒ 
+    val a = ali(o)
+    t.peer.addActionListener(a)
+    _ ⇒ t.peer.removeActionListener(a)
+  }
 }
 
 // vim: set ts=2 sw=2 et:
