@@ -29,7 +29,7 @@ trait Runner {
     val as = new MList[Event[A]]
     val coll = in eventsTo (a ⇒ IO(as += a))
 
-    SF.run(coll, 4, step = 1L)(stop).unsafePerformIO
+    SF.run(coll, 2, step = 1L)(stop).unsafePerformIO
 
     as.toList
   }
