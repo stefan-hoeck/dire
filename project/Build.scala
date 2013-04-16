@@ -1,6 +1,5 @@
 import sbt._
 import Keys._
-import com.typesafe.sbt.osgi.SbtOsgi._
 
 object BuildSettings {
   val sv = "2.10.1"
@@ -22,7 +21,7 @@ object BuildSettings {
 
 object Dependencies {
   val scalaz = "org.scalaz"
-  val scalazV = "7.0.0-M9"
+  val scalazV = "7.0.0-RC2"
 
   val scala_reflect = "org.scala-lang" % "scala-reflect" % BuildSettings.sv
 
