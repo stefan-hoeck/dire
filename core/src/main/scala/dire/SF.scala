@@ -400,9 +400,8 @@ trait SFFunctions {
     *             is still processed and passed to all
     *             registered data sinks.
     */
-  private[dire] def run[A]
-    (in: SIn[A], proc: Int = SF.processors, step: Time = 1000L)
-    (stop: A ⇒ Boolean): IO[Unit] = {
+  def run[A] (in: SIn[A], proc: Int = SF.processors, step: Time = 1000L)
+             (stop: A ⇒ Boolean): IO[Unit] = {
 
     //Minimum number of threads is 2
     lazy val ex =
