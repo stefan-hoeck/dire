@@ -289,6 +289,16 @@ trait SFFunctions {
   def sfIO[A,B](f: A ⇒ IO[B], s: Option[Strategy] = None): SF[A,B] =
     SF { (ra,r) ⇒ r.trans(f, s)(ra) }
 
+  /** Synchronously runs the given IO action whenever the
+    * input event stream fires.
+    *
+    * Running the IO action blocks the main reactor thread, therefore it
+    * should be reasonably fast compared to other events fired in the same
+    * reactor.
+    */
+  def sfSyncIO[A,B](f: A ⇒ IO[B]): SF[A,B] =
+    sfIO(f, Some(Strategy.Sequential))
+
   /** Asynchronuously loops back the output of the given
     * event stream to its input
     */
