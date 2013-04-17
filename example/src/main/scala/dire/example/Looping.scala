@@ -12,13 +12,17 @@ import scalaz._, Scalaz._, effect.IO
   * The application will have to be forcibly terminated
   */
 object Looping {
-  def run = SF.run(looping)(_ ⇒ false)
+  def run = for {
+    kill ← SF.forever(looping)
+    _    ← IO(Thread.sleep(4000))
+    _    ← kill
+  } yield ()
 
   //add one to incoming long events and start at 1L
   def plus = id[Long] map (1L +) hold 1L
 
   //feedback output of the event stream to its input
-  def looping = loop(plus) filter (_ % 100000L == 0L) syncTo display
+  def looping = loop(plus) filter (_ % 10000L == 0L) syncTo display
   
   private def display(l: Long) = IO putStrLn l.toString
 }
