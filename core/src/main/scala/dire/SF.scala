@@ -421,6 +421,39 @@ trait SFFunctions {
     runS(in, s, step)(stop) >> IO(ex.shutdown())
   }
 
+  /** Sets up a reactive network and runs it until the given
+    * abort condition is fullfilled.
+    *
+    * Note that the calling thread is blocked until the abbort
+    * condition is fullfilled and the reactive system shutdown.
+    * Note also, that if the provided strategy for parallel
+    * execution is single-threaded, some constructs like loops
+    * may lead to non-termination. It is far better and safer
+    * to use `run` instead.
+    *
+    * @param in  The signal function that describes the reactive
+    *            network
+    *
+    * @param step  Time resolution in microseconds. If the given
+    *              signal function depends on the `Time` signal
+    *              this number denotes how frequently `Time` is
+    *              being updated. The default value is `1000L`
+    *              (one millisecond)
+    *
+    * @param strategy Strategy used for running the actor system
+    *                 in the background. This must not be single
+    *                 threaded if recursive constructs like loops
+    *                 are used.
+    *
+    * @param stop This function should return `true` when a certain
+    *             abbort condition is fulfilled. In that case, the
+    *             reactive framework will cease to run and release
+    *             all its resources. Note that the framework will
+    *             stop immediately AFTER `stop` has returned true
+    *             but that the event that lead to abortion
+    *             is still processed and passed to all
+    *             registered data sinks.
+    */
   def runS[A](in: SIn[A], strategy: ⇒ Strategy, step: Time = 1000L)
              (stop: A ⇒ Boolean): IO[Unit] = {
     //flag to be set to true if reactive system should be shutdown
