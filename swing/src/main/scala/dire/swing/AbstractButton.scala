@@ -23,7 +23,7 @@ object AbstractButton {
 
   implicit def ButtonSource[A<:JAbstractButton]
     : Source[AbstractButton[A],Unit] = eventSrc { b ⇒ o ⇒ 
-    val a = ali(_ ⇒ { b.blocked = true; o(()); b.blocked = false })
+    val a = ali(_ ⇒ { if (! b.blocked) o(()) })
     b.peer.addActionListener(a)
     _ ⇒ b.peer.removeActionListener(a)
   }
