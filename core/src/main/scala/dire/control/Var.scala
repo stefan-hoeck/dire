@@ -36,7 +36,10 @@ sealed abstract class Var[A](ini: A, s: Strategy)
       c.countDown()
     } else (c.countDown())
 
-    case Fire(a)      ⇒ if (active) { actual = a; if(started) notify() }
+    case Fire(a)      ⇒ if (active) {
+      actual = a
+      if(started) notify()
+    }
   }
 
   def put(a: A): IO[Unit] = IO(set(a))
@@ -61,14 +64,17 @@ sealed abstract class Var[A](ini: A, s: Strategy)
     res
   }
   
-  private[control] def shutdown {
-    await(1, stop)
-  }
+  private[dire] def shutdown() { await(1, stop) }
 }
 
 object Var {
-  def apply[A](a: A, s: Strategy = Strategy.Sequential): IO[Var[A]] = 
+  private[control] def apply[A](a: A, s: Strategy): IO[Var[A]] = 
     IO { new Var(a, s){} }
+
+  def newVar[A](a: A): IO[Var[A]] = for {
+    v ← apply(a, Strategy.Sequential)
+    _ ← IO(v.start())
+  } yield v
 
   private[control] def forReactor[A](
     a: A, r: Reactor, s: Option[Strategy]): IO[Var[A]] = 

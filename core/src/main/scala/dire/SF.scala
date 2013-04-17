@@ -486,9 +486,9 @@ trait SFFunctions {
     */
   def forever[A](in: SIn[A], proc: Int = SF.processors, step: Time = 1000L)
     : IO[IO[Unit]] = for {
-    v ← control.Var[Option[Unit]](None)
+    v ← control.Var newVar none[Unit]
     f ← async(run(in >> src(v), proc, step)(_.nonEmpty))
-  } yield v.put(().some) >> IO(Await.ready(f, Inf)).void
+  } yield v.put(().some) >> IO { v.shutdown(); Await.ready(f, Inf) } void
 
   private def async(io: IO[Unit]): IO[Future[Unit]] = IO {
     import scala.concurrent.{ExecutionContext}
@@ -496,7 +496,7 @@ trait SFFunctions {
     implicit val context = ExecutionContext.fromExecutor(ex)
 
     val f = Future(io.unsafePerformIO)
-    f onComplete { _ ⇒ println("Async shutdown"); ex.shutdown() }
+    f onComplete { _ ⇒ ex.shutdown() }
 
     f
   }
