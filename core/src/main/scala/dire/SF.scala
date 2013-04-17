@@ -418,6 +418,11 @@ trait SFFunctions {
       java.util.concurrent.Executors.newFixedThreadPool(proc max 2)
     lazy val s = scalaz.concurrent.Strategy.Executor(ex)
 
+    runS(in, s, step)(stop) >> IO(ex.shutdown())
+  }
+
+  def runS[A](in: SIn[A], strategy: ⇒ Strategy, step: Time = 1000L)
+             (stop: A ⇒ Boolean): IO[Unit] = {
     //flag to be set to true if reactive system should be shutdown
     var doKill = false
 
@@ -425,11 +430,10 @@ trait SFFunctions {
     val cdl = new java.util.concurrent.CountDownLatch(1)
 
     for {
-      r ← IO(new Reactor(step, () ⇒ doKill, cdl, s))
+      r ← IO(new Reactor(step, () ⇒ doKill, cdl, strategy))
       _ ← in.syncTo { stop(_) ? IO{ doKill = true } | IO.ioUnit }
             .run(RS.empty, r)
-      _ ← IO(r.start())
-      _ ← IO { cdl.await(); ex.shutdown() }
+      _ ← IO { r.start(); cdl.await() }
     } yield ()
   }
 
