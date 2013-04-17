@@ -8,6 +8,7 @@ import scalaz._, Scalaz._, effect.IO
 trait Runner {
   import Runner.Events
 
+  private val ps = 2
   private val runs = 100
   private val runsL: Long = runs
 
@@ -29,7 +30,7 @@ trait Runner {
     val as = new MList[Event[A]]
     val coll = in eventsTo (a ⇒ IO(as += a))
 
-    SF.run(coll, 2, step = 1L)(stop).unsafePerformIO
+    SF.run(coll, ps, step = 1L)(stop).unsafePerformIO
 
     as.toList
   }
@@ -41,7 +42,7 @@ trait Runner {
     val as = new MList[Event[A]]
     val time = SF.time branch sf.eventsTo(a ⇒ IO(as += a))
 
-    SF.run(time, 4, step = 1L)(t <= _).unsafePerformIO
+    SF.run(time, ps, step = 1L)(t <= _).unsafePerformIO
 
     as.toList
   }
@@ -57,7 +58,7 @@ trait Runner {
                  .branch(sfA.eventsTo(a ⇒ IO(as += a)))
                  .branch(sfB.eventsTo(b ⇒ IO(bs += b)))
 
-    SF.run(time, 4, step = 1L)(t <= _).unsafePerformIO
+    SF.run(time, ps, step = 1L)(t <= _).unsafePerformIO
 
     //println(as1.toList take 3)
 
