@@ -39,6 +39,8 @@ sealed abstract class Var[A](ini: A, s: Strategy)
     case Fire(a)      ⇒ if (active) { actual = a; if(started) notify() }
   }
 
+  def put(a: A): IO[Unit] = IO(set(a))
+
   protected def doStart() { started = true; notify() }
 
   protected def doStop() { listeners.clear() }
@@ -65,7 +67,7 @@ sealed abstract class Var[A](ini: A, s: Strategy)
 }
 
 object Var {
-  private[control] def apply[A](a: A, s: Strategy): IO[Var[A]] = 
+  def apply[A](a: A, s: Strategy = Strategy.Sequential): IO[Var[A]] = 
     IO { new Var(a, s){} }
 
   private[control] def forReactor[A](
