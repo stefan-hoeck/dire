@@ -16,17 +16,40 @@ sealed trait DataSource[Src,Value] {
 
 object DataSource extends DataSourceFunctions with DataSourceInstances {
   def apply[S,V](implicit S: DataSource[S,V]): DataSource[S,V] = S
-
-  private[dire] def create[S,V]
-    (initial: S ⇒ IO[Event[V]])
-    (callback: S ⇒ Out[V] ⇒ IO[IO[Unit]]): DataSource[S,V] =
-      new DataSource[S,V] {
-        def ini(s: S) = initial(s)
-        def cb(s: S) = callback(s)
-      }
 }
 
 trait DataSourceFunctions {
+
+  /** Defines a data source from which signals or event
+    * streams can be created
+    *
+    * @tparam S  type of the data source
+    * @tparam V  type of the events fired by the data source
+    *
+    * @param initial  create the initial value. If this is `None`
+    *                 the result will be an event stream that does
+    *                 not hold an initial value, otherwise the result
+    *                 is a signal.
+    * @param callback registers a callback for events of type `V`
+    *                 at the source and returns an IO-action, which,
+    *                 when invoked, will remove the registered
+    *                 callback to cleanup resources
+    */
+  def create[S,V]
+    (initial: S ⇒ IO[Option[V]])
+    (callback: S ⇒ Out[V] ⇒ IO[IO[Unit]]): DataSource[S,V] =
+      new DataSource[S,V] {
+        def ini(s: S) = initial(s) map Event.apply
+        def cb(s: S) = callback(s)
+      }
+
+  /** Same as `create` but for interacting with inpure
+    * third-party libraries
+    */
+  final def createInpure[S,V]
+    (initial: S ⇒ Option[V])
+    (callback: S ⇒ Sink[V] ⇒ Sink[Unit]): DataSource[S,V] =
+    create[S,V](s ⇒ IO(initial(s)))(impureCb(callback))
 
   /** Defines a data source from which signals can be created
     *
@@ -42,7 +65,7 @@ trait DataSourceFunctions {
   final def signalSrc[S,V]
     (initial: S ⇒ IO[V])
     (callback: S ⇒ Out[V] ⇒ IO[IO[Unit]]): DataSource[S,V] =
-    DataSource.create[S,V](initial(_) map (Once(T0,_)))(callback)
+    create[S,V](initial(_) map Some.apply)(callback)
 
   /** Same as `signalSrc` but for interacting with inpure
     * third-party libraries
@@ -64,7 +87,7 @@ trait DataSourceFunctions {
     */
   final def eventSrc[S,V]
     (callback: S ⇒ Out[V] ⇒ IO[IO[Unit]]): DataSource[S,V] =
-    DataSource.create[S,V](_ ⇒ IO(Never))(callback)
+    DataSource.create[S,V](_ ⇒ IO(None))(callback)
 
   /** Same as `eventSrc` but for interacting with inpure
     * third-party libraries
