@@ -471,36 +471,6 @@ trait SFFunctions {
     } yield ()
   }
 
-  /** Same as `run` but does not block the calling thread */
-  def runAsync[A](in: SIn[A], proc: Int = SF.processors, step: Time = 1000L)
-                 (stop: A ⇒ Boolean): IO[Unit] = 
-    async(run(in, proc, step)(stop)).void
-
-  /** Same as `runS` but does not block the calling thread */
-  def runAsyncS[A](in: SIn[A], strategy: ⇒ Strategy, step: Time = 1000L)
-                 (stop: A ⇒ Boolean): IO[Unit] = 
-    async(runS(in, strategy, step)(stop)).void
-
-  /** Ansynchronously starts a reactive graph and runs it until the
-    * returned IO action is executed.
-    */
-  def forever[A](in: SIn[A], proc: Int = SF.processors, step: Time = 1000L)
-    : IO[IO[Unit]] = for {
-    v ← control.Var newVar none[Unit]
-    f ← async(run(in >> src(v), proc, step)(_.nonEmpty))
-  } yield v.put(().some) >> IO { v.shutdown(); Await.ready(f, Inf) } void
-
-  private def async(io: IO[Unit]): IO[Future[Unit]] = IO {
-    import scala.concurrent.{ExecutionContext}
-    val ex = Executors.newSingleThreadExecutor()
-    implicit val context = ExecutionContext.fromExecutor(ex)
-
-    val f = Future(io.unsafePerformIO)
-    f onComplete { _ ⇒ ex.shutdown() }
-
-    f
-  }
-
   // ***                                   *** //
   // ***  package private helper functions *** //
   // ***                                   *** //

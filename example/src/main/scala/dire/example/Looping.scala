@@ -13,9 +13,10 @@ import scalaz._, Scalaz._, effect.IO
   */
 object Looping {
   def run = for {
-    kill ← SF.forever(looping)
-    _    ← IO(Thread.sleep(4000))
-    _    ← kill
+    rs   ← dire.control.ReactiveSystem()
+    kill ← rs forever looping
+    _    ← IO(Thread.sleep(2000))
+    _    ← rs.shutdown
   } yield ()
 
   //add one to incoming long events and start at 1L
