@@ -4,9 +4,7 @@ import java.awt.{GridBagLayout, Dimension}
 import javax.swing.JPanel
 import scalaz.effect.IO
 
-class Panel private(private[swing] val peer: JPanel) {
-
-}
+class Panel private(val peer: JPanel) extends Component[JPanel]
 
 object Panel {
   def apply(): IO[Panel] = IO(new JPanel) flatMap apply
