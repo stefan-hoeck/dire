@@ -2,25 +2,42 @@ package dire.swing
 
 import dire._
 import java.awt.{Font, Color}
-import java.awt.event.{MouseMotionListener, MouseListener,
-                       MouseEvent ⇒ JMouseEvent} 
+import java.awt.event.{MouseMotionListener, MouseListener, KeyListener,
+                       MouseEvent ⇒ JMouseEvent, KeyEvent ⇒ JKeyEvent,
+                       FocusEvent ⇒ JFocusEvent, FocusListener} 
 import javax.swing.JComponent
+import javax.swing.border.Border
 
 trait Component[A<:JComponent] extends Wrapped[A] {
   import Component._
 
+  def name: Sink[String] = sink(peer.setName, this)
+
+  def opaque: Sink[Boolean] = sink(peer.setOpaque, this)
+
   def background: Sink[Color] = sink(peer.setBackground, this)
 
+  def border: Sink[Border] = sink(peer.setBorder, this)
+
   def enabled: Sink[Boolean] = sink(peer.setEnabled, this)
+
+  def focusable: Sink[Boolean] = sink(peer.setFocusable, this)
+
+  def focus: SIn[FocusEvent] = SF.cachedSrc[Component[A],FocusEvent](this)
+
+  def focusGained: SIn[Unit] = focus collect { case FocusGained ⇒ () }
+
+  def focusLost: SIn[Unit] = focus collect { case FocusLost ⇒ () }
 
   def font: Sink[Font] = sink(peer.setFont, this)
 
   def foreground: Sink[Color] = sink(peer.setForeground, this)
 
+  def keys: SIn[KeyEvent] = SF.cachedSrc[Component[A],KeyEvent](this)
+
   def leftClicks: SIn[Unit] = mouse collect { case Clicked(Button1) ⇒ () }
 
-  def mouse: SIn[MouseEvent] =
-    SF.cachedSrc[Component[A],MouseEvent](this)
+  def mouse: SIn[MouseEvent] = SF.cachedSrc[Component[A],MouseEvent](this)
 
   def mouseMoved: SIn[MotionEvent] =
     SF.cachedSrc[Component[A],MotionEvent](this)
@@ -34,18 +51,32 @@ trait Component[A<:JComponent] extends Wrapped[A] {
 
 object Component {
 
-  implicit def MotionSource[A<:JComponent]
-    : Source[Component[A],MotionEvent] = eventSrc { c ⇒ o ⇒ 
+  implicit def MotionSource[A<:JComponent]: Source[Component[A],MotionEvent] =
+    eventSrc { c ⇒ o ⇒ 
       val l = motionListener(o)
       c.peer.addMouseMotionListener(l)
       _ ⇒ c.peer.removeMouseMotionListener(l)
     }
 
-  implicit def MouseSource[A<:JComponent]
-    : Source[Component[A],MouseEvent] = eventSrc { c ⇒ o ⇒ 
+  implicit def MouseSource[A<:JComponent]: Source[Component[A],MouseEvent] =
+    eventSrc { c ⇒ o ⇒ 
       val l = mouseListener(o)
       c.peer.addMouseListener(l)
       _ ⇒ c.peer.removeMouseListener(l)
+    }
+
+  implicit def KeySource[A<:JComponent]: Source[Component[A],KeyEvent] =
+    eventSrc { c ⇒ o ⇒ 
+      val l = keyListener(o)
+      c.peer.addKeyListener(l)
+      _ ⇒ c.peer.removeKeyListener(l)
+    }
+
+  implicit def FocusSource[A<:JComponent]: Source[Component[A],FocusEvent] =
+    eventSrc { c ⇒ o ⇒ 
+      val l = focusListener(o)
+      c.peer.addFocusListener(l)
+      _ ⇒ c.peer.removeFocusListener(l)
     }
 
   sealed trait MotionEvent { def pos: Position }
@@ -86,6 +117,45 @@ object Component {
     def mouseReleased(e: JMouseEvent) { o(Released(button(e))) }
     def mouseEntered(e: JMouseEvent) { o(Entered) }
     def mouseExited(e: JMouseEvent) { o(Exited) }
+  }
+
+  sealed trait KeyEvent {
+    def mods: Int
+    def loc: KeyLocation
+  }
+
+  case class KeyTyped(char: Char, mods: Int, loc: KeyLocation)
+    extends KeyEvent {
+    def this(e: JKeyEvent) = this(e.getKeyChar,
+      e.getModifiersEx, KeyLocation get e.getKeyLocation)
+  }
+
+  case class KeyPressed(key: Key, mods: Int, loc: KeyLocation)
+    extends KeyEvent {
+    def this(e: JKeyEvent) = this(Key get e.getKeyCode,
+      e.getModifiersEx, KeyLocation get e.getKeyLocation)
+  }
+
+  case class KeyReleased(key: Key, mods: Int, loc: KeyLocation)
+    extends KeyEvent {
+    def this(e: JKeyEvent) = this(Key get e.getKeyCode,
+      e.getModifiersEx, KeyLocation get e.getKeyLocation)
+  }
+
+  private def keyListener(o: KeyEvent ⇒ Unit) = new KeyListener {
+    def keyPressed(e: JKeyEvent) { o(new KeyPressed(e)) }
+    def keyReleased(e: JKeyEvent) { o(new KeyReleased(e)) }
+    def keyTyped(e: JKeyEvent) { o(new KeyTyped(e)) }
+  }
+
+  sealed trait FocusEvent
+
+  case object FocusGained extends FocusEvent
+  case object FocusLost extends FocusEvent
+
+  private def focusListener(o: FocusEvent ⇒ Unit) = new FocusListener {
+    def focusGained(e: JFocusEvent) { o(FocusGained) }
+    def focusLost(e: JFocusEvent) { o(FocusLost) }
   }
 }
 
