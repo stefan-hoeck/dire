@@ -75,6 +75,15 @@ final private[dire] class Reactor(
           }
     } yield r
 
+  private[dire] def connectOuts[A,B]
+    (f: Out[B] ⇒ Out[A], st: Option[Strategy])
+    (in: RawSignal[A]): IO[RawSignal[B]] = for {
+      s ← Reactive.sourceNoCb[B](Never, this, None)
+      o: Out[A] = f(b ⇒ IO(s fire b))
+      r ← RawSource(s)
+      _ ← sink[A](_.fold(o, IO.ioUnit), IO.ioUnit, st, None)(in)
+    } yield r
+
   private[dire] def timeSignal: IO[RawSignal[Time]] =
     cached[Nothing,Time](
       (_,_) ⇒ source[Time](IO(Once(T0,T0)))(Clock(T0, step, _)), "DireTime")(

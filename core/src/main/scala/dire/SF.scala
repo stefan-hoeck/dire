@@ -301,6 +301,10 @@ trait SFFunctions {
   def sfSyncIO[A,B](f: A ⇒ IO[B]): SF[A,B] =
     sfIO(f, Some(Strategy.Sequential))
 
+  //@TODO: Documentation
+  def connectOuts[A,B](f: Out[B] ⇒ Out[A], s: Option[Strategy]): SF[A,B] =
+    SF { (ra,r) ⇒ r.connectOuts(f, s)(ra) }
+
   /** Asynchronuously loops back the output of the given
     * event stream to its input
     */

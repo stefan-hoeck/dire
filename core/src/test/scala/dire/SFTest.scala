@@ -194,6 +194,18 @@ object SFTest
 
     res.toList
   }
+
+  // ***                  ***//
+  // *** Trasformer tests ***//
+  // ***                  ***//
+
+  property("connectOuts") = {
+    val trans: Out[Time] ⇒ Out[Time] = ot ⇒ t ⇒ ot(t * t)
+
+    val res = runUntil(SF.time >=> SF.connectOuts(trans, None)){ 10000L <= }
+    res.flatMap(_.toOption) ≟ (0 to 100 map { t ⇒ t.toLong * t.toLong } toList)
+  }
+
 }
 
 // vim: set ts=2 sw=2 et:
