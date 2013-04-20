@@ -8,8 +8,6 @@ import scalaz._, Scalaz._, effect.IO
   * To run, modify [[dire.example.Main]] like so:
   *
   * `def runc = Looping.run`
-  *
-  * The application will have to be forcibly terminated
   */
 object Looping {
   def run = for {

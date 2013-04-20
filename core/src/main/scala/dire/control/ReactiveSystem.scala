@@ -46,8 +46,8 @@ final class ReactiveSystem private(
 }
 
 object ReactiveSystem {
-  def apply(proc: Int = SF.processors): IO[ReactiveSystem] = for {
-    ex ← IO(Executors.newFixedThreadPool(proc max 2))
+  def apply(): IO[ReactiveSystem] = for {
+    ex ← IO(Executors.newCachedThreadPool())
     v  ← Var newVar none[Unit]
   } yield new ReactiveSystem(ex, v)
 }
