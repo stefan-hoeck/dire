@@ -13,16 +13,20 @@ final class ReactiveSystem private(
   private val s = Strategy.Executor(ex)
 
   /** Same as `SF.run` but does not block the calling thread */
-  def runAsync[A](in: SIn[A], step: Time = 1000L)
+  def runAsync[A](in: SIn[A],
+                  proc: Int = SF.processors,
+                  step: Time = 1000L)
                  (stop: A ⇒ Boolean): IO[Unit] =
-    async(SF.runS(in, s, step)(stop)).void
+    async(SF.run(in, proc, step)(stop)).void
 
   /** Ansynchronously starts a reactive graph and runs it until the
     * returned IO action is executed.
     */
-  def forever[A](in: SIn[A], step: Time = 1000L): IO[IO[Unit]] = for {
+  def forever[A](in: SIn[A],
+                 proc: Int = SF.processors,
+                 step: Time = 1000L): IO[IO[Unit]] = for {
     v    ← Var newVar none[Unit]
-    f    ← async(SF.runS(in >> SF.src(v), s, step)(_.nonEmpty))
+    f    ← async(SF.run(in >> SF.src(v), proc, step)(_.nonEmpty))
     kill = (s: Option[Unit]) ⇒ s.cata(
              _ ⇒ v.put(s) >> IO{ v.shutdown(); Await.ready(f, Inf); () },
              IO.ioUnit

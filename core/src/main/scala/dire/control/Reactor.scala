@@ -2,7 +2,7 @@ package dire.control
 
 import dire._
 import collection.mutable.ListBuffer
-import java.util.concurrent.CountDownLatch
+import java.util.concurrent.{CountDownLatch, ExecutorService, Executors}
 import scala.reflect.runtime.universe._
 import scalaz.effect.IO
 import scalaz.syntax.monad._
@@ -99,7 +99,7 @@ final private[dire] class Reactor(
   //its input
   private[dire] def loop[A]
     (f: (RawSignal[A], Reactor) ⇒ IO[RawSignal[A]]): IO[RawSignal[A]] = for {
-    s   ← Reactive.sourceNoCb[A](Never, this)
+    s   ← Reactive.sourceNoCb[A](Never, this, Some(Strategy.Sequential))
     r   ← RawSource(s)
     re  ← f(r, this)
     v   ← Var.forReactor(re.last, this, Some(Strategy.Sequential))

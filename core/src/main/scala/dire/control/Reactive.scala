@@ -12,14 +12,18 @@ private[control] trait Reactive {
 }
 
 private[control] object Reactive {
-  def source[A](ini: Event[A], r: Reactor, st: Option[Strategy] = None)
+  def source[A](ini: Event[A],
+                r: Reactor,
+                st: Option[Strategy] = None)
                (cb: Out[A] ⇒ IO[IO[Unit]]): IO[RSource[A]] = for {
     s ← IO(new RSource[A](ini, r, cb, st))
     _ ← r addReactive s
   } yield s
 
-  def sourceNoCb[A](ini: Event[A], r: Reactor, st: Option[Strategy] = None)
-    : IO[RSource[A]] = source[A](ini, r, st)(_ ⇒ IO(IO.ioUnit))
+  def sourceNoCb[A](ini: Event[A],
+                    r: Reactor,
+                    st: Option[Strategy] = None): IO[RSource[A]] =
+    source[A](ini, r, st)(_ ⇒ IO(IO.ioUnit))
 }
 
 private[control] abstract class DireActor[A](s: Strategy) extends Reactive {
