@@ -1,6 +1,6 @@
 package dire.example
 
-import dire._, SF.{id, loop, once}
+import dire._, SF.{id, loop, const}
 import scalaz._, Scalaz._, effect.IO
 
 /** An event stream that uses its own output as input
@@ -12,16 +12,18 @@ import scalaz._, Scalaz._, effect.IO
 object Looping {
   def run = for {
     rs   ← dire.control.ReactiveSystem()
-    kill ← rs forever looping
+    _    ← rs forever looping
     _    ← IO(Thread.sleep(2000))
     _    ← rs.shutdown
   } yield ()
 
   //add one to incoming long events and start at 1L
-  def plus = id[Long] map (1L +) hold 1L
+  def plus = id[Long] map (1L +)
+
+  def output = id[Long] filter (_ % 10000L == 0L) syncTo display
 
   //feedback output of the event stream to its input
-  def looping = loop(plus) filter (_ % 10000L == 0L) syncTo display
+  def looping = const(1L) >=> loop(plus) >=> output
   
   private def display(l: Long) = IO putStrLn l.toString
 }

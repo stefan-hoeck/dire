@@ -308,7 +308,7 @@ trait SFFunctions {
   /** Asynchronuously loops back the output of the given
     * event stream to its input
     */
-  def loop[A](sf: SF[A,A]): SIn[A] = SF { (_,r) ⇒ r.loop(sf.run) }
+  def loop[A](sf: SF[A,A]): SF[A,A] = SF { (ra,r) ⇒ r.loop(sf.run)(ra) }
 
   // ***                   *** //
   // *** Sources and Sinks *** //

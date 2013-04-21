@@ -98,14 +98,19 @@ final private[dire] class Reactor(
   //loops the output of a signal function asynchronuously back to
   //its input
   private[dire] def loop[A]
-    (f: (RawSignal[A], Reactor) ⇒ IO[RawSignal[A]]): IO[RawSignal[A]] = for {
-    s   ← Reactive.sourceNoCb[A](Never, this, Some(Strategy.Sequential))
+    (f: (RawSignal[A], Reactor) ⇒ IO[RawSignal[A]])(ra: RawSignal[A])
+    : IO[RawSignal[A]] = for {
+    s   ← Reactive.sourceNoCb[A](ra.last, this, Some(Strategy.Sequential))
     r   ← RawSource(s)
     re  ← f(r, this)
     v   ← Var.forReactor(re.last, this, Some(Strategy.Sequential))
     _   ← IO {
             re.node connectChild Node.child { _ ⇒ 
               re.last.fold(_ ⇒ v.set(re.last), ())
+              false
+            }
+            ra.node connectChild Node.child { _ ⇒ 
+              ra.last.fold(_ ⇒ v.set(ra.last), ())
               false
             }
 
