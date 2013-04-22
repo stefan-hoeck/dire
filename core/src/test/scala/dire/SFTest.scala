@@ -128,11 +128,20 @@ object SFTest
                        SF.cached(t._3, "third"))
   }
 
-  //Once
-  property("once") = forAll { i: Int ⇒ 
-    val res = runUntil(SF once i)(i ≟ _)
-    
-    res ≟ List(Never, Once(1L, i))
+  // ***                ***//
+  // *** Sync functions ***//
+  // ***                ***//
+
+  property("collect") = {
+    def f(l: Long) = if (l % 2L == 0L) l.some else none
+
+    test100O(idTime collect { case l if l % 2L == 0L ⇒ l })(f)
+  }
+
+  property("collectO") = {
+    def f(l: Long) = if (l % 2L == 0L) l.some else none
+
+    test100O(idTime collectO f)(f)
   }
 
   //distinct
@@ -151,6 +160,13 @@ object SFTest
     }
 
     compare(cached, cached.events, 100L)(calc)
+  }
+
+  //Once
+  property("once") = forAll { i: Int ⇒ 
+    val res = runUntil(SF once i)(i ≟ _)
+    
+    res ≟ List(Never, Once(1L, i))
   }
 
   //upon
