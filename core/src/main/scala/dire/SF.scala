@@ -56,7 +56,7 @@ class SF[-A,+B] private[dire](
 
   /** Map and filter an event stream in one run */
   def collectO[C](f: B ⇒ Option[C]): SF[A,C] =
-    sync1(this)(_ collect f)((ceb,_) ⇒ ceb collect f)
+  sync1(this)(_ collect f)((ceb,_) ⇒ ceb collect f)
 
   /** Sequentially combines two signal functions */
   def compose[C](that: SF[C,A]): SF[C,B] =
@@ -95,7 +95,8 @@ class SF[-A,+B] private[dire](
     * If the original event stream fires an event at T0 its value is replaced
     * by `ini`.
     */
-  def hold[C>:B](ini: ⇒ C): SF[A,C] = scan[C](ini)((next,_) ⇒ next)
+  def hold[C>:B](ini: ⇒ C): SF[A,C] = 
+    sync1(this)(e ⇒ Once(e.at, ini))((e,_) ⇒ e)
 
   /** Functor map */
   def map[C](f: B ⇒ C): SF[A,C] = SF { (ra,r) ⇒ run(ra,r) >>= { _ map f } }
@@ -139,10 +140,10 @@ class SF[-A,+B] private[dire](
     *             value accumulated so far
     */
   def scan[C](ini: ⇒ C)(next: (B,C) ⇒ C): SF[A,C] = {
-      def in(cb: Event[B]) = cb map { next(_,ini) } orElse Once(T0, ini)
+    def in(cb: Event[B]) = cb map { next(_,ini) } orElse Once(T0, ini)
 
-      sync1(this)(in)(^(_,_)(next))
-    }
+    sync1(this)(in)(^(_,_)(next))
+  }
 
   /** Accumulates events by first transferring them to a value
     * with a Monoid instance

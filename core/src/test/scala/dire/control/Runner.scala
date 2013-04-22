@@ -17,7 +17,9 @@ trait Runner {
   def test100[A:Equal](sf: SF[Time,A])(f: List[Time] ⇒ List[A]): Boolean = {
     val changes = runFor(sf, runsL)
 
-    f(o100) ≟ changes.flatMap { _.toOption }
+    val res = f(o100) ≟ changes.flatMap { _.toOption }
+    if (!res) println(changes mkString "\n")
+    res
   }
 
   def test100O[A:Equal](sf: SF[Time,A])(f: Time ⇒ Option[A]): Boolean =

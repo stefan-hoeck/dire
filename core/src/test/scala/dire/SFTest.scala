@@ -133,24 +133,28 @@ object SFTest
   // ***                ***//
 
   property("collect") = {
-    def f(l: Long) = if (l % 2L == 0L) l.some else none
+    def pf(l: Long) = (l % 2L == 0L) option l
 
-    test100O(idTime collect { case l if l % 2L == 0L ⇒ l })(f)
+    test100O(idTime collect { case l if l % 2L == 0L ⇒ l })(pf)
   }
 
   property("collectO") = {
-    def f(l: Long) = if (l % 2L == 0L) l.some else none
+    val f = (l: Long) ⇒ (l % 2L == 0L) option l
 
     test100O(idTime collectO f)(f)
   }
 
-  //distinct
+  property("contramap") =
+    test100O(idTime ∙ { _ + 1L })(x ⇒ Some(x + 1L))
+
+  property("count") =
+    test100(idTime.count)(xs ⇒ 1 to xs.size toList)
+
   property("distinct") = forAll { t: SFTT ⇒ 
     val cached = SF.cached(t, "distinct")
     compare(cached, cached.distinct, 100L)(collectDistinct)
   }
 
-  //events
   property("events") = forAll { t: SFTT ⇒ 
     val cached = SF.cached(t, "events")
 
@@ -162,14 +166,87 @@ object SFTest
     compare(cached, cached.events, 100L)(calc)
   }
 
-  //Once
+  property("filter") = {
+    def even = (l: Long) ⇒ l % 2L == 0L
+
+    test100(idTime filter even)(_ filter even)
+  }
+
+  property("hold") =
+    test100(idTime hold 1000L)(xs ⇒ 1000L :: xs.tail)
+
   property("once") = forAll { i: Int ⇒ 
     val res = runUntil(SF once i)(i ≟ _)
     
     res ≟ List(Never, Once(1L, i))
   }
 
-  //upon
+  property("on_never") = {
+    val on = idTime on (idTime >> SF.never[Time])
+
+    test100(on)(_ ⇒ Nil)
+  }
+
+  property("on_const") = {
+    val on = idTime on (idTime >> SF.const(100L))
+
+    test100(on)(_ ⇒ List(0L))
+  }
+
+  property("on_once") = {
+    val on = SF.time on SF.once(100L)
+
+    runUntil(on)(0L <= _).size ≟ 2
+  }
+
+  property("or") = {
+    val ts = (SF ticks 1L count).events 
+
+    val res = 
+      runUntil(ts or ts.map{_.toString})(_ ≟ 100.toString.right)
+
+    val set: Set[Int \/ String] = res flatMap { _.toOption} toSet
+    
+    (set.size > 100) :| "size" &&
+    ((1 to 100).toList ∀ { i ⇒ set(i.toString.right) }) :| "Rights" &&
+    ((1 to (set.size - 100)).toList ∀ { i ⇒ set(i.left) }) :| "Lefts"
+  }
+
+  property("scan_signal") =
+    test100(idTime.scan(0L){ _ - _ })(_.tail.scanLeft(0L){(a,b) ⇒ b - a}) 
+
+  property("scan_event_stream") =
+    test100(idTime.events.scan(0L){ _ - _ })(_.tail.scanLeft(0L){(a,b) ⇒ b - a}) 
+
+  property("scanMap") =
+    test100(idTime scanMap identity)(_.tail.scanLeft(0L){ _ + _ }) 
+
+  property("scanPlus") =
+    test100(idTime.scanPlus[List])(_.tail.scanLeft(List(0L)){(a,b) ⇒ a ++ List(b)}) 
+
+  property("scanSt") = {
+    val st = (t: Time) ⇒ State[Int,Time](i ⇒ (i + 1, t))
+
+    test100(idTime map st scanSt 0)(xs ⇒ 
+      xs.zipWithIndex map { case (t,i) ⇒ (i + 1, t) })
+  }
+
+  property("scanStS") = {
+    val st = (t: Time) ⇒ State[Int,Time](i ⇒ (i + 1, t))
+
+    test100(idTime map st scanStS 0)(xs ⇒ 
+      xs.zipWithIndex map { case (t,i) ⇒ i + 1})
+  }
+
+  property("scanStV") = {
+    val st = (t: Time) ⇒ State[Int,Time](i ⇒ (i + 1, t))
+
+    test100(idTime map st scanStV 0)(xs ⇒ 
+      xs.zipWithIndex map { case (t,i) ⇒ t})
+  }
+
+  property("sum") = test100(idTime.sum)(_.tail.scanLeft(0L){ _ + _}) 
+
   property("upon_never") = forAll { sf: SFTT ⇒ 
     val sfCached: TSF[Time] = SF.cached(sf, "upon_sf")
 
