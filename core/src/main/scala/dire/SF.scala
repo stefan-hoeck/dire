@@ -563,7 +563,7 @@ private[dire] class SFPlusImpl[R]
   def plus[A](a: SF[R,A], b: ⇒ SF[R,A]) = a merge b
 }
 
-private[dire] object SFArrowImpl extends Arrow[SF] {
+private[dire] object SFArrowImpl extends Arrow[SF] with Choice[SF] {
   def id[A]: SF[A,A] = SF.id
   def arr[A,B](f: A ⇒ B): SF[A,B] = id[A] map f
   def compose[A,B,C](f: SF[B,C], g: SF[A,B]) = f compose g
@@ -574,6 +574,14 @@ private[dire] object SFArrowImpl extends Arrow[SF] {
     val sfACC = sfAC map { _._2 }
 
     (sfACB <*> sfACC){ Tuple2.apply }
+  }
+
+  def choice[A,B,C](f: => SF[A,C], g: => SF[B,C]): SF[A \/ B,C] = {
+    val sfAB = id[A \/ B]
+    val sfA = sfAB collectO { _.swap.toOption } andThen f
+    val sfB = sfAB collectO { _.toOption } andThen g
+
+    sfA ⊹ sfB
   }
 }
 
