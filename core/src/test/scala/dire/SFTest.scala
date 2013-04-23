@@ -128,6 +128,26 @@ object SFTest
                        SF.cached(t._3, "third"))
   }
 
+  property("first_behavior") = {
+    //tests that no reactive branch is setup twice
+    import collection.mutable.ListBuffer
+    val times = new ListBuffer[Long]
+    val squares = new ListBuffer[Long]
+    val sums = new ListBuffer[Long]
+    def out(b: ListBuffer[Time]) = (t: Time) ⇒ IO{b += t; ()}
+
+    val sf = SF sf { t: Time ⇒ t * t } syncTo out(squares)
+    val fst = sf.first[Time] map { case (a,b) ⇒ a + b } syncTo out(sums)
+    val tot = idTime syncTo out(times) map { t ⇒ (t, t) } andThen fst
+    
+    val res = test100(tot)(_ map { t ⇒ t * t + t })
+
+    res :| "res" &&
+    (times.size ≟ 101) :| "times.size" &&
+    (squares.toList ≟ times.toList.map{t ⇒ t*t}) :| "squares" &&
+    (sums.toList ≟ times.toList.map{t ⇒ t*t + t}) :| "sums" 
+  }
+
   // ***                ***//
   // *** Sync functions ***//
   // ***                ***//
