@@ -21,7 +21,7 @@ object BuildSettings {
 
 object Dependencies {
   val scalaz = "org.scalaz"
-  val scalazV = "7.0.0-RC2"
+  val scalazV = "7.0.0"
 
   val scala_reflect = "org.scala-lang" % "scala-reflect" % BuildSettings.sv
 
