@@ -4,11 +4,19 @@ import dire._
 import javax.swing.JButton
 import scalaz._, Scalaz._, effect.IO
 
-case class Button(peer: JButton) extends AbstractButton[JButton]
+final class Button(val peer: JButton) extends BlockedSignal
 
 object Button {
-  def apply(text: String = ""): IO[Button] =
-    IO(Button(new JButton(text)))
+  def apply(props: Button ⇒ IO[Unit]*): IO[Button] = for {
+    res ← IO(new Button(new JButton()))
+    _   ← props.toList foldMap { _(res) }
+  } yield res
+
+  implicit val ButtonComponent = new AbstractButton[Button] {
+    def peer(b: Button) = b.peer
+    protected def isBlocked(a: Button) = a.blocked
+    protected def setBlocked(a: Button, b: Boolean) { a.blocked = b } 
+  }
 
   implicit val ButtonElem: AsSingleElem[Button] = Elem hFill { _.peer }
 }

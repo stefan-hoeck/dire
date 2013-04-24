@@ -1,6 +1,5 @@
 package dire.swing
 
-import Frame.{FrameLayout, Center}
 import java.awt.{GridBagLayout, GridBagConstraints, Insets}
 import GridBagConstraints._
 import javax.swing.{JComponent ⇒ JComp, JLabel}
@@ -27,8 +26,8 @@ sealed trait Elem { self ⇒
     override def prefSize(d: Dim) = f(d)
     def height = self.height
     def width = self.width
-    private[swing] def add(x: Int, y: Int, p: Panel) =
-      self.add(x, y, p)
+    private[swing] def add[A:Container](x: Int, y: Int, a: A) =
+      self.add(x, y, a)
   }
 
   def prefHeight(h: Int): Elem = adjustSize { case (w, _) ⇒ (w, h) }
@@ -41,19 +40,16 @@ sealed trait Elem { self ⇒
 
   def width: Int
 
-  final def addToFrame(f: Frame, l: FrameLayout = Center): IO[Unit] = 
-    f.addElem(this, l)
+  final def addTo[A:Container](a: A): IO[A] = add(0, 0, a) as a
 
-  final def addToPanel(p: Panel): IO[Panel] = add(0, 0, p) as p
-
-  final def panel: IO[Panel] = Panel() >>= addToPanel
+  final def panel: IO[Panel] = Panel() >>= addTo[Panel]
 
   final def beside[A:AsElem](a: A): Elem = Elem.Beside(this, Elem(a))
   final def above[A:AsElem](a: A): Elem = Elem.Above(this, Elem(a))
   final def <>[A:AsElem](a: A): Elem = beside(a)
   final def ^^[A:AsElem](a: A): Elem = above(a)
 
-  private[swing] def add(x: Int, y: Int, p: Panel): IO[Unit]
+  private[swing] def add[A:Container](x: Int, y: Int, a: A): IO[Unit]
 }
 
 object Elem extends AsElemInstances with AsElemSyntax {
@@ -73,27 +69,29 @@ object Elem extends AsElemInstances with AsElemSyntax {
       py: Int = 0,
       ins: Insets = insets) extends Elem {
 
-    override private[swing] def add(x: Int, y: Int, p: Panel) = IO {
+    override private[swing] def add[A:Container](x: Int, y: Int, c: A) = IO {
       val cs = new GridBagConstraints(x, y, width, height, wx,
         wy, a.v, f.v, ins, px, py)
 
-      p.peer.add(comp, cs)
+      Container[A].peer(c).add(comp, cs)
     }
   }
 
   val Empty = new Elem {
     val width = 0
     val height = 0
-    override private[swing] def add(x: Int, y: Int, p: Panel) = IO.ioUnit
+
+    override private[swing] def add[A:Container](x: Int, y: Int, a: A) =
+      IO.ioUnit
   }
   
   private case class Beside (left: Elem, right: Elem) extends Elem {
     lazy val height = left.height max right.height
     lazy val width = left.width + right.width
 
-    override private[swing] def add(x: Int, y: Int, p: Panel)  = 
-      left.add(x, y, p) >>
-      right.add(x + left.width, y, p)
+    override private[swing] def add[A:Container](x: Int, y: Int, a: A) =
+      left.add(x, y, a) >>
+      right.add(x + left.width, y, a)
    
   }
   
@@ -101,9 +99,9 @@ object Elem extends AsElemInstances with AsElemSyntax {
     lazy val height = top.height + bottom.height
     lazy val width = top.width max bottom.width
 
-    override private[swing] def add(x: Int, y: Int, p: Panel) =
-      top.add(x, y, p) >>
-      bottom.add(x, y + top.height, p)
+    override private[swing] def add[A:Container](x: Int, y: Int, a: A) =
+      top.add(x, y, a) >>
+      bottom.add(x, y + top.height, a)
   }
 
   sealed abstract class Fill(final val v: Int)

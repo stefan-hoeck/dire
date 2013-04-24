@@ -2,17 +2,21 @@ package dire.swing
 
 import java.awt.{GridBagLayout, Dimension}
 import javax.swing.JPanel
-import scalaz.effect.IO
+import scalaz._, Scalaz._, effect.IO
 
-class Panel private(val peer: JPanel) extends Component[JPanel]
+final class Panel(val peer: JPanel)
 
 object Panel {
-  def apply(): IO[Panel] = IO(new JPanel) flatMap apply
+  def apply(props: Panel ⇒ IO[Unit]*): IO[Panel] = for {
+    p   ← IO(new JPanel)
+    _   ← IO(p.setLayout(new GridBagLayout))
+    res ← IO(new Panel(p))
+    _   ← props.toList foldMap { _(res) }
+  } yield res
 
-  def apply(p: JPanel): IO[Panel] = for {
-    _ ← IO(p.setLayout(new GridBagLayout))
-    r ← IO(new Panel(p))
-  } yield r
+  implicit val PanelComponent: Component[Panel] = new Component[Panel] {
+    def peer(p: Panel) = p.peer
+  }
 
   implicit val PanelElem: AsElem[Panel] = Elem vhFill { _.peer }
 }

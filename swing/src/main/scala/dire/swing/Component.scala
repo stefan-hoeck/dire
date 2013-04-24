@@ -1,83 +1,117 @@
 package dire.swing
 
 import dire._
-import java.awt.{Font, Color}
+import java.awt.{Font, Color, Component ⇒ AComponent, Container ⇒ AContainer}
 import java.awt.event.{MouseMotionListener, MouseListener, KeyListener,
                        MouseEvent ⇒ JMouseEvent, KeyEvent ⇒ JKeyEvent,
                        FocusEvent ⇒ JFocusEvent, FocusListener} 
 import javax.swing.JComponent
 import javax.swing.border.Border
 
-trait Component[A<:JComponent] extends Wrapped[A] {
+/** Type class representing a `java.awt.Component` */
+trait Comp[-A] {
   import Component._
 
-  def name: Sink[String] = sink(peer.setName, this)
+  def peer(a: A): AComponent
 
-  def opaque: Sink[Boolean] = sink(peer.setOpaque, this)
+  final def background(a: A): Sink[Color] = sink(peer(a).setBackground)
 
-  def background: Sink[Color] = sink(peer.setBackground, this)
+  final def bounds(a: A): Sink[Rect] =
+    sink(r ⇒ peer(a).setBounds(rectangle(r)))
 
-  def border: Sink[Border] = sink(peer.setBorder, this)
+  final def cursor(a: A): Sink[Cursor] = 
+    sink(c ⇒ peer(a).setCursor(new java.awt.Cursor(c.v)))
 
-  def enabled: Sink[Boolean] = sink(peer.setEnabled, this)
+  final def enabled(a: A): Sink[Boolean] = sink(peer(a).setEnabled)
 
-  def focusable: Sink[Boolean] = sink(peer.setFocusable, this)
+  final def focus(a: A): SIn[FocusEvent] =
+    SF.cachedSrc[AComponent,FocusEvent](peer(a))
 
-  def focus: SIn[FocusEvent] = SF.cachedSrc[Component[A],FocusEvent](this)
+  final def focusGained(a: A): SIn[Unit] =
+    focus(a) collect { case FocusGained ⇒ () }
 
-  def focusGained: SIn[Unit] = focus collect { case FocusGained ⇒ () }
+  final def focusLost(a: A): SIn[Unit] =
+    focus(a) collect { case FocusLost ⇒ () }
 
-  def focusLost: SIn[Unit] = focus collect { case FocusLost ⇒ () }
+  final def focusable(a: A): Sink[Boolean] = sink(peer(a).setFocusable)
 
-  def font: Sink[Font] = sink(peer.setFont, this)
+  final def font(a: A): Sink[Font] = sink(peer(a).setFont)
 
-  def foreground: Sink[Color] = sink(peer.setForeground, this)
+  final def foreground(a: A): Sink[Color] = sink(peer(a).setForeground)
 
-  def keys: SIn[KeyEvent] = SF.cachedSrc[Component[A],KeyEvent](this)
+  final def keys(a: A): SIn[KeyEvent] =
+    SF.cachedSrc[AComponent,KeyEvent](peer(a))
 
-  def leftClicks: SIn[Unit] = mouse collect { case Clicked(Button1) ⇒ () }
+  final def leftClicks(a: A): SIn[Unit] =
+    mouse(a) collect { case Clicked(Button1) ⇒ () }
 
-  def mouse: SIn[MouseEvent] = SF.cachedSrc[Component[A],MouseEvent](this)
+  final def maxSize(a: A): Sink[Dim] = 
+    sink(d ⇒ peer(a).setMaximumSize(dimension(d)))
 
-  def mouseMoved: SIn[MotionEvent] =
-    SF.cachedSrc[Component[A],MotionEvent](this)
+  final def minSize(a: A): Sink[Dim] = 
+    sink(d ⇒ peer(a).setMinimumSize(dimension(d)))
 
-  def mousePosition: SIn[Position] = mouseMoved map { _.pos }
+  final def mouse(a: A): SIn[MouseEvent] =
+    SF.cachedSrc[AComponent,MouseEvent](peer(a))
 
-  def rightClicks: SIn[Unit] = mouse collect { case Clicked(Button3) ⇒ () }
+  final def mouseMoved(a: A): SIn[MotionEvent] =
+    SF.cachedSrc[AComponent,MotionEvent](peer(a))
 
-  def tooltip: Sink[String] = sink(peer.setToolTipText, this)
+  final def mousePosition(a: A): SIn[Position] = mouseMoved(a) map { _.pos }
+
+  final def name(a: A): Sink[String] = sink(peer(a).setName)
+
+  final def preferredSize(a: A): Sink[Dim] = 
+    sink(d ⇒ peer(a).setPreferredSize(dimension(d)))
+
+  final def rightClicks(a: A): SIn[Unit] =
+    mouse(a) collect { case Clicked(Button3) ⇒ () }
+
+  final def size(a: A): Sink[Dim] = 
+    sink(d ⇒ peer(a).setSize(dimension(d)))
+
+  final def visible(a: A): Sink[Boolean] = sink(peer(a).setVisible)
+}
+
+/** Type class representing a `java.awt.Container` */
+trait Container[-A] extends Comp[A] {
+  def peer(a: A): AContainer
+}
+
+/** Type class representing a `javax.swing.JComponent` */
+trait Component[-A] extends Container[A] {
+  def peer(a: A): JComponent
+
+  final def border(a: A): Sink[Border] = sink(peer(a).setBorder)
+
+  final def doubleBuffered(a: A): Sink[Boolean] =
+    sink(peer(a).setDoubleBuffered)
+
+  final def opaque(a: A): Sink[Boolean] = sink(peer(a).setOpaque)
+
+  final def tooltip(a: A): Sink[Option[String]] = 
+    sink(os ⇒ peer(a).setToolTipText(os getOrElse null))
+}
+
+object Comp {
+  def apply[A:Comp]: Comp[A] = implicitly
+
+  implicit val CompIso = new (Comp ~>> AComponent) {
+    def apply[A](f: Comp[A], a: A) = f peer a
+  }
+}
+
+object Container {
+  def apply[A:Container]: Container[A] = implicitly
+
+  implicit val ContainerIso = new (Container ~>> AContainer) {
+    def apply[A](f: Container[A], a: A) = f peer a
+  }
 }
 
 object Component {
 
-  implicit def MotionSource[A<:JComponent]: Source[Component[A],MotionEvent] =
-    eventSrc { c ⇒ o ⇒ 
-      val l = motionListener(o)
-      c.peer.addMouseMotionListener(l)
-      _ ⇒ c.peer.removeMouseMotionListener(l)
-    }
-
-  implicit def MouseSource[A<:JComponent]: Source[Component[A],MouseEvent] =
-    eventSrc { c ⇒ o ⇒ 
-      val l = mouseListener(o)
-      c.peer.addMouseListener(l)
-      _ ⇒ c.peer.removeMouseListener(l)
-    }
-
-  implicit def KeySource[A<:JComponent]: Source[Component[A],KeyEvent] =
-    eventSrc { c ⇒ o ⇒ 
-      val l = keyListener(o)
-      c.peer.addKeyListener(l)
-      _ ⇒ c.peer.removeKeyListener(l)
-    }
-
-  implicit def FocusSource[A<:JComponent]: Source[Component[A],FocusEvent] =
-    eventSrc { c ⇒ o ⇒ 
-      val l = focusListener(o)
-      c.peer.addFocusListener(l)
-      _ ⇒ c.peer.removeFocusListener(l)
-    }
+  def apply[A:Component]: Component[A] = implicitly
 
   sealed trait MotionEvent { def pos: Position }
 
@@ -157,6 +191,60 @@ object Component {
     def focusGained(e: JFocusEvent) { o(FocusGained) }
     def focusLost(e: JFocusEvent) { o(FocusLost) }
   }
+
+  implicit val ComponentIso = new (Component ~>> JComponent) {
+    def apply[A](f: Component[A], a: A) = f peer a
+  }
+
+  private[dire] implicit val MotionSource: Source[AComponent,MotionEvent] =
+    eventSrc { c ⇒ o ⇒ 
+      val l = motionListener(o)
+      c.addMouseMotionListener(l)
+      _ ⇒ c.removeMouseMotionListener(l)
+    }
+
+  private[dire] implicit val MouseSource: Source[AComponent,MouseEvent] =
+    eventSrc { c ⇒ o ⇒ 
+      val l = mouseListener(o)
+      c.addMouseListener(l)
+      _ ⇒ c.removeMouseListener(l)
+    }
+
+  private[dire] implicit val KeySource: Source[AComponent,KeyEvent] =
+    eventSrc { c ⇒ o ⇒ 
+      val l = keyListener(o)
+      c.addKeyListener(l)
+      _ ⇒ c.removeKeyListener(l)
+    }
+
+  private[dire] implicit val FocusSource: Source[AComponent,FocusEvent] =
+    eventSrc { c ⇒ o ⇒ 
+      val l = focusListener(o)
+      c.addFocusListener(l)
+      _ ⇒ c.removeFocusListener(l)
+    }
+}
+
+sealed abstract class Cursor(val v: Int)
+
+object Cursor {
+  import java.awt.Cursor._
+
+  case object Crosshair extends Cursor(CROSSHAIR_CURSOR)
+  case object Custom extends Cursor(CUSTOM_CURSOR)
+  case object Default extends Cursor(DEFAULT_CURSOR)
+  case object EResize extends Cursor(E_RESIZE_CURSOR)
+  case object Hand extends Cursor(HAND_CURSOR)
+  case object Move extends Cursor(MOVE_CURSOR)
+  case object NEResize extends Cursor(NE_RESIZE_CURSOR)
+  case object NResize extends Cursor(N_RESIZE_CURSOR)
+  case object NWResize extends Cursor(NW_RESIZE_CURSOR)
+  case object SEResize extends Cursor(SE_RESIZE_CURSOR)
+  case object SResize extends Cursor(S_RESIZE_CURSOR)
+  case object SWResize extends Cursor(SW_RESIZE_CURSOR)
+  case object Text extends Cursor(TEXT_CURSOR)
+  case object WResize extends Cursor(W_RESIZE_CURSOR)
+  case object Wait extends Cursor(WAIT_CURSOR)
 }
 
 // vim: set ts=2 sw=2 et:

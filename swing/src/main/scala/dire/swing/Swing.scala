@@ -1,7 +1,6 @@
 package dire.swing
 
-trait Wrapped[+A] {
-  def peer: A
+object Swing extends Properties {
 }
 
 // vim: set ts=2 sw=2 et:

@@ -13,14 +13,21 @@ package object swing {
 
   type Dim = (Int, Int)
 
+  type Rect = (Int, Int, Int, Int)
+
   type Position = (Int, Int)
 
-  private[swing] def sink[A:TypeTag](out: A ⇒ Unit, key: Any): Sink[A] =
-    DataSink.cached[A](a ⇒ IO(out(a)), key, strategy = Some(SwingInvokeLater))
+  private[swing] def dimension(d: Dim) =
+    new java.awt.Dimension(d._1, d._2)
 
-  private[swing] def blockedSink[S<:BlockedSignal,A:TypeTag]
-    (s: S)(out: A ⇒ Unit): Sink[A] = 
-    sink(a ⇒ { s.blocked = true; out(a); s.blocked = false }, s)
+  private[swing] def rectangle(r: Rect) =
+    new java.awt.Rectangle(r._1, r._2, r._3, r._4)
+
+  private[swing] def sink[A](out: A ⇒ Unit): Sink[A] =
+    sinkIO[A](a ⇒ IO(out(a)))
+
+  private[swing] def sinkIO[A](out: A ⇒ IO[Unit]): Sink[A] =
+    DataSink.create[A](out, strategy = Some(SwingInvokeLater))
 
   private[swing] def eventSrc[S,A](out: Callback[S,A]): Source[S,A] =
     DataSource eventSrcInpure out
