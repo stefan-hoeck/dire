@@ -22,7 +22,7 @@ trait AbstractButton[A]
     setBlocked(a, false)
   }
 
-  def value(a: A): SIn[Boolean] =
+  final def value(a: A): SIn[Boolean] =
     clicks(a) map { _ ⇒ peer(a).isSelected } hold peer(a).isSelected
 
   final override def setHAlign(a: A, h: HAlign) =

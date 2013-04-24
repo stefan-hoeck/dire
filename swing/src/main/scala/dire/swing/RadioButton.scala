@@ -1,18 +1,25 @@
 package dire.swing
 
-//import javax.swing.{JRadioButton}
-//import scalaz.effect.IO
-//
-//case class RadioButton(peer: JRadioButton)
-//  extends AbstractButton[JRadioButton]
-//
-//object RadioButton {
-//  def apply(text: String = "",
-//            selected: Boolean = false): IO[RadioButton] =
-//    IO(RadioButton(new JRadioButton(text, selected)))
-//
-//  implicit val RadioButtonElem: AsSingleElem[RadioButton] =
-//    Elem hFill { _.peer }
-//}
+import dire._
+import javax.swing.{JRadioButton}
+import scalaz._, Scalaz._, effect.IO
+
+class RadioButton(val peer: JRadioButton) extends BlockedSignal
+
+object RadioButton {
+  def apply(props: RadioButton ⇒ IO[Unit]*): IO[RadioButton] = for {
+    res ← IO(new RadioButton(new JRadioButton()))
+    _   ← props.toList foldMap { _(res) }
+  } yield res
+
+  implicit val RadioButtonComponent = new AbstractButton[RadioButton] {
+    def peer(b: RadioButton) = b.peer
+    protected def isBlocked(a: RadioButton) = a.blocked
+    protected def setBlocked(a: RadioButton, b: Boolean) { a.blocked = b } 
+  }
+
+  implicit val RadioButtonElem: AsSingleElem[RadioButton] =
+    Elem hFill { _.peer }
+}
 
 // vim: set ts=2 sw=2 et:
