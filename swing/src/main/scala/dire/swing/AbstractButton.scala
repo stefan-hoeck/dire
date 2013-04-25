@@ -7,19 +7,15 @@ import scalaz.effect.IO
 trait AbstractButton[A]
   extends Component[A] 
   with IconDisplay[A]
-  with TextDisplay[A] {
-  protected def isBlocked(a: A): Boolean
-
-  protected def setBlocked(a: A, b: Boolean) 
+  with TextDisplay[A] 
+  with Blockable[A] {
 
   def peer(a: A): JAbstractButton
 
   final def clicks(a: A): SIn[Unit] = SF cachedSrc a
 
   final def selected(a: A): Sink[Boolean] = sink{ b ⇒ 
-    setBlocked(a, true)
-    peer(a).setSelected(b)
-    setBlocked(a, false)
+    withBlock(a){ peer(a).setSelected(b) }
   }
 
   final def value(a: A): SIn[Boolean] =

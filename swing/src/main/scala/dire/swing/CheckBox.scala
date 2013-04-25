@@ -4,7 +4,9 @@ import dire._
 import javax.swing.{JCheckBox}
 import scalaz._, Scalaz._, effect.IO
 
-class CheckBox(val peer: JCheckBox) extends BlockedSignal
+class CheckBox(val peer: JCheckBox) {
+  private var blocked = false
+}
 
 object CheckBox {
   def apply(props: CheckBox ⇒ IO[Unit]*): IO[CheckBox] = for {
@@ -15,7 +17,7 @@ object CheckBox {
   implicit val CheckBoxComponent = new AbstractButton[CheckBox] {
     def peer(b: CheckBox) = b.peer
     protected def isBlocked(a: CheckBox) = a.blocked
-    protected def setBlocked(a: CheckBox, b: Boolean) { a.blocked = b } 
+    protected def block(a: CheckBox, b: Boolean) { a.blocked = b } 
   }
 
   implicit val CheckBoxElem: AsSingleElem[CheckBox] = Elem hFill { _.peer }

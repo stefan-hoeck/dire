@@ -4,7 +4,9 @@ import dire._
 import javax.swing.{JRadioButton}
 import scalaz._, Scalaz._, effect.IO
 
-class RadioButton(val peer: JRadioButton) extends BlockedSignal
+class RadioButton(val peer: JRadioButton) {
+  private var blocked = false
+}
 
 object RadioButton {
   def apply(props: RadioButton ⇒ IO[Unit]*): IO[RadioButton] = for {
@@ -15,7 +17,7 @@ object RadioButton {
   implicit val RadioButtonComponent = new AbstractButton[RadioButton] {
     def peer(b: RadioButton) = b.peer
     protected def isBlocked(a: RadioButton) = a.blocked
-    protected def setBlocked(a: RadioButton, b: Boolean) { a.blocked = b } 
+    protected def block(a: RadioButton, b: Boolean) { a.blocked = b } 
   }
 
   implicit val RadioButtonElem: AsSingleElem[RadioButton] =
