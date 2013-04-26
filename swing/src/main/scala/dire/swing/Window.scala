@@ -11,8 +11,11 @@ trait Window[-A] extends Container[A] {
 
   def peer(a: A): AWindow
 
-  override protected def beforeAdjustingSize(a: A): IO[Unit] =
-    IO(peer(a).pack())
+  override def adjustSize(a: A, f: Dim ⇒ Dim): IO[Unit] = IO {
+    peer(a).pack()
+    val old = peer(a).getSize
+    peer(a).setSize(dimension(f(old.width, old.height)))
+  }
 
   final def iconImage(a: A): Sink[Image] = sink(peer(a).setIconImage)
 
