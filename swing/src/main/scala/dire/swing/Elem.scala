@@ -40,7 +40,11 @@ sealed trait Elem { self ⇒
 
   def width: Int
 
-  final def addTo[A:Container](a: A): IO[A] = add(0, 0, a) as a
+  final def addTo[A](a: A)(implicit C: Container[A]): IO[A] = for {
+     _ ← C.checkLayout(a)
+     _ ← add(0, 0, a)
+     _ ← C.adjustSize(a, prefSize)
+  } yield a
 
   final def panel: IO[Panel] = Panel() >>= addTo[Panel]
 

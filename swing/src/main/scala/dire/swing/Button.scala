@@ -2,14 +2,15 @@ package dire.swing
 
 import dire._
 import javax.swing.JButton
-import scalaz._, Scalaz._, effect.IO
+import scalaz.effect.IO
+import Swing.PropertySetOps
 
 final class Button(val peer: JButton)
 
 object Button {
   def apply(props: Button ⇒ IO[Unit]*): IO[Button] = for {
     res ← IO(new Button(new JButton()))
-    _   ← props.toList foldMap { _(res) }
+    _   ← res setList props.toList
   } yield res
 
   implicit val ButtonComponent = new AbstractButton[Button] {

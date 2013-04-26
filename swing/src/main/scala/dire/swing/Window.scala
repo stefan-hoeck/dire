@@ -11,8 +11,10 @@ trait Window[-A] extends Container[A] {
 
   def peer(a: A): AWindow
 
-  final def iconImage(a: A): Sink[Image] =
-    iconImages(a) contramap { List(_) }
+  override protected def beforeAdjustingSize(a: A): IO[Unit] =
+    IO(peer(a).pack())
+
+  final def iconImage(a: A): Sink[Image] = sink(peer(a).setIconImage)
 
   final def iconImages(a: A): Sink[List[Image]] = {
     import scala.collection.JavaConversions._

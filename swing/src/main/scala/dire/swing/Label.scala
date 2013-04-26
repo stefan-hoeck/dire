@@ -15,8 +15,12 @@ object Label {
   implicit val LabelComponent =
     new Component[Label] 
     with TextDisplay[Label]
+    with TextAlign[Label]
     with IconDisplay[Label] {
       def peer(l: Label) = l.peer
+
+      protected def block(l: Label, b: Boolean) {}
+      protected def isBlocked(l: Label) = false
 
       def setHAlign(a: Label, h: HAlign) =
         IO(peer(a).setHorizontalAlignment(h.v))
@@ -24,7 +28,7 @@ object Label {
       def setHTextPos(a: Label, h: HAlign) =
         IO(peer(a).setHorizontalTextPosition(h.v))
 
-      def setText(a: Label, s: String) = IO(peer(a).setText(s))
+      def setText(a: Label, s: String) = IO{ peer(a).setText(s) }
 
       def setVAlign(a: Label, v: VAlign) =
         IO(peer(a).setVerticalAlignment(v.v))

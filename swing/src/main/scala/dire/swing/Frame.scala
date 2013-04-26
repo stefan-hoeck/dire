@@ -9,9 +9,14 @@ import scalaz._, Scalaz._, effect.IO
 class Frame(val peer: JFrame)
 
 object Frame {
-//  def apply(): IO[Frame] = apply("")
-//
-//  def apply(title: String): IO[Frame] = IO(new Frame(new JFrame(title)))
+  def apply(props: Frame ⇒ IO[Unit]*): IO[Frame] = for {
+    res ← IO(new Frame(new JFrame()))
+    _   ← props.toList foldMap { _(res) }
+  } yield res
+
+  implicit val FrameComponent = new FrameLike[Frame] {
+    def peer(b: Frame) = b.peer
+  }
 }
 
 // vim: set ts=2 sw=2 et:

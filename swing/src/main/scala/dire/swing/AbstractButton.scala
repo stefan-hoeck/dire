@@ -1,6 +1,7 @@
 package dire.swing
 
 import dire._
+import java.awt.event.ActionListener
 import javax.swing.{AbstractButton ⇒ JAbstractButton, Icon}
 import scalaz.effect.IO
 
@@ -8,17 +9,30 @@ trait AbstractButton[A]
   extends Component[A] 
   with IconDisplay[A]
   with TextDisplay[A] 
-  with Blockable[A] {
+  with TextAlign[A]
+  with Blockable[A] 
+  with FiresActionEvent[A] 
+  with IOWidget[A,Boolean] {
 
   def peer(a: A): JAbstractButton
 
-  final def clicks(a: A): SIn[Unit] = SF cachedSrc a
+  final override protected def addAli(a: A, ali: ActionListener) {
+    peer(a).addActionListener(ali)
+  }
+
+  final override protected def removeAli(a: A, ali: ActionListener) {
+    peer(a).removeActionListener(ali)
+  }
+
+  final def clicks(a: A): SIn[Unit] = actionEvents(a)
 
   final def selected(a: A): Sink[Boolean] = sink{ b ⇒ 
     withBlock(a){ peer(a).setSelected(b) }
   }
 
-  final def value(a: A): SIn[Boolean] =
+  final def out(a: A): Sink[Boolean] = selected(a)
+
+  final def in(a: A): SIn[Boolean] =
     clicks(a) map { _ ⇒ peer(a).isSelected } hold peer(a).isSelected
 
   final override def setHAlign(a: A, h: HAlign) =
@@ -42,13 +56,6 @@ trait AbstractButton[A]
 
   final override def setIconTextGap(a: A, i: Int) =
     IO(peer(a).setIconTextGap(i))
-
-  private implicit lazy val src: Source[A,Unit] =
-    eventSrc { b ⇒ o ⇒ 
-      val a = ali(_ ⇒ { if (! isBlocked(b)) o(()) })
-      peer(b).addActionListener(a)
-      _ ⇒ peer(b).removeActionListener(a)
-    }
 }
 
 // vim: set ts=2 sw=2 et:

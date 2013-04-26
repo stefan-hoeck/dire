@@ -1,15 +1,42 @@
 package dire.swing
 
 import dire._
-import javax.swing.text.JTextComponent
+import java.awt.Color
+import javax.swing.text.{JTextComponent, Caret}
 import javax.swing.event.{DocumentListener, DocumentEvent}
 import scalaz._, Scalaz._, effect.IO
 
-trait TextComponent[A] extends TextDisplay[A] with Blockable[A] {
+trait TextComponent[A]
+  extends TextDisplay[A]
+  with Blockable[A] 
+  with IOWidget[A,String] {
+  final def caret(a: A): Sink[Caret] = sink(peer(a).setCaret)
+
+  final def caretColor(a: A): Sink[Color] = sink(peer(a).setCaretColor)
+
+  final def caretPosition(a: A): Sink[Int] = sink(peer(a).setCaretPosition)
+
+  final def disabledTextColor(a: A): Sink[Color] =
+    sink(peer(a).setDisabledTextColor)
+
+  final def editable(a: A): Sink[Boolean] = sink(peer(a).setEditable)
+
   def peer(a: A): JTextComponent
-//  def text: Sink[String] = blockedSink(this)(peer.setText)
-//
-//  def value: SIn[String] = SF cachedSrc this
+
+  final def selectedTextColor(a: A): Sink[Color] =
+    sink(peer(a).setSelectedTextColor)
+
+  final def selectionColor(a: A): Sink[Color] = sink(peer(a).setSelectionColor)
+
+  final def selectionEnd(a: A): Sink[Int] = sink(peer(a).setSelectionEnd)
+
+  final def selectionStart(a: A): Sink[Int] = sink(peer(a).setSelectionStart)
+
+  final def setText(a: A, s: String) = IO(peer(a).setText(s))
+
+  final def in(a: A): SIn[String] = SF cachedSrc a
+
+  final def out(a: A): Sink[String] = text(a)
 
   private implicit lazy val src: Source[A,String] = 
     dire.swing.src[A,String](a ⇒ peer(a).getText) { a ⇒ o ⇒ 
@@ -26,6 +53,14 @@ trait TextComponent[A] extends TextDisplay[A] with Blockable[A] {
 
       private def adjust() { if (! isBlocked(a)) o(peer(a).getText) }
     }
+}
+
+object TextComponent {
+  def apply[A:TextComponent]: TextComponent[A] = implicitly
+
+  implicit val TextComponentIso = new (TextComponent ~>> JTextComponent) {
+    def apply[A](f: TextComponent[A], a: A) = f peer a
+  }
 }
 
 // vim: set ts=2 sw=2 et:

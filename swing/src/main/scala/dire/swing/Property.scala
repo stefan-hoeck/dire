@@ -2,8 +2,9 @@ package dire.swing
 
 import dire.Out
 import java.awt.{Font, Color, Component ⇒ AComponent, 
-                 Window ⇒ AWindow, Image}
+                 Window ⇒ AWindow, Image, Frame ⇒ AFrame}
 import javax.swing._
+import javax.swing.text.JTextComponent
 import javax.swing.border.Border
 import scalaz.effect.IO
 
@@ -26,6 +27,15 @@ object Property {
   private[dire] def componentP[A](f: JComponent ⇒ A ⇒ Unit) =
     apply[A,Component,JComponent]((a,c) ⇒ f(c)(a))
 
+  private[dire] def frameLikeP[A](f: AFrame ⇒ A ⇒ Unit) =
+    apply[A,FrameLike,AFrame]((a,c) ⇒ f(c)(a))
+
+  private[dire] def textCompP[A](f: JTextComponent ⇒ A ⇒ Unit) =
+    apply[A,TextComponent,JTextComponent]((a,c) ⇒ f(c)(a))
+
+  private[dire] def textFieldLikeP[A](f: JTextField ⇒ A ⇒ Unit) =
+    apply[A,TextFieldLike,JTextField]((a,c) ⇒ f(c)(a))
+
   private[dire] def windowP[A](f: AWindow ⇒ A ⇒ Unit) =
     apply[A,Window,AWindow]((a,c) ⇒ f(c)(a))
 }
@@ -39,14 +49,31 @@ trait Properties {
 
   val bounds = compP[Rect](c ⇒ r ⇒ c.setBounds(rectangle(r)))
 
+  val caret = textCompP(_.setCaret)
+
+  val caretColor = textCompP(_.setCaretColor)
+
+  val caretPosition = textCompP(_.setCaretPosition)
+
   val cursor = compP(_.setCursor)
+
+  val columns = textFieldLikeP(_.setColumns)
 
   val disabledIcon = new Property[Icon,IconDisplay] {
     def := [B](a: Icon)(b: B)(implicit W: IconDisplay[B]) =
       W.setDisabledIcon(b, a)
   }
 
+  val disabledTextColor = textCompP(_.setDisabledTextColor)
+
   val doubleBuffered = componentP(_.setDoubleBuffered)
+
+  val echoChar = new Property[Char,PasswordDisplay] {
+    def := [B](a: Char)(b: B)(implicit W: PasswordDisplay[B]) =
+      W.setEchoChar(b, a)
+  }
+
+  val editable = textCompP(_.setEditable)
 
   val enabled = compP(_.setEnabled)
 
@@ -56,12 +83,12 @@ trait Properties {
 
   val foreground = compP(_.setForeground)
 
-  val hAlign = new Property[HAlign,TextDisplay] {
-    def := [B](a: HAlign)(b: B)(implicit W: TextDisplay[B]) = W.setHAlign(b, a)
+  val hAlign = new Property[HAlign,TextAlign] {
+    def := [B](a: HAlign)(b: B)(implicit W: TextAlign[B]) = W.setHAlign(b, a)
   }
 
-  val hTextPos = new Property[HAlign,TextDisplay] {
-    def := [B](a: HAlign)(b: B)(implicit W: TextDisplay[B]) = W.setHTextPos(b, a)
+  val hTextPos = new Property[HAlign,TextAlign] {
+    def := [B](a: HAlign)(b: B)(implicit W: TextAlign[B]) = W.setHTextPos(b, a)
   }
 
   val icon = new Property[Icon,IconDisplay] {
@@ -81,6 +108,9 @@ trait Properties {
       W.setIconTextGap(b, a)
   }
 
+  val maximizedBounds =
+    frameLikeP[Rect](c ⇒ d ⇒ c.setMaximizedBounds(rectangle(d)))
+
   val maxSize = compP[Dim](c ⇒ d ⇒ c.setMaximumSize(dimension(d)))
 
   val minSize = compP[Dim](c ⇒ d ⇒ c.setMinimumSize(dimension(d)))
@@ -89,7 +119,22 @@ trait Properties {
 
   val opaque = componentP(_.setOpaque)
 
+  val password = new Property[String,PasswordDisplay] {
+    def := [B](s: String)(b: B)(implicit W: PasswordDisplay[B]) =
+      W.setPassword(b, s)
+  }
+
   val preferredSize = compP[Dim](c ⇒ d ⇒ c.setPreferredSize(dimension(d)))
+
+  val resizable = frameLikeP(_.setResizable)
+
+  val selectedTextColor = textCompP(_.setSelectedTextColor)
+
+  val selectionColor = textCompP(_.setSelectionColor)
+
+  val selectionEnd = textCompP(_.setSelectionEnd)
+
+  val selectionStart = textCompP(_.setSelectionStart)
 
   val size = compP[Dim](c ⇒ d ⇒ c.setSize(dimension(d)))
 
@@ -97,18 +142,22 @@ trait Properties {
     def := [B](a: String)(b: B)(implicit W: TextDisplay[B]) = W.setText(b, a)
   }
 
+  val title = frameLikeP(_.setTitle)
+
   val tooltip =
     componentP[Option[String]](c ⇒ os ⇒ c.setToolTipText(os getOrElse null))
 
-  val vAlign = new Property[VAlign,TextDisplay] {
-    def := [B](a: VAlign)(b: B)(implicit W: TextDisplay[B]) = W.setVAlign(b, a)
+  val vAlign = new Property[VAlign,TextAlign] {
+    def := [B](a: VAlign)(b: B)(implicit W: TextAlign[B]) = W.setVAlign(b, a)
   }
 
   val visible = compP(_.setVisible)
 
-  val vTextPos = new Property[VAlign,TextDisplay] {
-    def := [B](a: VAlign)(b: B)(implicit W: TextDisplay[B]) = W.setVTextPos(b, a)
+  val vTextPos = new Property[VAlign,TextAlign] {
+    def := [B](a: VAlign)(b: B)(implicit W: TextAlign[B]) = W.setVTextPos(b, a)
   }
+
+  val undecorated = frameLikeP(_.setUndecorated)
 }
 
 /** This trait is used to conveniently define properties with

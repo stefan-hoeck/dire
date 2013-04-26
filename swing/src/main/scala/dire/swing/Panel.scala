@@ -8,9 +8,7 @@ final class Panel(val peer: JPanel)
 
 object Panel {
   def apply(props: Panel ⇒ IO[Unit]*): IO[Panel] = for {
-    p   ← IO(new JPanel)
-    _   ← IO(p.setLayout(new GridBagLayout))
-    res ← IO(new Panel(p))
+    res ← IO(new Panel(new JPanel()))
     _   ← props.toList foldMap { _(res) }
   } yield res
 

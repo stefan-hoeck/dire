@@ -4,7 +4,7 @@ import dire._
 import javax.swing.{JCheckBox}
 import scalaz._, Scalaz._, effect.IO
 
-class CheckBox(val peer: JCheckBox) {
+final class CheckBox(val peer: JCheckBox) {
   private var blocked = false
 }
 

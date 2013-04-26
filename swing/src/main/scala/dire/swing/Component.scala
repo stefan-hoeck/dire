@@ -73,11 +73,6 @@ trait Comp[-A] {
   final def visible(a: A): Sink[Boolean] = sink(peer(a).setVisible)
 }
 
-/** Type class representing a `java.awt.Container` */
-trait Container[-A] extends Comp[A] {
-  def peer(a: A): AContainer
-}
-
 /** Type class representing a `javax.swing.JComponent` */
 trait Component[-A] extends Container[A] {
   def peer(a: A): JComponent
@@ -98,14 +93,6 @@ object Comp {
 
   implicit val CompIso = new (Comp ~>> AComponent) {
     def apply[A](f: Comp[A], a: A) = f peer a
-  }
-}
-
-object Container {
-  def apply[A:Container]: Container[A] = implicitly
-
-  implicit val ContainerIso = new (Container ~>> AContainer) {
-    def apply[A](f: Container[A], a: A) = f peer a
   }
 }
 
