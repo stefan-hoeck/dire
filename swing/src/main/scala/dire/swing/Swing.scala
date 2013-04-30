@@ -6,137 +6,84 @@ import javax.swing.Icon
 import javax.swing.border.Border
 import javax.swing.text.Caret
 import scalaz._, Scalaz._, effect.IO
+import Window.WindowEvent
 
 object Swing
   extends Properties 
   with AsElemInstances
   with AsElemSyntax {
 
-  final implicit class AbstractButtonOps[A](val a: A)
-    (implicit F: AbstractButton[A]) {
-    def clicks: SIn[Unit] = F clicks a
-    def selected: Sink[Boolean] = F selected a
-  }
-
-  final implicit class CompOps[A](val a: A)(implicit F: Comp[A]) {
+  final implicit class SwingOps[A](val a: A) extends AnyVal {
     import Component._
-    def background: Sink[Color] = F background a
-    def bounds: Sink[Rect] = F bounds a
-    def cursor: Sink[Cursor] = F cursor a
-    def enabled: Sink[Boolean] = F enabled a
-    def focus: SIn[FocusEvent] = F focus a
-    def focusGained: SIn[Unit] = F focusGained a
-    def focusLost: SIn[Unit] = F focusLost a
-    def focusable: Sink[Boolean] = F focusable a
-    def font: Sink[Font] = F font a
-    def foreground: Sink[Color] = F foreground a
-    def keys: SIn[KeyEvent] = F keys a
-    def leftClicks: SIn[Unit] = F leftClicks a
-    def maxSize: Sink[Dim] = F maxSize a
-    def minSize: Sink[Dim] = F minSize a
-    def mouse: SIn[MouseEvent] = F mouse a
-    def mouseMoved: SIn[MotionEvent] = F mouseMoved a
-    def mousePosition: SIn[Position] = F mousePosition a
-    def name: Sink[String] = F name a
-    def preferredSize: Sink[Dim] = F preferredSize a
-    def rightClicks: SIn[Unit] = F rightClicks a
-    def size: Sink[Dim] = F size a
-    def visible: Sink[Boolean] = F visible a
-  }
-
-  final implicit class ComponentOps[A](val a: A)(implicit F: Component[A]) {
-    def border: Sink[Border] = F border a
-    def doubleBuffered: Sink[Boolean] = F doubleBuffered a
-    def opaque: Sink[Boolean] = F opaque a
-    def tooltip: Sink[Option[String]] = F tooltip a
-  }
-
-  final implicit class FireActionEventOps[A](val a: A)
-    (implicit F: FiresActionEvent[A]) {
-    def actionEvents: SIn[Unit] = F actionEvents a
-  }
-
-  final implicit class FrameLikeOps[A](val a: A)
-    (implicit F: FrameLike[A]) {
-    def maximizedBounds: Sink[Rect] = F maximizedBounds a
-    def resizable: Sink[Boolean] = F resizable a
-    def title: Sink[String] = F title a
-    def undecorated: Sink[Boolean] = F undecorated a
-  }
-
-  final implicit class IconDisplayOps[A](val a: A)
-    (implicit F: IconDisplay[A]) {
-
-    def disabledIcon: Sink[Icon] = F disabledIcon a
-    def icon: Sink[Icon] = F icon a
-    def iconTextGap: Sink[Int] = F iconTextGap a
-  }
-
-  final implicit class IOWidgetOps[A,B](val a: A)
-    (implicit F: IOWidget[A,B]) {
-
-    def in: SIn[B] = F in a
-    def out: Sink[B] = F out a
-    def sf: SF[B,B] = F sf a
-  }
-
-  final implicit class PasswordDisplayOps[A](val a: A)
-    (implicit F: PasswordDisplay[A]) {
-    def echoChar: Sink[Char] = F echoChar a
-    def password: Sink[String] = F password a
-  }
-
-  final implicit class PropertySetOps[A](val a: A) {
-    def properties(props: A ⇒ IO[Unit]*): IO[Unit] = 
-      setList(props.toList)
-
-    def setList(props: List[A ⇒ IO[Unit]]): IO[Unit] = 
-      props foldMap { _ apply a }
-  }
-
-  final implicit class TextAlignOps[A](val a: A)
-    (implicit F: TextAlign[A]) {
-
-    def hAlign: Sink[HAlign] = F hAlign a
-    def hTextPos: Sink[HAlign] = F hTextPos a
-    def vAlign: Sink[VAlign] = F vAlign a
-    def vTextPos: Sink[VAlign] = F vTextPos a
-  }
-
-  final implicit class TextComponentOps[A](val a: A)
-    (implicit F: TextComponent[A]) {
-    def caret: Sink[Caret] = F caret a
-    def caretColor: Sink[Color] = F caretColor a
-    def caretPosition: Sink[Int] = F caretPosition a
-    def disabledTextColor: Sink[Color] = F disabledTextColor a
-    def editable: Sink[Boolean] = F editable a
-    def selectedTextColor: Sink[Color] = F selectedTextColor a
-    def selectionColor: Sink[Color] = F selectionColor a
-    def selectionEnd: Sink[Int] = F selectionEnd a
-    def selectionStart: Sink[Int] = F selectionStart a
-    def textIn: SIn[String] = F in a
-  }
-
-  final implicit class TextDisplayOps[A](val a: A)
-    (implicit F: TextDisplay[A]) {
-
-    def text: Sink[String] = F text a
-    def textA[B]: Sink[B] = F textA a
-    def textS[B:Show]: Sink[B] = F textS a
-  }
-
-  final implicit class TextFieldLikeOps[A](val a: A)
-    (implicit F: TextFieldLike[A]) {
-    def columns: Sink[Int] = F columns a
-    def textEvents: SIn[String] = F textEvents a
-  }
-
-  final implicit class WindowOps[A](val a: A)(implicit F: Window[A]) {
-    import Window.WindowEvent
-    def iconImage: Sink[Image] = F iconImage a
-    def iconImages: Sink[List[Image]] = F iconImages a
-    def windowEvents: SIn[WindowEvent] = F windowEvents a
+    def actionEvents(implicit F: FiresActionEvent[A]): SIn[Unit] = F actionEvents a
+    def background(implicit F: Comp[A]): Sink[Color] = F background a
+    def border(implicit F: Component[A]): Sink[Border] = F border a
+    def bounds(implicit F: Comp[A]): Sink[Rect] = F bounds a
+    def caret(implicit F: TextComponent[A]): Sink[Caret] = F caret a
+    def caretColor(implicit F: TextComponent[A]): Sink[Color] = F caretColor a
+    def caretPosition(implicit F: TextComponent[A]): Sink[Int] = F caretPosition a
+    def clicks(implicit F: AbstractButton[A]): SIn[Unit] = F clicks a
+    def columns(implicit F: TextFieldLike[A]): Sink[Int] = F columns a
+    def cursor(implicit F: Comp[A]): Sink[Cursor] = F cursor a
+    def disabledIcon(implicit F: IconDisplay[A]): Sink[Icon] = F disabledIcon a
+    def disabledTextColor(implicit F: TextComponent[A]): Sink[Color] = F disabledTextColor a
+    def doubleBuffered(implicit F: Component[A]): Sink[Boolean] = F doubleBuffered a
+    def echoChar(implicit F: PasswordDisplay[A]): Sink[Char] = F echoChar a
+    def editable(implicit F: Editable[A]): Sink[Boolean] = F editable a
+    def enabled(implicit F: Comp[A]): Sink[Boolean] = F enabled a
+    def focus(implicit F: Comp[A]): SIn[FocusEvent] = F focus a
+    def focusGained(implicit F: Comp[A]): SIn[Unit] = F focusGained a
+    def focusLost(implicit F: Comp[A]): SIn[Unit] = F focusLost a
+    def focusable(implicit F: Comp[A]): Sink[Boolean] = F focusable a
+    def font(implicit F: Comp[A]): Sink[Font] = F font a
+    def foreground(implicit F: Comp[A]): Sink[Color] = F foreground a
+    def hAlign(implicit F: TextAlign[A]): Sink[HAlign] = F hAlign a
+    def hTextPos(implicit F: TextAlign[A]): Sink[HAlign] = F hTextPos a
+    def icon(implicit F: IconDisplay[A]): Sink[Icon] = F icon a
+    def iconImage(implicit F: Window[A]): Sink[Image] = F iconImage a
+    def iconImages(implicit F: Window[A]): Sink[List[Image]] = F iconImages a
+    def iconTextGap(implicit F: IconDisplay[A]): Sink[Int] = F iconTextGap a
+    def in[B](implicit F: IOWidget[A,B]): SIn[B] = F in a
+    def itemInO[B](implicit F: ComboBoxLike[A,B]): SIn[Option[B]] = F itemInO a
+    def itemO[B](implicit F: ComboBoxLike[A,B]): Sink[Option[B]] = F itemO a
+    def items[B,F[_]:Foldable](implicit F: ComboBoxLike[A,B]): Sink[F[B]] = F items a
+    def keys(implicit F: Comp[A]): SIn[KeyEvent] = F keys a
+    def leftClicks(implicit F: Comp[A]): SIn[Unit] = F leftClicks a
+    def maxSize(implicit F: Comp[A]): Sink[Dim] = F maxSize a
+    def maximizedBounds(implicit F: FrameLike[A]): Sink[Rect] = F maximizedBounds a
+    def minSize(implicit F: Comp[A]): Sink[Dim] = F minSize a
+    def mouse(implicit F: Comp[A]): SIn[MouseEvent] = F mouse a
+    def mouseMoved(implicit F: Comp[A]): SIn[MotionEvent] = F mouseMoved a
+    def mousePosition(implicit F: Comp[A]): SIn[Position] = F mousePosition a
+    def name(implicit F: Comp[A]): Sink[String] = F name a
+    def opaque(implicit F: Component[A]): Sink[Boolean] = F opaque a
+    def out[B](implicit F: IOWidget[A,B]): Sink[B] = F out a
+    def password(implicit F: PasswordDisplay[A]): Sink[String] = F password a
+    def preferredSize(implicit F: Comp[A]): Sink[Dim] = F preferredSize a
+    def properties(props: A ⇒ IO[Unit]*): IO[Unit] = setList(props.toList)
+    def resizable(implicit F: FrameLike[A]): Sink[Boolean] = F resizable a
+    def rightClicks(implicit F: Comp[A]): SIn[Unit] = F rightClicks a
+    def selected(implicit F: AbstractButton[A]): Sink[Boolean] = F selected a
+    def selectedTextColor(implicit F: TextComponent[A]): Sink[Color] = F selectedTextColor a
+    def selectionColor(implicit F: TextComponent[A]): Sink[Color] = F selectionColor a
+    def selectionEnd(implicit F: TextComponent[A]): Sink[Int] = F selectionEnd a
+    def selectionStart(implicit F: TextComponent[A]): Sink[Int] = F selectionStart a
+    def setList(props: List[A ⇒ IO[Unit]]): IO[Unit] = props foldMap { _ apply a }
+    def sf[B](implicit F: IOWidget[A,B]): SF[B,B] = F sf a
+    def size(implicit F: Comp[A]): Sink[Dim] = F size a
+    def text(implicit F: TextDisplay[A]): Sink[String] = F text a
+    def textA[B](implicit F: TextDisplay[A]): Sink[B] = F textA a
+    def textEvents(implicit F: TextFieldLike[A]): SIn[String] = F textEvents a
+    def textIn(implicit F: TextComponent[A]): SIn[String] = F in a
+    def textS[B:Show](implicit F: TextDisplay[A]): Sink[B] = F textS a
+    def title(implicit F: FrameLike[A]): Sink[String] = F title a
+    def tooltip(implicit F: Component[A]): Sink[Option[String]] = F tooltip a
+    def undecorated(implicit F: FrameLike[A]): Sink[Boolean] = F undecorated a
+    def vAlign(implicit F: TextAlign[A]): Sink[VAlign] = F vAlign a
+    def vTextPos(implicit F: TextAlign[A]): Sink[VAlign] = F vTextPos a
+    def visible(implicit F: Comp[A]): Sink[Boolean] = F visible a
+    def windowEvents(implicit F: Window[A]): SIn[WindowEvent] = F windowEvents a
   }
 }
 
-// vim: set ts=2 sw=2 et:
+// vim: set ts=2 sw=2 et nowrap:

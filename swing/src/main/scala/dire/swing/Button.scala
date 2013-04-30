@@ -3,7 +3,7 @@ package dire.swing
 import dire._
 import javax.swing.JButton
 import scalaz.effect.IO
-import Swing.PropertySetOps
+import Swing._
 
 final class Button(val peer: JButton)
 

@@ -9,7 +9,10 @@ import scalaz._, Scalaz._, effect.IO
 trait TextComponent[A]
   extends TextDisplay[A]
   with Blockable[A] 
-  with IOWidget[A,String] {
+  with IOWidget[A,String] 
+  with Editable[A] {
+  final def setEditable(a: A, b: Boolean) = IO(peer(a).setEditable(b))
+
   final def caret(a: A): Sink[Caret] = sink(peer(a).setCaret)
 
   final def caretColor(a: A): Sink[Color] = sink(peer(a).setCaretColor)
@@ -18,8 +21,6 @@ trait TextComponent[A]
 
   final def disabledTextColor(a: A): Sink[Color] =
     sink(peer(a).setDisabledTextColor)
-
-  final def editable(a: A): Sink[Boolean] = sink(peer(a).setEditable)
 
   def peer(a: A): JTextComponent
 

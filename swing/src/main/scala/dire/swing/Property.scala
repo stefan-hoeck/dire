@@ -6,6 +6,7 @@ import java.awt.{Font, Color, Component ⇒ AComponent,
 import javax.swing._
 import javax.swing.text.JTextComponent
 import javax.swing.border.Border
+import scalaz.Foldable
 import scalaz.effect.IO
 
 trait Property[A,F[_]] {
@@ -20,6 +21,9 @@ object Property {
     : Property[A,F] = new Property[A,F] {
       def := [B](a: A)(b: B)(implicit W: F[B]): IO[Unit] = f(a,X[B](W, b))
     }
+
+  private[dire] def comboBoxP[A,B](f: JComboBox[B] ⇒ A ⇒ Unit) =
+    apply[A,({type λ[α]=ComboBoxLike[α,B]})#λ, JComboBox[B]]((a,c) ⇒ f(c)(a))
 
   private[dire] def compP[A](f: AComponent ⇒ A ⇒ Unit) =
     apply[A,Comp,AComponent]((a,c) ⇒ f(c)(a))
@@ -73,7 +77,10 @@ trait Properties {
       W.setEchoChar(b, a)
   }
 
-  val editable = textCompP(_.setEditable)
+  val editable = new Property[Boolean,Editable] {
+    def := [B](a: Boolean)(b: B)(implicit W: Editable[B]) =
+      W.setEditable(b, a)
+  }
 
   val enabled = compP(_.setEnabled)
 
@@ -106,6 +113,12 @@ trait Properties {
   val iconTextGap = new Property[Int,IconDisplay] {
     def := [B](a: Int)(b: B)(implicit W: IconDisplay[B]) =
       W.setIconTextGap(b, a)
+  }
+
+  def item[A] = comboBoxP[A,A](_.setSelectedItem)
+
+  def items[A,F[_]:Foldable] = new Property[F[A],({type λ[α]=ComboBoxLike[α,A]})#λ] {
+    def := [B](as: F[A])(b: B)(implicit W: ComboBoxLike[B,A]) = W.setItems(b, as)
   }
 
   val maximizedBounds =

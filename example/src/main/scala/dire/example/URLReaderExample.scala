@@ -9,9 +9,10 @@ import util.control.NonFatal
 
 object URLReaderExample extends SwingApp with SFInstances {
   type Coords = (Double, Double)
+  val cities = List("Zurich", "Boston", "London", "Bejing")
 
   override def behavior(f: Frame) = for {
-    city        ← TextField(columns := 50)
+    city        ← ComboBox(cities)
     set         ← Button(text := "Set")
     coordinates ← Label()
     cityTime    ← Label()
@@ -25,7 +26,7 @@ object URLReaderExample extends SwingApp with SFInstances {
         ("UTC time" beside utcTime) above
         ("Difference" beside diffTime) addTo f
 
-    coords = (city.textIn on set.clicks) andThen
+    coords = (city.in on set.clicks) andThen
              (SF sfIO readCoords hold (0D, 0D) to coordinates.textA)
     utc = utcIn to utcTime.textA
     ct  = cityIn(coords) to cityTime.textA
