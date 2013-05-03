@@ -175,6 +175,8 @@ object SFTest
     compare(cached, cached.distinct, 100L)(collectDistinct)
   }
 
+  property("drop") = test100(idTime drop 10)(_ drop 10)
+
   property("events") = forAll { t: SFTT ⇒ 
     val cached = SF.cached(t, "events")
 
@@ -191,6 +193,8 @@ object SFTest
 
     test100(idTime filter even)(_ filter even)
   }
+
+  property("head") = test100(idTime.head)(xs ⇒ List(xs.head))
 
   property("hold") =
     test100(idTime hold 1000L)(xs ⇒ 1000L :: xs.tail)
@@ -266,6 +270,10 @@ object SFTest
   }
 
   property("sum") = test100(idTime.sum)(_.tail.scanLeft(0L){ _ + _}) 
+
+  property("take") = test100(idTime take 10)(_ take 10)
+
+  property("tail") = test100(idTime.tail)(_.tail)
 
   property("upon_never") = forAll { sf: SFTT ⇒ 
     val sfCached: TSF[Time] = SF.cached(sf, "upon_sf")

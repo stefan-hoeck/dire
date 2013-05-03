@@ -56,7 +56,7 @@ class SF[-A,+B] private[dire](
 
   /** Map and filter an event stream in one run */
   def collectO[C](f: B ⇒ Option[C]): SF[A,C] =
-  sync1(this)(_ collect f)((ceb,_) ⇒ ceb collect f)
+    sync1(this)(_ collect f)((ceb,_) ⇒ ceb collect f)
 
   /** Sequentially combines two signal functions */
   def compose[C](that: SF[C,A]): SF[C,B] =
@@ -77,6 +77,13 @@ class SF[-A,+B] private[dire](
     sync1[A,B,BB](this)(identity)(
       (eb,ec) ⇒ if (ec.toOption ≟ eb.toOption) Never else eb)
 
+  /** Ignores the first n events and passes on the rest */
+  def drop(n: Int): SF[A,B] = {
+    def st(b: B) = State { i: Int ⇒ (i - 1, i <= 0 option b) }
+
+    map(st) scanStV n collectO identity
+  }
+
   /** Creates an event stream that fires whenever this signal
     * fires an event but skips the signal's initial value if any.
     */
@@ -88,6 +95,9 @@ class SF[-A,+B] private[dire](
 
   /** Filters an event stream according to the given predicate */
   def filter(p: B ⇒ Boolean): SF[A,B] = collectO[B] { b ⇒ p(b) option b }
+
+  /** Passes on the first event and ignores the rest */
+  def head: SF[A,B] = take(1)
 
   /** Converts this event stream to a signal with initial value
     * `ini`
@@ -217,6 +227,16 @@ class SF[-A,+B] private[dire](
     */
   def syncTo(out: Out[B]): SF[A,B] = to(DataSink sync out)
 
+  /** Drops the first event and passes on the rest */
+  def tail: SF[A,B] = drop(1)
+
+  /** Passes on the first n events and ignores the rest */
+  def take(n: Int): SF[A,B] = {
+    def st(b: B) = State { i: Int ⇒ (i - 1, i > 0 option b) }
+
+    map(st) scanStV n collectO identity
+  }
+
   /** Asynchronuously output the values of this signal to a data sink
     *
     * How the data sink operates and what concurrency strategy is
@@ -336,6 +356,18 @@ trait SFFunctions {
     * event stream to its input
     */
   def loop[A](sf: SF[A,A]): SF[A,A] = SF { (ra,r) ⇒ r.loop(sf.run)(ra) }
+
+  /** Like the function defined on class `SF` */
+  def drop[A](n: Int): SF[A,A] = id drop n
+
+  /** Like the function defined on class `SF` */
+  def head[A]: SF[A,A] = id.head
+
+  /** Like the function defined on class `SF` */
+  def take[A](n: Int): SF[A,A] = id take n
+
+  /** Like the function defined on class `SF` */
+  def tail[A]: SF[A,A] = id.tail
 
   // ***                   *** //
   // *** Sources and Sinks *** //
