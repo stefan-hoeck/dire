@@ -194,6 +194,17 @@ object SFTest
     test100(idTime filter even)(_ filter even)
   }
 
+  property("grouped") = 
+    test100(idTime grouped 7)(_.grouped(7).toList filter { _.size ≟ 7 })
+
+  property("grouped_0") = test100(idTime grouped 0)(_ ⇒ Nil)
+
+  property("groupAsPairs") = test100(idTime.groupAsPairs)(xs ⇒ 
+      xs.grouped(2).toList collect { case a::b::Nil ⇒ (a,b) })
+
+  property("groupAsTriples") = test100(idTime.groupAsTriples)(xs ⇒ 
+      xs.grouped(3).toList collect { case a::b::c::Nil ⇒ (a,b,c) })
+
   property("head") = test100(idTime.head)(xs ⇒ List(xs.head))
 
   property("hold") =
@@ -269,6 +280,14 @@ object SFTest
       xs.zipWithIndex map { case (t,i) ⇒ t})
   }
 
+  property("sliding") = test100(idTime sliding 7){ _ sliding 7 toList }
+
+  property("slidingAsPairs") = test100(idTime.slidingAsPairs)(xs ⇒ 
+    xs zip xs.tail)
+
+  property("slidingAsTriples") = test100(idTime.slidingAsTriples)(xs ⇒ 
+    xs.sliding(3).toList collect { case a::b::c::Nil ⇒ (a,b,c) })
+
   property("sum") = test100(idTime.sum)(_.tail.scanLeft(0L){ _ + _}) 
 
   property("take") = test100(idTime take 10)(_ take 10)
@@ -301,6 +320,8 @@ object SFTest
 
     runUntil(upon)(_ ⇒ true).size ≟ 2
   }
+
+  property("zip") = test100(idTime zip idTime)(ts ⇒ ts zip ts)
 
   private def collectDistinct(cs: Events[Time]): Events[Time] = {
     val res = new collection.mutable.ListBuffer[Event[Time]]

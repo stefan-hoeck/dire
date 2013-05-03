@@ -96,6 +96,26 @@ class SF[-A,+B] private[dire](
   /** Filters an event stream according to the given predicate */
   def filter(p: B ⇒ Boolean): SF[A,B] = collectO[B] { b ⇒ p(b) option b }
 
+  /** Accumulates successive events in lists of size `n` */
+  def grouped(n: Int): SF[A,List[B]] = {
+    def st(b: B) = State { p: (Int,List[B]) ⇒ p match {
+        case (i,bs) if i <= 0 ⇒ ((n - 1, List(b)), bs.reverse.some)
+        case (i,bs)           ⇒ ((i - 1, b :: bs), none)
+      }
+    }
+
+    if (n <= 0) >>(SF.never)
+    else map(st) scanStV (n, List.empty[B]) collectO identity
+  }
+
+  /** Accumulates successive events in pairs */
+  def groupAsPairs: SF[A,(B,B)] =
+    grouped(2) collect { case a::b::Nil ⇒ (a,b) }
+
+  /** Accumulates successive events in triples */
+  def groupAsTriples: SF[A,(B,B,B)] =
+    grouped(3) collect { case a::b::c::Nil ⇒ (a,b,c) }
+
   /** Passes on the first event and ignores the rest */
   def head: SF[A,B] = take(1)
 
@@ -211,6 +231,29 @@ class SF[-A,+B] private[dire](
   def sin(implicit WS: dire.In <~< A): SIn[B] =
     WS.subst[({type λ[-α]=SF[α,B]})#λ](this)
 
+  /** Accumulates successive events in slides of size `n` */
+  def sliding(n: Int): SF[A,List[B]] = {
+    def st(b: B) = State { p: (Int,List[B]) ⇒ p match {
+        case (i,bs) if i <= 1 ⇒ {
+          val newBs = b :: bs
+          ((i, newBs.init), newBs.reverse.some)
+        }
+        case (i,bs)           ⇒ ((i - 1, b :: bs), none)
+      }
+    }
+
+    if (n <= 0) >>(SF.never)
+    else map(st) scanStV (n, List.empty[B]) collectO identity
+  }
+
+  /** Accumulates successive events in pairs */
+  def slidingAsPairs: SF[A,(B,B)] =
+    sliding(2) collect { case a::b::Nil ⇒ (a,b) }
+
+  /** Accumulates successive events in triples */
+  def slidingAsTriples: SF[A,(B,B,B)] =
+    sliding(3) collect { case a::b::c::Nil ⇒ (a,b,c) }
+
   /** Accumulates events using a Monoid */
   def sum[BB>:B](implicit M: Monoid[BB]): SF[A,BB] = scanMap[BB](identity)
 
@@ -258,6 +301,9 @@ class SF[-A,+B] private[dire](
 
     sync2(this,ef)(g)((eb,ec,_) ⇒ g(eb,ec))
   }
+
+  /** Zips together the events of two behaviors */
+  def zip[C,AA<:A](that: SF[AA,C]): SF[AA,(B,C)] = <*>(that)(Pair.apply)
 
   /** Alias for `andThen` */
   def >=>[C](that: SF[B,C]): SF[A,C] = andThen(that)
