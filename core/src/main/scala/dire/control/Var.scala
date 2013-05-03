@@ -1,7 +1,8 @@
 package dire.control
 
-import dire.{Out, DataSource, DataSink}
+import dire.{Out, DataSource, DataSink, SIn, SF}
 import java.util.concurrent.{CountDownLatch ⇒ CDL}
+import scala.reflect.runtime.universe.TypeTag
 import scalaz._, Scalaz._, effect.IO
 import scalaz.concurrent.{Strategy, Actor}
 
@@ -65,6 +66,10 @@ sealed abstract class Var[A](ini: A, s: Strategy)
   }
   
   private[dire] def shutdown() { await(1, stop) }
+
+  import Var.VarSource
+
+  def in(implicit T: TypeTag[A]): SIn[A] = SF cachedSrc this
 }
 
 object Var {
