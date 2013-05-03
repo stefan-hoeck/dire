@@ -2,7 +2,6 @@ package dire.swing
 
 import dire._, SF.{id, connectOuts}
 import scalaz._, Scalaz._, effect.IO
-import scalaz.concurrent.Strategy.{SwingInvokeLater ⇒ SIL}
 
 final case class UndoEdit(un: IO[Unit], re: IO[Unit])
   extends javax.swing.undo.AbstractUndoableEdit {
@@ -52,7 +51,7 @@ object UndoEdit {
       case _                       ⇒ IO.ioUnit
     }
 
-    def toEditSF: SF[UEDis[A],A] = connectOuts(toEdit, Some(SIL))
+    def toEditSF: SF[UEDis[A],A] = connectOuts(toEdit, SwingStrategy)
 
     id[A\/A].scan(ini[A])(accumPair) >=> toEditSF
   }
