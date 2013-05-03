@@ -4,7 +4,7 @@ import dire.control.{RawSignal ⇒ RS, Reactor}
 import java.util.concurrent.{ExecutorService, Executors}
 import scala.reflect.runtime.universe.TypeTag
 import scala.concurrent.{Future, Await, duration}, duration.Duration.Inf
-import scalaz._, Scalaz._, effect.IO
+import scalaz._, Scalaz._, effect.IO, Liskov.<~<
 import scalaz.concurrent.Strategy
 
 /** Represents a transformation from an input signal or 
@@ -98,6 +98,16 @@ class SF[-A,+B] private[dire](
   def hold[C>:B](ini: ⇒ C): SF[A,C] = 
     sync1(this)(e ⇒ Once(e.at, ini))((e,_) ⇒ e)
 
+  /** Transforms this signal function into an input signal function
+    * (`SIn`) by prepending the empty event stream.
+    *
+    * This of course means, that unless the original signal function
+    * results in a behavior that fires events independently of its
+    * input behavior, the resulting resulting behavior of the input
+    * signal will never fire an event.
+    */
+  def in: SIn[B] = SF.never >=> this
+
   /** Functor map */
   def map[C](f: B ⇒ C): SF[A,C] = SF { (ra,r) ⇒ run(ra,r) >>= { _ map f } }
 
@@ -155,10 +165,10 @@ class SF[-A,+B] private[dire](
     : SF[A,F[B]] = scanMap(_.η[F])(P.monoid)
 
   /** Accumulates the results of a stateful calculation */
-  def scanSt[S,C](ini: S)(implicit WS: B <:< State[S,C]): SF[A,(S,C)] = {
-    def iniE(e: Event[B]) = e map { _ run ini }
+  def scanSt[S,C](ini: S)(implicit WS: B <~< State[S,C]): SF[A,(S,C)] = {
+    def iniE(e: Event[B]) = e map { WS(_) run ini }
     def next(e: Event[B], s: Event[(S,C)]) =
-      e map { _ run s.fold(_._1, ini) }
+      e map { WS(_) run s.fold(_._1, ini) }
 
     sync1(this)(iniE)(next)
   }
@@ -166,14 +176,30 @@ class SF[-A,+B] private[dire](
   /** Accumulates the results of a stateful calculation 
     * keeping the state and discarding the result
     */
-  def scanStS[S,C](ini: S)(implicit WS: B <:< State[S,C]): SF[A,S] =
+  def scanStS[S,C](ini: S)(implicit WS: B <~< State[S,C]): SF[A,S] =
     scanSt[S,C](ini) map { _._1 }
 
   /** Accumulates the results of a stateful calculation 
     * discarding the new state
     */
-  def scanStV[S,C](ini: S)(implicit WS: B <:< State[S,C]): SF[A,C] =
+  def scanStV[S,C](ini: S)(implicit WS: B <~< State[S,C]): SF[A,C] =
     scanSt[S,C](ini) map { _._2 }
+
+  /** Transforms this input signal function into a signal function
+    * that transforms behaviors of type `C`.
+    *
+    * This can be useful when combining input signal functions with
+    * other signal transformers.
+    */
+  def sf[C](implicit WS: In <~< A): SF[C,B] = 
+    SF.id[C] >> sin
+
+  /** Changes the type of this signal function to `SIn`.
+    *
+    * This can be useful to improve type inference.
+    */
+  def sin(implicit WS: dire.In <~< A): SIn[B] =
+    WS.subst[({type λ[-α]=SF[α,B]})#λ](this)
 
   /** Accumulates events using a Monoid */
   def sum[BB>:B](implicit M: Monoid[BB]): SF[A,BB] = scanMap[BB](identity)
