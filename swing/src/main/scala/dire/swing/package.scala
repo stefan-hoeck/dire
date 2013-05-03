@@ -3,7 +3,7 @@ package dire
 import java.awt.event.{ActionListener, ActionEvent}
 import scala.reflect.runtime.universe.TypeTag
 import scalaz._, Scalaz._, effect.IO
-import scalaz.concurrent.Strategy.SwingInvokeLater
+import scalaz.concurrent.Strategy
 
 package object swing {
 
@@ -17,6 +17,11 @@ package object swing {
 
   type Position = (Int, Int)
 
+  val SwingStrategy: Option[Strategy] = Some(Strategy.SwingInvokeLater)
+
+  def swingSink[A](out: Out[A]): Sink[A] =
+    DataSink.create[A](out, strategy = SwingStrategy)
+
   private[swing] def dimension(d: Dim) =
     new java.awt.Dimension(d._1, d._2)
 
@@ -26,8 +31,7 @@ package object swing {
   private[swing] def sink[A](out: A ⇒ Unit): Sink[A] =
     sinkIO[A](a ⇒ IO(out(a)))
 
-  private[swing] def sinkIO[A](out: A ⇒ IO[Unit]): Sink[A] =
-    DataSink.create[A](out, strategy = Some(SwingInvokeLater))
+  private[swing] def sinkIO[A](out: A ⇒ IO[Unit]): Sink[A] = swingSink(out)
 
   private[swing] def eventSrc[S,A](out: Callback[S,A]): Source[S,A] =
     DataSource eventSrcInpure out
