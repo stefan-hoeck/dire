@@ -16,24 +16,22 @@ final case class UndoEdit(un: IO[Unit], re: IO[Unit])
 
 object UndoEdit {
   //Convention: Rights come from new input, Lefts from Undo, Redo
-  //First option is old value, second option is new value
-  type UEDis[+A] = (Option[A],Option[A]) \/ (Option[A],Option[A]) 
-
-  private[swing] def ini[A]: UEDis[A] = (None, None).left
+  //First is old value, second is new value
+  type UEDis[+A] = (A,A) \/ (A,A) 
 
   //Accumulates Undo/Redo pairs. As soon as an event stream fired
-  //two events, we have a pair of an old and a new value. This
-  //is represented by a pair of Options. The latest event might
-  //have come from user input in which case it is wrapped in a Right
-  //and the resulting pair of options is also wrapped in a right. If
-  //the lates event comes from Undo/Redo, the pair of options is
+  //two events, we have a pair of an old and a new value.
+  //The latest event might have come from user input in which
+  //case it is wrapped in a Right
+  //and the resulting pair is also wrapped in a right. If
+  //the lates event comes from Undo/Redo, the result is
   //wrapped in a left. So, every change is accumulated but only
   //pairs wrapped in a Right will be passed on to the Undo/Redo
   //machinery, pairs wrapped in a Left will be ignored by Undo/Redo.
-  private[swing] def accumPair[A](in: A \/ A, dis: UEDis[A]): UEDis[A] = {
-    def accumDis(a: A) = (dis.fold(identity, identity)._2, a.some)
+  private[swing] def foldPair[A](p: (A \/ A, A \/ A)): UEDis[A] = {
+    val o = p._1 valueOr identity
     
-    in.bimap(accumDis, accumDis)
+    p._2 bimap ((o,_), (o,_))
   }
 
   /** Returns a signal function that takes items of type `A \/ A` as input
@@ -47,13 +45,13 @@ object UndoEdit {
     //takes an Out[A] (provided by an internal Var by dire) and returns an
     //Out[UEDis[A]]. Used to create a signal function via SF.connectOuts
     def toEdit(oa: Out[A]): Out[UEDis[A]] = _ match {
-      case \/-((Some(o), Some(n))) ⇒ out(UndoEdit(oa(o), oa(n)))
-      case _                       ⇒ IO.ioUnit
+      case \/-((o,n)) ⇒ out(UndoEdit(oa(o), oa(n)))
+      case _          ⇒ IO.ioUnit
     }
 
     def toEditSF: SF[UEDis[A],A] = connectOuts(toEdit, SwingStrategy)
 
-    id[A\/A].scan(ini[A])(accumPair) >=> toEditSF
+    id[A\/A].slidingAsPairs map foldPair[A] andThen toEditSF
   }
 }
 
