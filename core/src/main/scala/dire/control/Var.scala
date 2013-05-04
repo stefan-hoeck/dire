@@ -86,7 +86,7 @@ object Var {
     apply(a, s getOrElse r.strategy) >>= { v ⇒ r.addReactive(v) as v }
 
   implicit def VarSource[A]: DataSource[Var[A],A] = 
-    DataSource.signalSrc[Var[A],A](s ⇒ IO(s.get))(
+    DataSource.eventSrc[Var[A],A](
       s ⇒ o ⇒ IO(s.addListener(o)) as IO(s.removeListener(o))) 
 
   private[control] sealed trait VarEvent[A]
