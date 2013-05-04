@@ -112,8 +112,8 @@ trait DataSourceInstances {
   private[dire] implicit val ticks: DataSource[Time,Unit] = 
     eventSrc[Time,Unit](t ⇒ o ⇒ Clock(T0, t, _ ⇒ o apply ()))
 
-  private[dire] def once[A](a: ⇒ A): DataSource[Unit,A] =
-    eventSrcInpure[Unit,A](_ ⇒ su ⇒ {su(a); identity})
+  private[dire] def all[A](as: ⇒ List[A]): DataSource[Unit,A] =
+    eventSrcInpure[Unit,A](_ ⇒ su ⇒ {as foreach su; identity})
 }
 
 // vim: set ts=2 sw=2 et:

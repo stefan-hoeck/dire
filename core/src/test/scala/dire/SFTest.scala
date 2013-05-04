@@ -216,6 +216,13 @@ object SFTest
     res ≟ List(Never, Once(1L, i))
   }
 
+  property("all") = {
+    val is = (0 to 10).toList
+    val res = runUntil(SF all is)(10 ≟ _)
+    
+    res ≟ (Never :: is.map { i ⇒ Once(i + 1, i) })
+  }
+
   property("on_never") = {
     val on = idTime on (idTime >> SF.never[Time])
 
