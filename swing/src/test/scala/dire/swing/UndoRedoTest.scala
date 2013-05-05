@@ -1,8 +1,10 @@
 package dire.swing
 
+import dire.SF
 import dire.control.{Var, ReactiveSystem}
 import org.scalacheck._, Prop._
 import scalaz._, Scalaz._, effect.{IO, IORef}
+import scalaz.concurrent.Strategy.Sequential
 
 object UndoRedoTest extends org.scalacheck.Properties("Undo/Redo") {
   property("foldPair") = forAll { p: (Either[Int,Int], Either[Int,Int]) ⇒
@@ -17,60 +19,36 @@ object UndoRedoTest extends org.scalacheck.Properties("Undo/Redo") {
     ((ov, nv) ≟ res.valueOr(identity))
   }
 
+  val ten = 1 to 10 toList
+
   property("undo") = {
-    val run = for {
-      mock ← UndoMock()
-      _    ← (1 to 10).toList foldMap mock.v.put
-      _    ← IO(Thread.sleep(10))
-      _    ← (1 to 10).toList foldMap { _ ⇒ mock.undo }
-      _    ← IO(Thread.sleep(10))
-      _    ← mock.shutdown
-      _    ← mock.report
-    } yield mock.getInts
+    val events: List[UREvent] = ten.map(Input) ::: ten.as(Undo)
+    val exp = (1 to 9).toList.reverse
 
-    val res = run.unsafePerformIO()
-
-    res ≟ (0 to 9).toList.reverse
+    UndoMock(events, exp).unsafePerformIO()
   }
 
   property("redo") = {
-    val run = for {
-      mock ← UndoMock()
-      _    ← (1 to 10).toList foldMap mock.v.put
-      _    ← IO(Thread.sleep(10))
-      _    ← (1 to 10).toList foldMap { _ ⇒ mock.undo }
-      _    ← IO(Thread.sleep(10))
-      _    ← (1 to 10).toList foldMap { _ ⇒ mock.redo }
-      _    ← IO(Thread.sleep(10))
-      _    ← mock.shutdown
-      _    ← mock.report
-    } yield mock.getInts
+    val events: List[UREvent] = ten.map(Input) ::: ten.as(Undo) ::: ten.as(Redo)
+    val exp = (1 to 9).toList.reverse ::: (2 to 10).toList
 
-    val res = run.unsafePerformIO()
-
-    res ≟ ((0 to 9).toList.reverse ::: (1 to 10).toList)
+    UndoMock(events, exp).unsafePerformIO()
   }
 }
 
-class UndoMock private(
-    rs: ReactiveSystem,
-    val v: Var[Int],
-    val undoV: Var[Option[Unit]],
-    val redoV: Var[Option[Unit]]) {
+sealed trait UREvent
+
+case class Input(i: Int) extends UREvent
+case object Undo extends UREvent
+case object Redo extends UREvent
+
+class UndoMock private(es: List[UREvent]) {
   private var undos: List[UndoEdit] = Nil
   private var redos: List[UndoEdit] = Nil
   private val ints = new collection.mutable.ListBuffer[Int]
   private val events = new collection.mutable.ListBuffer[Int \/ Int]
 
   private def urOut(ur: UndoEdit): IO[Unit] = IO { undos = ur :: undos }
-
-  private def intOut(i: Int): IO[Unit] = IO { ints += i }
-
-  private def eventOut(i: Int \/ Int): IO[Unit] = IO { events += i }
-
-  def undo = undoV put ().some
-
-  def redo = redoV put ().some
 
   private def doUndo: IO[Unit] = undos.headOption.cata(
     h ⇒ h.un >> IO { undos = undos.tail; redos = h :: redos },
@@ -82,20 +60,21 @@ class UndoMock private(
     IO.ioUnit
   )
 
-  def getInts = ints.toList
-
-  def shutdown = rs.shutdown
-
   def sf = {
-    val ints = v.in.map { _.right[Int] }
-                .syncTo(eventOut)
-                .andThen(UndoEdit.sf[Int](urOut))
-                .syncTo(intOut)
+    val nil = List.empty[Int]
 
-    val undo = undoV.in collectO identity syncTo { _ ⇒ doUndo }
-    val redo = redoV.in collectO identity syncTo { _ ⇒ doRedo }
+    val id = SF.id[UREvent]
 
-    ints >> undo >> redo
+    val is = id.collect { case Input(i) ⇒ i.right[Int] }
+                .syncTo { e ⇒ IO { events += e } }
+                .andThen(UndoEdit.sf[Int](urOut, Some(Sequential)))
+                .syncTo { i ⇒ IO { ints += i } }
+                .scanPlus[List]
+
+    val undo = id collect { case Undo ⇒ nil } syncTo { _ ⇒ doUndo }
+    val redo = id collect { case Redo ⇒ nil } syncTo { _ ⇒ doRedo }
+
+    SF all es andThen (is ⊹ undo ⊹ redo)
   }
   
   def report = IO {
@@ -108,15 +87,10 @@ class UndoMock private(
 }
 
 object UndoMock {
-  def apply(): IO[UndoMock] = for {
-    rs  ← ReactiveSystem()
-    v   ← Var newVar 0
-    vu  ← Var newVar none[Unit]
-    vr  ← Var newVar none[Unit]
-    m   ← IO(new UndoMock(rs, v, vu, vr))
-    _   ← rs forever m.sf
-    _   ← IO(Thread.sleep(100))
-  } yield m
+  def apply(es: List[UREvent], exp: List[Int]): IO[Boolean] = for {
+    m   ← IO(new UndoMock(es))
+    _   ← SF.run(m.sf, 2){ exp ≟ _ }
+  } yield true
 }
 
 // vim: set ts=2 sw=2 et:

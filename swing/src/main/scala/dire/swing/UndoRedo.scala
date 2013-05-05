@@ -2,6 +2,7 @@ package dire.swing
 
 import dire._, SF.{id, connectOuts}
 import scalaz._, Scalaz._, effect.IO
+import scalaz.concurrent.Strategy
 
 final case class UndoEdit(un: IO[Unit], re: IO[Unit])
   extends javax.swing.undo.AbstractUndoableEdit {
@@ -41,7 +42,8 @@ object UndoEdit {
     * By convention, input events wrapped in a Right come from user input
     * while those wrapped in a Left come from Undo/Redo
     */
-  def sf[A](out: Out[UndoEdit]): SF[A \/ A,A] = {
+  def sf[A](out: Out[UndoEdit],
+            strategy: Option[Strategy] = SwingStrategy): SF[A \/ A,A] = {
     //takes an Out[A] (provided by an internal Var by dire) and returns an
     //Out[UEDis[A]]. Used to create a signal function via SF.connectOuts
     def toEdit(oa: Out[A]): Out[UEDis[A]] = _ match {
@@ -49,9 +51,9 @@ object UndoEdit {
       case _          ⇒ IO.ioUnit
     }
 
-    def toEditSF: SF[UEDis[A],A] = connectOuts(toEdit, SwingStrategy)
+    def toEditSF: SF[UEDis[A],A] = connectOuts(toEdit, strategy)
 
-    id[A\/A].slidingAsPairs map foldPair[A] andThen toEditSF
+    id.slidingAsPairs map foldPair[A] andThen toEditSF
   }
 }
 
