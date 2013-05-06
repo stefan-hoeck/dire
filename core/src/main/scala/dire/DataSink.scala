@@ -2,7 +2,7 @@ package dire
 
 import dire.control.{Reactor, RawSignal ⇒ RS}
 import scala.reflect.runtime.universe.TypeTag
-import scalaz._, Scalaz._, effect.IO
+import scalaz._, Scalaz._, effect.{IO, IORef}
 import scalaz.concurrent.Strategy
 
 /** Consumes values using a declared concurrency strategy */
@@ -15,7 +15,9 @@ sealed trait DataSink[-A] { self ⇒
   }
 }
 
-object DataSink extends DataSinkFunctions with DataSinkInstances
+object DataSink extends DataSinkFunctions with DataSinkInstances {
+
+}
 
 trait DataSinkFunctions {
 
@@ -47,6 +49,16 @@ trait DataSinkFunctions {
       private[dire] def connect(raw: RS[A], r: Reactor): IO[Unit] =
         r.sink[A](out, clean, strategy, key)(raw)
     }
+
+  final val stdOut: DataSink[Any] = sync(a ⇒ IO.putStrLn(a.toString))
+
+  final def sdtOutS[A:Show]: DataSink[A] = stdOut ∙ { _.shows }
+
+  final def buffer[A](bf: collection.mutable.ListBuffer[A]): DataSink[A] =
+    sync(a ⇒ IO(bf += a))
+
+  final def ioRef[A,F[_]:MonadPlus](ref: IORef[F[A]]): DataSink[A] =
+    sync(a ⇒ ref mod { _ <+> a.η[F] } void)
 
   final private[dire] def syncE[A](o: Out[Event[A]]): DataSink[A] =
     createE(o, strategy = Some(Strategy.Sequential))

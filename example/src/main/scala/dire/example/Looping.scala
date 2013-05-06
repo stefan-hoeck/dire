@@ -1,6 +1,6 @@
 package dire.example
 
-import dire._, SF.{id, loop, const}
+import dire._, DataSink.stdOut, SF.{id, loop, const}
 import scalaz._, Scalaz._, effect.IO
 
 /** An event stream that uses its own output as input
@@ -20,12 +20,10 @@ object Looping {
   //add one to incoming long events and start at 1L
   def plus = id[Long] map (1L +)
 
-  def output = id[Long] filter (_ % 10000L == 0L) syncTo display
+  def output = id[Long] filter (_ % 10000L == 0L) to stdOut
 
   //feedback output of the event stream to its input
   def looping = const(1L) >=> loop(plus) >=> output
-  
-  private def display(l: Long) = IO putStrLn l.toString
 }
 
 // vim: set ts=2 sw=2 et:

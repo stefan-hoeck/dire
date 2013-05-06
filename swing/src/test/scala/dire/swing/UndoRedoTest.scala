@@ -1,6 +1,7 @@
 package dire.swing
 
 import dire.SF
+import dire.DataSink.buffer
 import dire.control.{Var, ReactiveSystem}
 import org.scalacheck._, Prop._
 import scalaz._, Scalaz._, effect.{IO, IORef}
@@ -66,9 +67,9 @@ class UndoMock private(es: List[UREvent]) {
     val id = SF.id[UREvent]
 
     val is = id.collect { case Input(i) ⇒ i.right[Int] }
-                .syncTo { e ⇒ IO { events += e } }
+                .to(buffer(events))
                 .andThen(UndoEdit.sf[Int](urOut, Some(Sequential)))
-                .syncTo { i ⇒ IO { ints += i } }
+                .to(buffer(ints))
                 .scanPlus[List]
 
     val undo = id collect { case Undo ⇒ nil } syncTo { _ ⇒ doUndo }
