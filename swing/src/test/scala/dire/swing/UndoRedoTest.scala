@@ -8,18 +8,6 @@ import scalaz._, Scalaz._, effect.{IO, IORef}
 import scalaz.concurrent.Strategy.Sequential
 
 object UndoRedoTest extends org.scalacheck.Properties("Undo/Redo") {
-  property("foldPair") = forAll { p: (Either[Int,Int], Either[Int,Int]) ⇒
-    val o = \/ fromEither p._1
-    val n = \/ fromEither p._2
-    val ov = o valueOr identity
-    val nv = n valueOr identity
-
-    val res = UndoEdit foldPair (o, n)
-
-    (res.isLeft ≟ n.isLeft) &&
-    ((ov, nv) ≟ res.valueOr(identity))
-  }
-
   val ten = 1 to 10 toList
 
   property("undo") = {
@@ -68,7 +56,7 @@ class UndoMock private(es: List[UREvent]) {
 
     val is = id.collect { case Input(i) ⇒ i.right[Int] }
                 .to(buffer(events))
-                .andThen(UndoEdit.sf[Int](urOut, Some(Sequential)))
+                .andThen(dire.swing.undo.sf[Int](urOut, Some(Sequential)))
                 .to(buffer(ints))
                 .scanPlus[List]
 
