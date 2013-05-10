@@ -3,6 +3,7 @@ package dire.example
 import dire._
 import dire.swing._, Swing._
 import java.lang.{Integer ⇒ JInt}
+import scala.util.control.NonFatal
 import scalaz._, Scalaz._
 
 /** Reads an integer in different formats from text fields
@@ -54,7 +55,7 @@ object FormattedIntegers extends SwingApp {
   private def parse(base: Int, name: String)(s: String): ValRes[Int] = try {
     JInt.parseInt(s, base).success
   } catch {
-    case util.control.NonFatal(_) ⇒ s"Not a $name integer: $s".failureNel
+    case NonFatal(_) ⇒ s"Not a $name integer: $s".failureNel
   }
     
   //displays error message if invalid

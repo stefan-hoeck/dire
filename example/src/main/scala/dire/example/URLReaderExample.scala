@@ -5,7 +5,7 @@ import dire.swing._, Swing._
 import scalaz._, Scalaz._, effect.IO
 import scala.io.Source
 import scala.xml.XML
-import util.control.NonFatal
+import scala.util.control.NonFatal
 
 object URLReaderExample extends SwingApp with SFInstances {
   type Coords = (Double, Double)
