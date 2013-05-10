@@ -40,7 +40,7 @@ object undo {
   /** Signal function for registering undoable events at a central
     * Undo/Redo handler.
     *
-    * See [[dire.swing.undo.sf]] for a possible use case with Swing
+    * See `dire.swing.undo.sf` for a possible use case with Swing
     * `UndoableEdit`s.
     */
   def withHandler[A](register: Out[A] ⇒ Out[(A,A)],
