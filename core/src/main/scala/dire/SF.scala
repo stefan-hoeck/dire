@@ -54,9 +54,25 @@ class SF[-A,+B] private[dire](
   def collect[C](f: PartialFunction[B,C]): SF[A,C] =
     collectO(f.lift)
 
+  /** Collects failed `Validation`s only */
+  def collectF[C,D](implicit W: B <:< Validation[C,D]): SF[A,C] =
+    collectO { _.swap.toOption }
+
+  /** Collects left disjunctions only */
+  def collectL[C,D](implicit W: B <:< (C \/ D)): SF[A,C] =
+    collectO { _.swap.toOption }
+
   /** Map and filter an event stream in one run */
   def collectO[C](f: B ⇒ Option[C]): SF[A,C] =
     sync1(this)(_ collect f)((ceb,_) ⇒ ceb collect f)
+
+  /** Collects right disjunctions only */
+  def collectR[C,D](implicit W: B <:< (C \/ D)): SF[A,D] =
+    collectO { _.toOption }
+
+  /** Collects successful `Validation`s only */
+  def collectS[C,D](implicit W: B <:< Validation[C,D]): SF[A,D] =
+    collectO { _.toOption }
 
   /** Sequentially combines two signal functions */
   def compose[C](that: SF[C,A]): SF[C,B] =
