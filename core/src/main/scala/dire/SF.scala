@@ -692,21 +692,12 @@ private[dire] object SFArrowImpl extends Arrow[SF] with Choice[SF] {
   def arr[A,B](f: A ⇒ B): SF[A,B] = id[A] map f
   def compose[A,B,C](f: SF[B,C], g: SF[A,B]) = f compose g
 
-  def first[A,B,C](f: SF[A,B]): SF[(A,C),(B,C)] = {
-    val sfAC = id[(A,C)]
-    val sfACB = sfAC map { _._1 } andThen f
-    val sfACC = sfAC map { _._2 }
+  def first[A,B,C](f: SF[A,B]): SF[(A,C),(B,C)] =
+    (arr { p: (A,C) ⇒ p._1 } andThen f) ⊛ 
+    (arr { p: (A,C) ⇒ p._2 }) apply Pair.apply
 
-    (sfACB <*> sfACC){ Tuple2.apply }
-  }
-
-  def choice[A,B,C](f: => SF[A,C], g: => SF[B,C]): SF[A \/ B,C] = {
-    val sfAB = id[A \/ B]
-    val sfA = sfAB collectO { _.swap.toOption } andThen f
-    val sfB = sfAB collectO { _.toOption } andThen g
-
-    sfA ⊹ sfB
-  }
+  def choice[A,B,C](f: => SF[A,C], g: => SF[B,C]): SF[A \/ B,C] =
+    (id[A\/B].collectL >=> f) ⊹ (id[A\/B].collectR >=> g)
 }
 
 // vim: set ts=2 sw=2 nowrap et:
