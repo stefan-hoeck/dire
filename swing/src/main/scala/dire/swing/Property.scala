@@ -34,6 +34,9 @@ object Property {
   private[dire] def frameLikeP[A](f: AFrame ⇒ A ⇒ Unit) =
     apply[A,FrameLike,AFrame]((a,c) ⇒ f(c)(a))
 
+  private[dire] def scrollPaneP[A](f: JScrollPane ⇒ A ⇒ Unit) =
+    apply[A,ScrollPaneLike,JScrollPane]((a,c) ⇒ f(c)(a))
+
   private[dire] def textCompP[A](f: JTextComponent ⇒ A ⇒ Unit) =
     apply[A,TextComponent,JTextComponent]((a,c) ⇒ f(c)(a))
 
@@ -93,6 +96,9 @@ trait Properties {
   val hAlign = new Property[HAlign,TextAlign] {
     def := [B](a: HAlign)(b: B)(implicit W: TextAlign[B]) = W.setHAlign(b, a)
   }
+
+  val hScrollBarPolicy = scrollPaneP { p ⇒ h: HScrollBarPolicy ⇒ 
+    p.setHorizontalScrollBarPolicy(h.v) }
 
   val hTextPos = new Property[HAlign,TextAlign] {
     def := [B](a: HAlign)(b: B)(implicit W: TextAlign[B]) = W.setHTextPos(b, a)
@@ -164,11 +170,18 @@ trait Properties {
     def := [B](a: VAlign)(b: B)(implicit W: TextAlign[B]) = W.setVAlign(b, a)
   }
 
+  val viewportBorder = scrollPaneP(_.setViewportBorder)
+
   val visible = compP(_.setVisible)
+
+  val vScrollBarPolicy = scrollPaneP { p ⇒ h: VScrollBarPolicy ⇒ 
+    p.setVerticalScrollBarPolicy(h.v) }
 
   val vTextPos = new Property[VAlign,TextAlign] {
     def := [B](a: VAlign)(b: B)(implicit W: TextAlign[B]) = W.setVTextPos(b, a)
   }
+
+  val wheelScrollingEnabled = scrollPaneP(_.setWheelScrollingEnabled)
 
   val undecorated = frameLikeP(_.setUndecorated)
 }

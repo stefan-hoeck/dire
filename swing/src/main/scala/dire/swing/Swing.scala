@@ -38,6 +38,7 @@ object Swing
     def font(implicit F: Comp[A]): Sink[Font] = F font a
     def foreground(implicit F: Comp[A]): Sink[Color] = F foreground a
     def hAlign(implicit F: TextAlign[A]): Sink[HAlign] = F hAlign a
+    def hScrollBarPolicy(implicit F: ScrollPaneLike[A]): Sink[HScrollBarPolicy] = F hScrollBarPolicy a
     def hTextPos(implicit F: TextAlign[A]): Sink[HAlign] = F hTextPos a
     def icon(implicit F: IconDisplay[A]): Sink[Icon] = F icon a
     def iconImage(implicit F: Window[A]): Sink[Image] = F iconImage a
@@ -80,8 +81,11 @@ object Swing
     def tooltip(implicit F: Component[A]): Sink[Option[String]] = F tooltip a
     def undecorated(implicit F: FrameLike[A]): Sink[Boolean] = F undecorated a
     def vAlign(implicit F: TextAlign[A]): Sink[VAlign] = F vAlign a
+    def viewportBorder(implicit F: ScrollPaneLike[A]): Sink[Border] = F viewportBorder a
+    def vScrollBarPolicy(implicit F: ScrollPaneLike[A]): Sink[VScrollBarPolicy] = F vScrollBarPolicy a
     def vTextPos(implicit F: TextAlign[A]): Sink[VAlign] = F vTextPos a
     def visible(implicit F: Comp[A]): Sink[Boolean] = F visible a
+    def wheelScrollingEnabled(implicit F: ScrollPaneLike[A]): Sink[Boolean] = F wheelScrollingEnabled a
     def windowEvents(implicit F: Window[A]): SIn[WindowEvent] = F windowEvents a
   }
 }
