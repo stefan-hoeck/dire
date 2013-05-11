@@ -10,6 +10,7 @@ trait TextComponent[A]
   extends TextDisplay[A]
   with Blockable[A] 
   with IOWidget[A,String] 
+  with Component[A]
   with Editable[A] {
   final def setEditable(a: A, b: Boolean) = IO(peer(a).setEditable(b))
 
