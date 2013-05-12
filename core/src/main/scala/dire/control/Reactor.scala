@@ -123,13 +123,21 @@ final private[dire] class Reactor(
     update(time) //updates the reaktive graph
 
     //check wether we have to stop the reactor
+    checkKill()
+  }
+  
+  private def checkKill() {
     if (doKill()) {
       active = false //ignore all subsequent events
       stop(countDownToDeath) //fire Stop event
     }
   }
 
-  protected def doStart() { reactives foreach { _.start() } }
+  protected def doStart() {
+    reactives foreach { _.start() }
+    //check wether we already have to stop the reactor
+    checkKill()
+  }
 
   protected def doStop() {
     await(reactives.size, cdl ⇒ reactives foreach { _.stop(cdl) })
