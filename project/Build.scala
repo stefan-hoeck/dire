@@ -15,7 +15,8 @@ object BuildSettings {
       new File(Path.userHome.absolutePath+"/.m2/repository"))),
     scalacOptions ++= Seq ("-deprecation", "-feature",
       "-language:postfixOps", "-language:implicitConversions",
-      "-language:higherKinds")
+      "-language:higherKinds"),
+    testOptions in Test += Tests.Setup( () => System.setProperty("java.vm.vendor", "Sun") ) 
   )
 } 
 
