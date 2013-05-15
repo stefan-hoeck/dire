@@ -388,6 +388,16 @@ trait SFFunctions {
   /** The identity signal function */
   def id[A]: SF[A,A] = SF { (ra,_) ⇒ IO(ra) }
 
+  /** A signal function might depend on some external state
+    * so it can only be created within the `IO`-Monad. This
+    * functions transforms such a signal function into a
+    * pure one. This can be useful in unit tests as well as
+    * when creating stateful objects alongside the signal function
+    * that do not have to be exposed to the outside world.
+    */
+  def io[A,B](sf: IO[SF[A,B]]): SF[A,B] = 
+    SF { (ra,r) ⇒ sf >>= { _ run (ra, r) } }
+
   /** Signal function from a pure function */
   def sf[A,B](f: A ⇒ B): SF[A,B] = id map f
   

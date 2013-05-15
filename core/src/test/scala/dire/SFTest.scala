@@ -210,6 +210,14 @@ object SFTest
   property("hold") =
     test100(idTime hold 1000L)(xs ⇒ 1000L :: xs.tail)
 
+  property("io") = {
+    var called = false
+
+    val sf = IO { called = true; idTime }
+
+    test100(SF io sf)(identity) && called
+  }
+
   property("once") = forAll { i: Int ⇒ 
     val res = runUntil(SF once i)(i ≟ _)
     
