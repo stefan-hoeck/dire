@@ -12,7 +12,7 @@ object URLReaderExample extends SwingApp with SFInstances {
   val cities = List("Zurich", "Boston", "London", "Bejing")
 
   override def behavior(f: Frame) = for {
-    city        ← ComboBox(cities)
+    city        ← ComboBox(cities)()
     set         ← Button(text := "Set")
     coordinates ← Label()
     cityTime    ← Label()
