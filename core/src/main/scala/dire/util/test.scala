@@ -3,6 +3,7 @@ package dire.util
 import dire._, DataSink.buffer
 import scala.collection.mutable.{ListBuffer ⇒ MList}
 import scalaz._, Scalaz._, effect.IO
+import scalaz.concurrent.Strategy
 
 /** Provides a couple of helper functions to test reactive
   * behaviors.
@@ -14,6 +15,8 @@ import scalaz._, Scalaz._, effect.IO
   * not wrapped in `IO` though they perform side effects.
   */
 trait TestFunctions {
+  val Sequential: Option[Strategy] = Some(Strategy.Sequential)
+
   /** Number of threads in fixed sized thread pool */
   protected val poolSize = 2
 
