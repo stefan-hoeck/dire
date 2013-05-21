@@ -16,21 +16,21 @@ object UndoRedoTest
   val tenUndo = ten.tail as Undo
   val tenRedo = ten.tail as Redo
 
-  property("undo") = {
-    val events: List[Event] = tenIn ::: tenUndo
-    val exp = (1 to 9).toList.reverse
+//  property("undo") = {
+//    val events: List[Event] = tenIn ::: tenUndo
+//    val exp = (1 to 9).toList.reverse
+//
+//    runUndo(events) ≟ exp
+//  }
+//
+//  property("redo") = {
+//    val events: List[Event] = tenIn ::: tenUndo ::: tenRedo
+//    val exp = (1 to 9).reverse ++ (2 to 10) toList
+//
+//    runUndo(events) ≟ exp
+//  }
 
-    runUndo(events) ≟ exp
-  }
-
-  property("redo") = {
-    val events: List[Event] = tenIn ::: tenUndo ::: tenRedo
-    val exp = (1 to 9).reverse ++ (2 to 10) toList
-
-    runUndo(events) ≟ exp
-  }
-
-  def runUndo(es: List[Event]): List[Int] = simulate(es)(sf)
+  def runUndo(es: List[Event]): List[Int] = simulate(es, false)(sf)
 
   sealed abstract class Event(val passed: Boolean)
 

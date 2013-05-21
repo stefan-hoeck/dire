@@ -52,13 +52,19 @@ trait TestFunctions {
 
   //@TODO: More documentation
   /** Simulates a reactive setup that depends on some mutable state */
-  def simulate[E,I](events: List[E])
+  def simulate[E,I](events: List[E], awaitIni: Boolean)
                    (sf: Out[Unit] ⇒ IO[SF[E,I]]): List[I] = {
-    val es = events.toIndexedSeq
     type Or = Unit \/ I
 
+    val es = events.toIndexedSeq
+    val n = es.size + (awaitIni ? 1 | 0)
+
     def total(sf: SF[E,I], v: Var[Unit]): SIn[Or] = {
-      val eventSF = id[Or].count filter (es.size >)  map es andThen sf.events
+      val orCount = 
+        (awaitIni ? id[Or].count.events.map(1-) | id[Or].count) >=>
+        (id[Int] filter (es.size >) map es andThen sf) 
+
+      val eventSF = awaitIni ? orCount | orCount.events
 
       loop(v.in.sf[Or].events or eventSF).in
     }
@@ -68,7 +74,7 @@ trait TestFunctions {
       s ← sf(v.put)
     } yield total(s, v)
 
-    runN(SF io totalIO, es.size) collect { case \/-(i) ⇒ i }
+    runN(SF io totalIO, n) collect { case \/-(i) ⇒ i }
   }
 }
 
