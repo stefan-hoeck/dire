@@ -58,7 +58,7 @@ trait TestFunctions {
     type Or = Unit \/ I
 
     def total(sf: SF[E,I], v: Var[Unit]): SIn[Or] = {
-      val eventSF = id[Or].count map es andThen sf.events
+      val eventSF = id[Or].count filter (es.size >)  map es andThen sf.events
 
       loop(v.in.sf[Or].events or eventSF).in
     }
