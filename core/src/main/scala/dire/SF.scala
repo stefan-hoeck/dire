@@ -112,6 +112,9 @@ class SF[-A,+B] private[dire](
   /** Filters an event stream according to the given predicate */
   def filter(p: B ⇒ Boolean): SF[A,B] = collectO[B] { b ⇒ p(b) option b }
 
+  /** Filters an event stream according to the given predicate */
+  def filterNot(p: B ⇒ Boolean): SF[A,B] = filter { b ⇒ ! p(b) }
+
   /** Accumulates successive events in lists of size `n` */
   def grouped(n: Int): SF[A,List[B]] = {
     def st(b: B) = State { p: (Int,List[B]) ⇒ p match {
