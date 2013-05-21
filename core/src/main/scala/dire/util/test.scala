@@ -1,6 +1,7 @@
 package dire.util
 
-import dire._, DataSink.buffer
+import dire._, DataSink.{buffer, stdOut}, SF.{id, loop, const, never}
+import dire.control.Var
 import scala.collection.mutable.{ListBuffer ⇒ MList}
 import scalaz._, Scalaz._, effect.IO
 import scalaz.concurrent.Strategy
@@ -49,6 +50,26 @@ trait TestFunctions {
   def runUntil[A](in: SIn[A])(stop: A ⇒ Boolean): List[A] =
     run(in)(SF.id[A])(stop)
 
+  //@TODO: More documentation
+  /** Simulates a reactive setup that depends on some mutable state */
+  def simulate[E,I](events: List[E])
+                   (sf: Out[Unit] ⇒ IO[SF[E,I]]): List[I] = {
+      val es = events.toIndexedSeq
+      type Or = Unit \/ I
+
+      def total(sf: SF[E,I], v: Var[Unit]): SIn[Or] = {
+        val eventSF = id[Or].count map es andThen sf.events
+
+        loop(v.in.sf[Or].events or eventSF).in
+      }
+
+      def totalIO = for {
+        v ← Var newVar ()
+        s ← sf(v.put)
+      } yield total(s, v)
+
+      runN(SF io totalIO, es.size) collect { case \/-(i) ⇒ i }
+    }
 }
 
 object test extends TestFunctions

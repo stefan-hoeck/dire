@@ -30,7 +30,6 @@ object TestFunctionsTest
   property("runUntil_const") = forAll { i: Int ⇒ 
     runUntil(SF const i)(i ≟ _) ≟ List(i)
   }
-
 }
 
 // vim: set ts=2 sw=2 et:
