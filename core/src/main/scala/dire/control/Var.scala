@@ -70,6 +70,8 @@ sealed abstract class Var[A](ini: A, s: Strategy)
   import Var.VarSource
 
   def in(implicit T: TypeTag[A]): SIn[A] = SF cachedSrc this
+
+  def sink: DataSink[A] = DataSink async put
 }
 
 object Var {
