@@ -59,22 +59,22 @@ trait TestFunctions {
     val es = events.toIndexedSeq
     val n = es.size + (awaitIni ? 1 | 0)
 
-    def total(sf: SF[E,I], v: Var[Unit]): SIn[Or] = {
-      val orCount = 
-        (awaitIni ? id[Or].count.events.map(1-) | id[Or].count) >=>
-        (id[Int] filter (es.size >) map es andThen sf) 
+    def total(sf: SF[E,I], v: Var[Option[Unit]]): SIn[Or] = {
+      val inCount = id[Or].count
+      val countAdj = awaitIni ? inCount.events.map(_ - 1) | inCount
+      val inputs = countAdj filter (es.size >) map es andThen sf
+      val units = v.in.collectO(identity).sf[Or]
 
-      val eventSF = awaitIni ? orCount | orCount.events
-
-      loop(v.in.sf[Or].events or eventSF).in
+      loop(units or inputs).in
     }
 
     def totalIO = for {
-      v ← Var newVar ()
-      s ← sf(v.put)
+      v ← Var newVar none[Unit]
+      s ← sf(v put  _.some)
     } yield total(s, v)
 
     runN(SF io totalIO, n) collect { case \/-(i) ⇒ i }
+
   }
 }
 
