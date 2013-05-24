@@ -54,11 +54,7 @@ object UtilBuild extends Build {
   lazy val core = Project (
     "dire-core",
     file("core"),
-    settings = addDeps(scala_reflect) :+
-               //the following line can be removed once
-               //scala.reflection is thread safe (we use some
-               //TypeTags in our tests)
-               (parallelExecution in Test := false)
+    settings = addDeps(scala_reflect)
   )
 
   lazy val example = Project (
@@ -71,11 +67,7 @@ object UtilBuild extends Build {
   lazy val swing = Project (
     "dire-swing",
     file("swing"),
-    settings = addDeps(scala_reflect) :+
-               //the following line can be removed once
-               //scala.reflection is thread safe (we use some
-               //TypeTags in our tests)
-               (parallelExecution in Test := false)
+    settings = addDeps(scala_reflect)
   ) dependsOn(core)
 }
 
