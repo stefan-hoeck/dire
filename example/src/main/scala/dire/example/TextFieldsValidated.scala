@@ -1,14 +1,10 @@
 package dire.example
 
-import dire._
+import dire._, validation._
 import dire.swing._, Swing._
 import scalaz._, Scalaz._
 
 object TextFieldsValidated extends SwingApp {
-  type ValRes[+A] = Validation[NonEmptyList[String],A]
-  type VSIn[+A] = SIn[ValRes[A]]
-
-  implicit val VSInApplicative = Applicative[SIn].compose[ValRes]
 
   override def behavior(f: Frame) = for {
     first  ← TextField(columns := 50)
@@ -30,11 +26,13 @@ object TextFieldsValidated extends SwingApp {
     fullV = ^(validate("First name")(first.textIn),
               validate("Last name")(last.textIn)){ _ + " " + _ }
 
-    sf = fullV.branch(enable(btn)) //disable btn if invalid
-              .branch(printError(msg)) //display error message if invalid
-              .andThen(display(full)) //print to full name label if valid
-              .on(btn.clicks) //fires signal's actual value if btn is clicked
-              .to(acc.text) //display events in label acc
+    //disables btn on failure and displays error messages if any
+    handleV = (btn.enabled ∙ isSuccess) ⊹ (msg.text ∙ errorMsg)
+
+    //adjust widgets to validation result and pass on successes only
+    successes = fullV to handleV collectS
+
+    sf = successes to full.text on btn.clicks to acc.text
   } yield sf
 
   
@@ -44,17 +42,9 @@ object TextFieldsValidated extends SwingApp {
       else s.success
     }
 
-  private val id = SF.id[ValRes[String]]
+  private def errorMsg(v: ValRes[String]) = v fold (_.head, _ ⇒ "")
 
-  //disables button if input is invalid
-  private def enable(b: Button) = id map { _.isSuccess } to b.enabled
-
-  //displays error message if invalid
-  private def printError(l: Label) = 
-    id map { _.fold(_.head, _ ⇒ "") } to l.text
-
-  //collects valid inputs and displays them in label
-  private def display(l: Label) = id.collectS to l.text
+  private def isSuccess(v: ValRes[String]) = v.isSuccess
 }
 
 // vim: set ts=2 sw=2 et:
