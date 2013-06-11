@@ -6,7 +6,7 @@ import scala.reflect.runtime.universe.TypeTag
 import scalaz._, Scalaz._, effect.IO
 import scalaz.concurrent.{Strategy, Actor}
 
-sealed abstract class Var[A](ini: A, s: Strategy)
+final class Var[A] private (ini: A, s: Strategy)
     extends DireActor[Var.VarEvent[A]](s) {
   import Var._
 
@@ -37,13 +37,41 @@ sealed abstract class Var[A](ini: A, s: Strategy)
       c.countDown()
     } else (c.countDown())
 
-    case Fire(a)      ⇒ if (active) {
-      actual = a
+    case Mod(f)      ⇒ if (active) {
+      actual = f(actual)
       if(started) notify()
     }
   }
 
+  /** Sets a new value for this `Var`
+    *
+    * It is recommended to typically modify the contents
+    * of a `Var` in a reactive setup either by using
+    * `sf` or `sink`. This IO-action should only be used
+    * on those rare occasions where a `Var` needs to be
+    * modified outside of a reactive setup.
+    */
   def put(a: A): IO[Unit] = IO(set(a))
+
+  /** Modifies the actual value of this `Var`
+    *
+    * It is recommended to typically modify the contents
+    * of a `Var` in a reactive setup either by using
+    * `sf` or `sink`. This IO-action should only be used
+    * on those rare occasions where a `Var` needs to be
+    * modified outside of a reactive setup.
+    */
+  def mod(f: A ⇒ A): IO[Unit] = IO(modify(f))
+
+  /** Gets the actual value of this `Var`
+    *
+    * It is recommended to typically access the contents
+    * of a `Var` in a reactive setup either by using
+    * `sf` or `in`. This IO-action should only be used
+    * on those rare occasions where a `Var` needs to be
+    * accessed outside of a reactive setup.
+    */
+  def read: IO[A] = IO(get)
 
   protected def doStart() { started = true; notify() }
 
@@ -57,7 +85,9 @@ sealed abstract class Var[A](ini: A, s: Strategy)
     await(1, c ⇒ fire(Remove(o, c)))
   }
 
-  private[control] def set(a: A) { fire(Fire(a)) }
+  private[control] def set(a: A) { fire(Mod(_ ⇒ a)) }
+
+  private[control] def modify(f: A ⇒ A) { fire(Mod(f)) }
 
   private[control] def get: A = {
     var res: A = actual
@@ -69,15 +99,33 @@ sealed abstract class Var[A](ini: A, s: Strategy)
 
   import Var.VarSource
 
+  /** This Var's input signal function
+    *
+    * This can be used to use this mutable `Var` in a reactive
+    * setting and is the preferred way of reacting on changes
+    * made to this `Var`.
+    */
   def in(implicit T: TypeTag[A]): SIn[A] = SF cachedSrc this
 
+  /** This `Var`'s data sink
+    *
+    * Use this sink as part of a reactive setup to modify
+    * the contents of this `Var`
+    */
   def sink: DataSink[A] = DataSink async put
+
+  /** Returns a signal function that can be used to both modify
+    * and react on the contents of this `Var` in a reactive
+    * setup.
+    */
+  def sf(implicit T: TypeTag[A]): SF[A,A] = (SF.id[A] to sink) >> in
 }
 
 object Var {
   private[control] def apply[A](a: A, s: Strategy): IO[Var[A]] = 
-    IO { new Var(a, s){} }
+    IO { new Var(a, s) }
 
+  /** Creates a new mutable value */
   def newVar[A](a: A): IO[Var[A]] = for {
     v ← apply(a, Strategy.Sequential)
     _ ← IO(v.start())
@@ -96,7 +144,7 @@ object Var {
   private case class Get[A](o: Out[A], cdl: CDL) extends VarEvent[A]
   private case class Add[A](o: Out[A], cdl: CDL) extends VarEvent[A]
   private case class Remove[A](o: Out[A], cdl: CDL) extends VarEvent[A]
-  private case class Fire[A](a: A) extends VarEvent[A]
+  private case class Mod[A](f: A ⇒ A) extends VarEvent[A]
 }
 
 // vim: set ts=2 sw=2 et:
