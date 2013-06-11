@@ -16,7 +16,7 @@ object Panel {
     def peer(p: Panel) = p.peer
   }
 
-  implicit val PanelElem: AsElem[Panel] = Elem vhFill { _.peer }
+  implicit val PanelElem: AsSingleElem[Panel] = Elem vhFill { _.peer }
 }
 
 // vim: set ts=2 sw=2 et:
