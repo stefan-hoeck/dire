@@ -58,4 +58,10 @@ trait AbstractButton[A]
     IO(peer(a).setIconTextGap(i))
 }
 
+object AbstractButton {
+  implicit val AbstractButtonIso = new (AbstractButton ~>> JAbstractButton) {
+    def apply[A](f: AbstractButton[A], a: A) = f peer a
+  }
+}
+
 // vim: set ts=2 sw=2 et:

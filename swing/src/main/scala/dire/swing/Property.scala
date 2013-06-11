@@ -3,7 +3,7 @@ package dire.swing
 import dire.Out
 import java.awt.{Font, Color, Component ⇒ AComponent, 
                  Window ⇒ AWindow, Image, Frame ⇒ AFrame}
-import javax.swing._
+import javax.swing._, javax.swing.{AbstractButton ⇒ JAbstractButton}
 import javax.swing.text.JTextComponent
 import javax.swing.border.Border
 import scalaz.Foldable
@@ -21,6 +21,9 @@ object Property {
     : Property[A,F] = new Property[A,F] {
       def := [B](a: A)(b: B)(implicit W: F[B]): IO[Unit] = f(a,X[B](W, b))
     }
+
+  private[dire] def abstractButtonP[A](f: JAbstractButton ⇒ A ⇒ Unit) =
+    apply[A,AbstractButton,JAbstractButton]((a,c) ⇒ f(c)(a))
 
   private[dire] def comboBoxP[A,B](f: JComboBox[B] ⇒ A ⇒ Unit) =
     apply[A,({type λ[α]=ComboBoxLike[α,B]})#λ, JComboBox[B]]((a,c) ⇒ f(c)(a))
@@ -146,6 +149,8 @@ trait Properties {
   val preferredSize = compP[Dim](c ⇒ d ⇒ c.setPreferredSize(dimension(d)))
 
   val resizable = frameLikeP(_.setResizable)
+
+  val selected = abstractButtonP(_.setSelected)
 
   val selectedTextColor = textCompP(_.setSelectedTextColor)
 
