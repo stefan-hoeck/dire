@@ -105,7 +105,10 @@ final class Var[A] private (ini: A, s: Strategy)
     * setting and is the preferred way of reacting on changes
     * made to this `Var`.
     */
-  def in(implicit T: TypeTag[A]): SIn[A] = SF cachedSrc this
+  def in: SIn[A] = SF src this
+
+  /** Same as `in` but cached (see `SF.cached`) */
+  def cachedIn(implicit T: TypeTag[A]): SIn[A] = SF cachedSrc this
 
   /** This `Var`'s data sink
     *
@@ -118,7 +121,10 @@ final class Var[A] private (ini: A, s: Strategy)
     * and react on the contents of this `Var` in a reactive
     * setup.
     */
-  def sf(implicit T: TypeTag[A]): SF[A,A] = (SF.id[A] to sink) >> in
+  def sf: SF[A,A] = (SF.id[A] to sink) >> in
+
+  /** Same as `sf` but cached (see `SF.cached`) */
+  def cachedSf(implicit T: TypeTag[A]): SF[A,A] = SF cached (sf, this)
 }
 
 object Var {
