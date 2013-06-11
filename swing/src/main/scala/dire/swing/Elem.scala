@@ -172,6 +172,11 @@ trait AsElemInstances extends AsElemFunctions {
   implicit val ElemAsElem: AsElem[Elem] = asElem(identity)
 
   implicit val StringAsElem: AsSingleElem[String] = noFill(new JLabel(_))
+
+  implicit val ElemMonoid = new Monoid[Elem] {
+    val zero = Elem.Empty
+    def append(a: Elem, b: ⇒ Elem) = a above b
+  }
 }
 
 trait AsElemSyntax {
