@@ -50,6 +50,11 @@ trait ValidationFunctions {
   def validate[A,B](v: Validator[A,B]): SfV[A,B] =
     SF.id[A] map { v run _ validation }
 
+  /** Turns an input signal function into a validated input
+    * signal function that fires only successes.
+    */
+  def valid[A](in: SIn[A]): VSIn[A] = in >=> success[A]
+
   /** Returns a signal function that validates its input by
     * running an IO action.
     *
