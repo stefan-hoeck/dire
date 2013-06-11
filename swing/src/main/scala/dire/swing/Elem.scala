@@ -108,7 +108,40 @@ object Elem extends AsElemInstances with AsElemSyntax {
       bottom.add(x, y + top.height, a)
   }
 
-  sealed abstract class Fill(final val v: Int)
+  sealed abstract class Fill(final val v: Int) {
+    import Fill._
+
+    /** Combines two `Fill`s using the following rules:
+      *
+      * Combining a fill with `None` or itself returns the fill
+      * Combining two distinct fills that are both not `None`
+      * returns the VH fill
+      */
+    def plus(that: Fill): Fill = (this, that) match {
+      case (None, x)         ⇒ x
+      case (x, None)         ⇒ x
+      case (x, y) if x == y  ⇒ x
+      case _                 ⇒ VH
+    }
+
+    /** Combines two `Fill`s using the following rules:
+      *
+      * Subtracting a fill from itself gives `None`.
+      * Subtracting H from VH gives V, V from VH gives H, and
+      * None from VH gives VH. Subtracting any other fill a from
+      * a fill b gives b.
+      *
+      * Thus it follows, that for all fills a, b
+      * `a plus (b minus a) == b`
+      */
+    def minus(that: Fill): Fill = (this, that) match {
+      case (x, y) if x == y  ⇒ None
+      case (VH, H)           ⇒ V
+      case (VH, V)           ⇒ H
+      case (VH, None)        ⇒ VH
+      case (x, _)            ⇒ x
+    }
+  }
 
   object Fill {
     case object None extends Fill(NONE)
@@ -198,24 +231,14 @@ trait AsElemSyntax {
 
     def anchor(anchor: Anchor) = single.copy(a = anchor)
 
-    def fillH(w: Int): Single = {
-      val newFill = single.f match {
-        case Fill.V  ⇒ Fill.VH
-        case Fill.VH ⇒ Fill.VH
-        case _       ⇒ Fill.H
-      }
-
-      single.copy(width = w, f = newFill, wx = 1.0D)
+    def fillH(w: Int): Single = w match {
+      case 0 ⇒ single.copy(width = 1, f = single.f minus Fill.H, wx = 0.0D)
+      case x ⇒ single.copy(width = x, f = single.f plus Fill.H, wx = 1.0D)
     }
 
-    def fillV(h: Int): Single = {
-      val newFill = single.f match {
-        case Fill.H  ⇒ Fill.VH
-        case Fill.VH ⇒ Fill.VH
-        case _       ⇒ Fill.V
-      }
-
-      single.copy(height = h, f = newFill, wy = 1.0D)
+    def fillV(w: Int): Single = w match {
+      case 0 ⇒ single.copy(height = 1, f = single.f minus Fill.V, wy = 0.0D)
+      case x ⇒ single.copy(height = x, f = single.f plus Fill.V, wy = 1.0D)
     }
   }
 }
