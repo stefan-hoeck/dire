@@ -20,6 +20,7 @@ final class Var[A] private (ini: A, s: Strategy)
   private[this] def notify() {
     listeners foreach { _(actual).unsafePerformIO() }
   }
+
   protected def doRun(v: VarEvent[A], active: Boolean) = v match {
     case Add(o, c)    ⇒ if (active) {
       listeners += o
