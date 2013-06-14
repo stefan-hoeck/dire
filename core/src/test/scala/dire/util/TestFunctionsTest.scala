@@ -12,6 +12,8 @@ object TestFunctionsTest
 
   val intId = SF.id[Int]
 
+  val intIdH = intId hold -1
+
   property("run") = 
     run(SF.time)(SF sf { _.toString })("100" ≟ _) ≟ hundred
 
@@ -34,34 +36,66 @@ object TestFunctionsTest
   }
 
   property("simulate_awaitIni_false") = forAll { is: List[Int] ⇒
-    simulate(is, false)(sim) ≟ is.filter (0>)
+    simulate(is, false)(simSync) ≟ is.filter(0>)
   }
 
   property("simulate_awaitIni_true") = forAll { is: List[Int] ⇒
-    simulate(is, true)(simIni) ≟ (0 :: is.filter (0>))
+    val res = simulate(is, true)(simIniSync)
+    val exp = (-1) :: is.filter(0>)
+
+    (res ≟ exp) :| s"Exp $exp but was $res"
   }
 
   property("simulate_awaitIni_false_async") = forAll { is: List[Int] ⇒
-    simulate(is, false)(simAsync) ≟ (is.filter (0>))
+    simulate(is, false)(simAsync) ≟ (is.filter(0>))
   }
 
   property("simulate_awaitIni_true_async") = forAll { is: List[Int] ⇒
-    simulate(is, true)(simIniAsync) ≟ (0 :: is.filter (0>))
+    val res = simulate(is, true)(simIniAsync)
+    val exp = (-1) :: is.filter(0>)
+
+    (res ≟ exp) :| s"Exp $exp but was $res"
   }
 
-  def sim(o: Out[Unit]): IO[SF[Int,Int]] = IO {
-    intId branch (intId.filter(0 <= ).void syncTo o) filter (0 >)
+  /** A signal function that holds no initial value
+    *
+    * Every branch confirms its completion synchronously
+    */
+  def simSync(o: Out[Any]): IO[SF[Int,Int]] = IO {
+    intId.branch((intId filter (0 <= ) syncTo o))
+         .filter(0 >)
+         .syncTo(o)
   }
 
-  def simIni(o: Out[Unit]): IO[SF[Int,Int]] =
-    sim(o) map { _ hold 0 }
-
-  def simAsync(o: Out[Unit]): IO[SF[Int,Int]] = IO {
-    intId branch (intId.filter(0 <= ).void asyncTo o) filter (0 >)
+  /** A signal function that holds no initial value
+    *
+    * Every branch confirms its completion asynchronously
+    */
+  def simAsync(o: Out[Any]): IO[SF[Int,Int]] = IO {
+    intId.branch((intId.filter(0 <= ) asyncTo o))
+         .filter(0 >)
+         .asyncTo(o)
   }
 
-  def simIniAsync(o: Out[Unit]): IO[SF[Int,Int]] =
-    simAsync(o) map { _ ⊹ SF.once(0).sf }
+  /** A signal function that holds an initial value
+    *
+    * Every branch confirms its completion synchronously
+    */
+  def simIniSync(o: Out[Any]): IO[SF[Int,Int]] = IO {
+    intIdH.branch((intIdH filter (0 <= ) syncTo o))
+          .filter(0 >)
+          .syncTo(o)
+  }
+
+  /** A signal function that holds an initial value
+    *
+    * Every branch confirms its completion asynchronously
+    */
+  def simIniAsync(o: Out[Any]): IO[SF[Int,Int]] = IO {
+    intIdH.branch((intIdH filter (0 <= ) asyncTo o))
+          .filter(0 >)
+          .asyncTo(o)
+  }
     
 }
 

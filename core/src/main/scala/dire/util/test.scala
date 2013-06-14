@@ -50,31 +50,34 @@ trait TestFunctions {
   def runUntil[A](in: SIn[A])(stop: A ⇒ Boolean): List[A] =
     run(in)(SF.id[A])(stop)
 
-  //@TODO: More documentation
-  /** Simulates a reactive setup that depends on some mutable state */
+  /** Simulates a reactive setup that depends on some mutable state
+    *
+    * Testing a reactive's system interoperability with the outside
+    * world can be hard, since we typically do not know when an event
+    * is processed and passed to the outside world. On the other
+    * hand, firing events manually to simulate user input for instance
+    * is again cumbersome and the code looks ugly.
+    *
+    * This function provides some simple means to automatically
+    * test a reactive system. We provide a list of events that have to
+    * be processed by the reactive system. We also provide a callback
+    * that has to be called whenever the processing of a single event
+    * has finished. We then fire the next event.
+    */
   def simulate[E,I](events: List[E], awaitIni: Boolean)
-                   (sf: Out[Unit] ⇒ IO[SF[E,I]]): List[I] = {
-    type Or = Unit \/ I
-
+                   (sf: Out[Any] ⇒ IO[SF[E,I]]): List[I] = {
     val es = events.toIndexedSeq
-    val n = es.size + (awaitIni ? 1 | 0)
+    val n = es.size
 
-    def total(sf: SF[E,I], v: Var[Option[Unit]]): SIn[Or] = {
-      val inCount = id[Or].count
-      val countAdj = awaitIni ? inCount.events.map(_ - 1) | inCount
-      val inputs = countAdj filter (es.size >) map es andThen sf
-      val units = v.in.collectO(identity).sf[Or]
+    def total(sf: SF[E,I], v: Var[Int]): SIn[I] =
+      v.in filter (i ⇒ 0 <= i && i < n) map es andThen sf
 
-      loop(units or inputs).in
-    }
+    def res = for {
+      v ← Var newVar (awaitIni ? -1 | 0)
+      s ← sf(_ ⇒ v mod (1+))
+    } yield run(total(s, v))(v.in.sf)(n ≟  _)
 
-    def totalIO = for {
-      v ← Var newVar none[Unit]
-      s ← sf(v put  _.some)
-    } yield total(s, v)
-
-    runN(SF io totalIO, n) collect { case \/-(i) ⇒ i }
-
+    res.unsafePerformIO
   }
 }
 
