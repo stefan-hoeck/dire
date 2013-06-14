@@ -35,7 +35,8 @@ final class ReactiveSystem private(
     killers.put(true) >>
     IO(killers.shutdown()) >>
     log(s"Shutting down executor of reactive system $this") >>
-    IO { ex.shutdown() }
+    IO { ex.shutdown() } >>
+    log(s"Reactive system $this shut down")
 
   private def async(io: IO[Unit]): IO[Future[Unit]] = IO {
     import scala.concurrent.{ExecutionContext}
@@ -45,6 +46,7 @@ final class ReactiveSystem private(
   }
 
   private def await[A](f: Future[A], sf: AnyRef): IO[Unit] = for {
+    _ ← log(s"Initialized shutdown for $sf")
     b ← IO {
           try { Await.ready(f, 5 second); false } catch {
             case t: java.util.concurrent.TimeoutException ⇒ true
