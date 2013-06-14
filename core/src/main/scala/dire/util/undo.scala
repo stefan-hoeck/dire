@@ -1,8 +1,7 @@
 package dire.util
 
-import dire._, SF.{id, connectOuts}
+import dire._, SF.{id, connectAsync}
 import scalaz._, Scalaz._
-import scalaz.concurrent.Strategy
 
 /** Provides utility signal functions for dealing with Undo/Redo
   * functionality.
@@ -43,9 +42,8 @@ object undo {
     * See `dire.swing.undo.sf` for a possible use case with Swing
     * `UndoableEdit`s.
     */
-  def withHandler[A](register: Out[A] ⇒ Out[(A,A)],
-                     strategy: Option[Strategy]): SF[A \/ A,A] =
-    basic[A] andThen connectOuts(register, strategy)
+  def withHandler[A](register: Out[A] ⇒ Out[(A,A)]): SF[A \/ A,A] =
+    basic[A] andThen connectAsync(register)
 }
 
 // vim: set ts=2 sw=2 et:

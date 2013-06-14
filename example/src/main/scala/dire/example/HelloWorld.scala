@@ -1,6 +1,6 @@
 package dire.example
 
-import dire._, SF.{id, loop, sfIO, const} 
+import dire._, SF.{id, loop, asyncIO, const} 
 import scalaz._, Scalaz._, effect.IO
 
 object HelloWorld {
@@ -16,7 +16,7 @@ object HelloWorld {
 
   def name = id filter Quit.≠
 
-  def hello = loop(name andThen sfIO(prompt))
+  def hello = loop(name andThen asyncIO(prompt))
 
   def goodbye = name on quit syncTo { s ⇒ IO putStrLn s"Goodbye $s!" }
 

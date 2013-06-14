@@ -3,7 +3,6 @@ package dire
 import java.awt.event.{ActionListener, ActionEvent}
 import scala.reflect.runtime.universe.TypeTag
 import scalaz._, Scalaz._, effect.IO
-import scalaz.concurrent.Strategy
 
 package object swing {
 

@@ -1,6 +1,7 @@
 import scalaz.effect.IO
 
 import scalaz._, Scalaz._
+import scalaz.concurrent.Strategy
 
 package object dire {
   import control._
@@ -25,6 +26,15 @@ package object dire {
 
   /** Type alias for an input signal */
   type SIn[+A] = SF[In,A]
+
+  /** Optional scalaz.concurrent.Strategy argument
+    *
+    * This is used in some advanced functions of dire
+    */
+  type StrategyO = Option[Strategy]
+
+  /** Strategy.Sequential.some */
+  val SSS: StrategyO = Strategy.Sequential.some
 }
 
 // vim: set ts=2 sw=2 et:

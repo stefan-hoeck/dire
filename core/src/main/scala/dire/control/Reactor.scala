@@ -47,7 +47,7 @@ final private[dire] class Reactor(
   private[dire] def sink[O](
     out: Out[Event[O]],
     clean: IO[Unit],
-    st: Option[Strategy],
+    st: StrategyO,
     key: Option[(Any,TypeTag[O])])
     (r: RawSignal[O]): IO[Unit] = {
       def tag(implicit T:TypeTag[O]) = implicitly[TypeTag[Var[Event[O]]]]
@@ -64,7 +64,7 @@ final private[dire] class Reactor(
     }
 
   private[dire] def trans[A,B]
-    (f: A ⇒ IO[B], s: Option[Strategy])
+    (f: A ⇒ IO[B], s: StrategyO)
     (in: RawSignal[A]): IO[RawSignal[B]] = for {
       v ← Var.forReactor[Event[IO[B]]](in.last map f, this, s)
       s ← Reactive.sourceNoCb[B](Never, this, s)
@@ -76,7 +76,7 @@ final private[dire] class Reactor(
     } yield r
 
   private[dire] def connectOuts[A,B]
-    (f: Out[B] ⇒ Out[A], st: Option[Strategy])
+    (f: Out[B] ⇒ Out[A], st: StrategyO)
     (in: RawSignal[A]): IO[RawSignal[B]] = for {
       s ← Reactive.sourceNoCb[B](Never, this, None)
       o: Out[A] = f(b ⇒ IO(s fire b))
@@ -100,10 +100,10 @@ final private[dire] class Reactor(
   private[dire] def loop[A]
     (f: (RawSignal[A], Reactor) ⇒ IO[RawSignal[A]])(ra: RawSignal[A])
     : IO[RawSignal[A]] = for {
-    s   ← Reactive.sourceNoCb[A](ra.last, this, Some(Strategy.Sequential))
+    s   ← Reactive.sourceNoCb[A](ra.last, this, SSS)
     r   ← RawSource(s)
     re  ← f(r, this)
-    v   ← Var.forReactor(re.last, this, Some(Strategy.Sequential))
+    v   ← Var.forReactor(re.last, this, SSS)
     _   ← IO {
             re.node connectChild Node.child { _ ⇒ 
               re.last.fold(_ ⇒ v.set(re.last), ())

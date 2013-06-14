@@ -27,7 +27,7 @@ object URLReaderExample extends SwingApp with SFInstances {
         ("Difference" beside diffTime) addTo f
 
     coords = (city.in on set.clicks) andThen
-             (SF sfIO readCoords hold (0D, 0D) to coordinates.textA)
+             (SF asyncIO readCoords hold (0D, 0D) to coordinates.textA)
     utc = utcIn to utcTime.textA
     ct  = cityIn(coords) to cityTime.textA
     sf  = (utc ⊛ ct)(diff) to diffTime.textA
@@ -37,10 +37,10 @@ object URLReaderExample extends SwingApp with SFInstances {
   val ticks = SF ticks 1000000L
 
   //Reads the actual time in a city (given as a string signal) every second
-  def cityIn(c: SIn[Coords]) = c on ticks andThen SF.sfIO(readCity)
+  def cityIn(c: SIn[Coords]) = c on ticks andThen SF.asyncIO(readCity)
 
   //Reads the actual UTC time every second
-  val utcIn = ticks andThen SF.sfIO(_ ⇒ readUTC)
+  val utcIn = ticks andThen SF.asyncIO(_ ⇒ readUTC)
 
   // *** Business Logic: Reading stuff from URLs *** //
 

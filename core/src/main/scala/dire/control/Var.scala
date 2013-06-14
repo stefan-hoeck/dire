@@ -1,6 +1,6 @@
 package dire.control
 
-import dire.{Out, DataSource, DataSink, SIn, SF}
+import dire.{Out, DataSource, DataSink, SIn, SF, StrategyO}
 import java.util.concurrent.{CountDownLatch ⇒ CDL}
 import scala.reflect.runtime.universe.TypeTag
 import scalaz._, Scalaz._, effect.IO
@@ -139,7 +139,7 @@ object Var {
   } yield v
 
   private[control] def forReactor[A](
-    a: A, r: Reactor, s: Option[Strategy]): IO[Var[A]] = 
+    a: A, r: Reactor, s: StrategyO): IO[Var[A]] = 
     apply(a, s getOrElse r.strategy) >>= { v ⇒ r.addReactive(v) as v }
 
   implicit def VarSource[A]: DataSource[Var[A],A] = 

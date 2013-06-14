@@ -62,7 +62,7 @@ trait ValidationFunctions {
     * therefore it should be reasonably fast.
     */
   def validateIO[A,B](v: ValidatorIO[A,B]): SfV[A,B] =
-    SF sfSyncIO { v.run(_).run map { _.validation } }
+    SF syncIO { v.run(_).run map { _.validation } }
 
   /** Lifts a value into a pure validated input signal */
   def vsin[A](a: ⇒ A): VSIn[A] = point(a)

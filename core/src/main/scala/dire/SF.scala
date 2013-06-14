@@ -404,13 +404,7 @@ trait SFFunctions {
   /** Signal function from a pure function */
   def sf[A,B](f: A ⇒ B): SF[A,B] = id map f
   
-  /** Asynchronously runs the given IO action whenever the
-    * input event stream fires.
-    *
-    * The resulting event stream fires its own even, whenever
-    * the result of `f` is ready.
-    */
-  def sfIO[A,B](f: A ⇒ IO[B], s: Option[Strategy] = None): SF[A,B] =
+  private def sfIO[A,B](f: A ⇒ IO[B], s: StrategyO): SF[A,B] =
     SF { (ra,r) ⇒ r.trans(f, s)(ra) }
 
   /** Synchronously runs the given IO action whenever the
@@ -420,12 +414,24 @@ trait SFFunctions {
     * should be reasonably fast compared to other events fired in the same
     * reactor.
     */
-  def sfSyncIO[A,B](f: A ⇒ IO[B]): SF[A,B] =
-    sfIO(f, Some(Strategy.Sequential))
+  def syncIO[A,B](f: A ⇒ IO[B]): SF[A,B] = sfIO(f, SSS)
+
+  /** Asynchronously runs the given IO action whenever the
+    * input event stream fires.
+    *
+    * The resulting event stream fires its own event, whenever
+    * the result of `f` is ready.
+    */
+  def asyncIO[A,B](f: A ⇒ IO[B]): SF[A,B] = sfIO(f, None)
+
+  private def connectOuts[A,B](f: Out[B] ⇒ Out[A], s: StrategyO)
+    : SF[A,B] = SF { (ra,r) ⇒ r.connectOuts(f, s)(ra) }
 
   //@TODO: Documentation
-  def connectOuts[A,B](f: Out[B] ⇒ Out[A], s: Option[Strategy]): SF[A,B] =
-    SF { (ra,r) ⇒ r.connectOuts(f, s)(ra) }
+  def connectSync[A,B](f: Out[B] ⇒ Out[A]): SF[A,B] = connectOuts(f, SSS)
+
+  //@TODO: Documentation
+  def connectAsync[A,B](f: Out[B] ⇒ Out[A]): SF[A,B] = connectOuts(f, None)
 
   /** Asynchronuously loops back the output of the given
     * event stream to its input

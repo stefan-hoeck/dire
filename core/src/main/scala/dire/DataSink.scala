@@ -3,7 +3,6 @@ package dire
 import dire.control.{Reactor, RawSignal ⇒ RS}
 import scala.reflect.runtime.universe.TypeTag
 import scalaz._, Scalaz._, effect.{IO, IORef}
-import scalaz.concurrent.Strategy
 
 /** Consumes values using a declared concurrency strategy */
 sealed trait DataSink[-A] { self ⇒ 
@@ -20,31 +19,30 @@ object DataSink extends DataSinkFunctions with DataSinkInstances {
 }
 
 trait DataSinkFunctions {
-
-  final def create[A](out: Out[A], 
-                      clean: IO[Unit] = IO.ioUnit,
-                      strategy: Option[Strategy] = None): DataSink[A] =
-    createE[A](eOut(out), clean, strategy)
-
   final def sync[A](out: Out[A], 
                     clean: IO[Unit] = IO.ioUnit): DataSink[A] =
-    createE[A](eOut(out), clean, Some(Strategy.Sequential))
+    createE[A](eOut(out), clean, SSS)
 
   final def async[A](out: Out[A], 
                      clean: IO[Unit] = IO.ioUnit): DataSink[A] =
-    createE[A](eOut(out), clean)
+    createE[A](eOut(out), clean, None)
 
-  final def cached[A](out: Out[A], 
-                      key: Any,
-                      clean: IO[Unit] = IO.ioUnit,
-                      strategy: Option[Strategy] = None)
-                      (implicit T: TypeTag[A]): DataSink[A] = 
-    createE[A](eOut(out), clean, strategy, Some((key, T)))
+  final def cachedSync[A](out: Out[A], 
+                          key: Any,
+                          clean: IO[Unit] = IO.ioUnit)
+                          (implicit T: TypeTag[A]): DataSink[A] = 
+    createE[A](eOut(out), clean, SSS, Some((key, T)))
+
+  final def cachedAsync[A](out: Out[A], 
+                           key: Any,
+                           clean: IO[Unit] = IO.ioUnit)
+                           (implicit T: TypeTag[A]): DataSink[A] = 
+    createE[A](eOut(out), clean, None, Some((key, T)))
 
   final private[dire] def createE[A](
     out: Out[Event[A]], 
     clean: IO[Unit] = IO.ioUnit,
-    strategy: Option[Strategy] = None,
+    strategy: StrategyO = None,
     key: Option[(Any,TypeTag[A])] = None): DataSink[A] = new DataSink[A] {
       private[dire] def connect(raw: RS[A], r: Reactor): IO[Unit] =
         r.sink[A](out, clean, strategy, key)(raw)
@@ -61,7 +59,7 @@ trait DataSinkFunctions {
     sync(a ⇒ ref mod { _ <+> a.η[F] } void)
 
   final private[dire] def syncE[A](o: Out[Event[A]]): DataSink[A] =
-    createE(o, strategy = Some(Strategy.Sequential))
+    createE(o, strategy = SSS)
 
   private def eOut[A](o: Out[A]): Out[Event[A]] = _.fold(o, IO.ioUnit)
 

@@ -5,7 +5,6 @@ import dire.DataSink.buffer
 import dire.control.{Var, ReactiveSystem}
 import org.scalacheck._, Prop._
 import scalaz._, Scalaz._, effect.{IO, IORef}
-import scalaz.concurrent.Strategy.Sequential
 
 object UndoRedoTest
   extends org.scalacheck.Properties("Undo/Redo")

@@ -1,6 +1,6 @@
 package dire.util
 
-import dire.SF, SF.{id, loop, sfIO, sf}
+import dire.{SF, Out}, SF.{id, loop, syncIO, sf}
 import scalaz._, Scalaz._, effect.IO
 
 /** Provides utility signal functions for dealing with typical
@@ -55,11 +55,11 @@ object save {
     * whether the save button is enabled or disabled and should fire
     * `Unit` events whenever the button is clicked
     */
-  def button[A:Equal](btn: SF[Boolean,Unit], save: A ⇒ IO[Unit])
+  def button[A:Equal](btn: SF[Boolean,Unit], save: Out[A])
     : SF[A,SaveOut[A]] = {
       val in = id[SaveOut[A]] collectO { _._2 }
       val btnA: SF[SaveOut[A],Unit] = btn ∙ { so ⇒ so._1 ≠ so._2 }
-      val handler = in on btnA andThen sfIO(save)
+      val handler = in on btnA andThen syncIO(save)
 
       withHandler(handler)
     }

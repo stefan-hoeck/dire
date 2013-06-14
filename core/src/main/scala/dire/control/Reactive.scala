@@ -14,7 +14,7 @@ private[control] trait Reactive {
 private[control] object Reactive {
   def source[A](ini: Event[A],
                 r: Reactor,
-                st: Option[Strategy] = None)
+                st: StrategyO = None)
                (cb: Out[A] ⇒ IO[IO[Unit]]): IO[RSource[A]] = for {
     s ← IO(new RSource[A](ini, r, cb, st))
     _ ← r addReactive s
@@ -22,7 +22,7 @@ private[control] object Reactive {
 
   def sourceNoCb[A](ini: Event[A],
                     r: Reactor,
-                    st: Option[Strategy] = None): IO[RSource[A]] =
+                    st: StrategyO = None): IO[RSource[A]] =
     source[A](ini, r, st)(_ ⇒ IO(IO.ioUnit))
 }
 
@@ -78,7 +78,7 @@ final private[control] class RSource[A](
     initial: Event[A],
     reactor: Reactor,
     setup: Out[A] ⇒ IO[IO[Unit]],
-    strategy: Option[Strategy])
+    strategy: StrategyO)
   extends DireActor[A](strategy getOrElse reactor.strategy) {
 
   private[control] val node = new RootNode
