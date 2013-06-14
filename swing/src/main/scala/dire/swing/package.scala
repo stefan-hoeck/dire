@@ -17,10 +17,13 @@ package object swing {
 
   type Position = (Int, Int)
 
-  val SwingStrategy: Option[Strategy] = Some(Strategy.SwingInvokeLater)
+  def swingOut[A](out: Out[A]): Out[A] = a ⇒ IO {
+    javax.swing.SwingUtilities.invokeLater(
+      new Runnable { def run { out(a).unsafePerformIO() } }
+    )
+  }
 
-  def swingSink[A](out: Out[A]): Sink[A] =
-    DataSink.create[A](out, strategy = SwingStrategy)
+  def swingSink[A](out: Out[A]): Sink[A] = DataSink.sync[A](swingOut(out))
 
   private[swing] def dimension(d: Dim) =
     new java.awt.Dimension(d._1, d._2)

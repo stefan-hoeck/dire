@@ -3,7 +3,7 @@ package dire.swing
 import dire._, SF.{id, connectOuts}
 import dire.util.undo.withHandler
 import scalaz._, Scalaz._, effect.IO
-import scalaz.concurrent.Strategy
+import scalaz.concurrent.Strategy.Sequential
 
 final case class UndoEdit(un: IO[Unit], re: IO[Unit])
   extends javax.swing.undo.AbstractUndoableEdit {
@@ -24,9 +24,9 @@ object undo {
     * By convention, input events wrapped in a Right come from user input
     * while those wrapped in a Left come from Undo/Redo
     */
-  def sf[A](out: Out[UndoEdit],
-            strategy: Option[Strategy] = SwingStrategy): SF[A \/ A,A] =
-    withHandler[A](oa ⇒ p ⇒ out(UndoEdit(oa(p._1), oa(p._2))), strategy)
+  def sf[A](out: Out[UndoEdit]): SF[A \/ A,A] =
+    withHandler[A](oa ⇒ p ⇒ swingOut(out)(UndoEdit(oa(p._1), oa(p._2))),
+                   Sequential.some)
 }
 
 // vim: set ts=2 sw=2 et:
