@@ -2,7 +2,6 @@ package dire.swing
 
 import dire._
 import javax.swing.JComboBox
-import scala.reflect.runtime.universe.TypeTag
 import scalaz._, Scalaz._, effect.IO
 
 trait ComboBoxLike[A,B]
@@ -10,7 +9,6 @@ trait ComboBoxLike[A,B]
   with Blockable[A]
   with IOWidget[A,B] 
   with Editable[A] {
-  implicit def T: TypeTag[B]
 
   def peer(a: A): JComboBox[B]
 
@@ -24,7 +22,7 @@ trait ComboBoxLike[A,B]
   
   final def items[F[_]:Foldable](a: A): Sink[F[B]] = sinkIO(setItems(a,_))
 
-  final def itemInO(a: A): SIn[Option[B]] = SF.cachedSrc[A,Option[B]](a)
+  final def itemInO(a: A): SIn[Option[B]] = SF.src[A,Option[B]](a)
 
   final def out(a: A): Sink[B] = item(a)
 

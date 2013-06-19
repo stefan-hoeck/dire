@@ -5,6 +5,7 @@ import java.awt.{Font, Color, Image}
 import javax.swing.Icon
 import javax.swing.border.Border
 import javax.swing.text.Caret
+import scala.reflect.runtime.universe.TypeTag
 import scalaz._, Scalaz._, effect.IO
 import Window.WindowEvent
 
@@ -19,6 +20,8 @@ object Swing
     def background(implicit F: Comp[A]): Sink[Color] = F background a
     def border(implicit F: Component[A]): Sink[Border] = F border a
     def bounds(implicit F: Comp[A]): Sink[Rect] = F bounds a
+    def cachedIn[B:TypeTag](implicit F: IOWidget[A,B]): SIn[B] = F cachedIn a
+    def cachedSf[B:TypeTag](implicit F: IOWidget[A,B]): SF[B,B] = F cachedSf a
     def caret(implicit F: TextComponent[A]): Sink[Caret] = F caret a
     def caretColor(implicit F: TextComponent[A]): Sink[Color] = F caretColor a
     def caretPosition(implicit F: TextComponent[A]): Sink[Int] = F caretPosition a
