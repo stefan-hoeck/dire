@@ -2,8 +2,8 @@ package dire.swing
 
 import dire._
 import java.awt.event.ActionListener
-import javax.swing.{AbstractButton ⇒ JAbstractButton, Icon}
-import scalaz.effect.IO
+import javax.swing.{AbstractButton ⇒ JAbstractButton, Icon, ButtonGroup}
+import scalaz._, Scalaz._, effect.IO
 
 trait AbstractButton[A]
   extends Component[A] 
@@ -26,14 +26,32 @@ trait AbstractButton[A]
 
   final def clicks(a: A): SIn[Unit] = actionEvents(a)
 
-  final def selected(a: A): Sink[Boolean] = sink{ b ⇒ 
-    withBlock(a){ peer(a).setSelected(b) }
-  }
+  protected def selOut(a: A): Out[Boolean] = b ⇒ 
+    withBlockIO(a)(IO { peer(a).setSelected(b) })
+
+  final def selected(a: A): Sink[Boolean] = sinkIO(selOut(a))
 
   final def out(a: A): Sink[Boolean] = selected(a)
 
   final def in(a: A): SIn[Boolean] =
     clicks(a) map { _ ⇒ peer(a).isSelected } hold peer(a).isSelected
+
+  final def group[F[_]:Foldable,B:Equal](ps: F[(A,B)])
+    : IO[SF[B,B]] = IO {
+      val group = new ButtonGroup
+
+      def sf(p: (A, B)): SF[B,B] = {
+        val (a, b) = p
+        val o = SF.id[B] collect { case x if b ≟ x ⇒ true } to selected(a)
+        val i = in(a) filter identity as b
+
+        o >> i
+      }
+
+      ps.toList foreach (p ⇒ group.add(peer(p._1)))
+
+      ps foldMap sf
+    }
 
   final override def setHAlign(a: A, h: HAlign) =
     IO(peer(a).setHorizontalAlignment(h.v))

@@ -88,6 +88,11 @@ object Swing
     def wheelScrollingEnabled(implicit F: ScrollPaneLike[A]): Sink[Boolean] = F wheelScrollingEnabled a
     def windowEvents(implicit F: Window[A]): SIn[WindowEvent] = F windowEvents a
   }
+
+  final implicit class PairOps[A,B,F[_]](val ps: F[(A,B)]) extends AnyVal {
+    def group(implicit A: AbstractButton[A], F: Foldable[F], B: Equal[B])
+      : IO[SF[B,B]] = A group ps
+  }
 }
 
 // vim: set ts=2 sw=2 et nowrap:
