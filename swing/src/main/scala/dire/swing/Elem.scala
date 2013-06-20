@@ -20,6 +20,8 @@ import scalaz._, Scalaz._, effect.IO
   * a much nicer syntax to arrange complex user interfaces
   */
 sealed trait Elem { self ⇒ 
+  import Elem.Horizontal
+
   def prefSize(d: Dim): Dim = identity(d)
 
   def adjustSize(f: Dim ⇒ Dim): Elem = new Elem {
@@ -36,8 +38,10 @@ sealed trait Elem { self ⇒
 
   def prefDim(w: Int, h: Int): Elem = adjustSize { _ ⇒ (w, h) }
 
+  /** The number of rows in the grid occupied by this `Elem` */
   def height: Int
 
+  /** The number of columns in the grid occupied by this `Elem` */
   def width: Int
 
   final def addTo[A](a: A)(implicit C: Container[A]): IO[A] = for {
@@ -46,11 +50,36 @@ sealed trait Elem { self ⇒
      _ ← C.adjustSize(a, prefSize)
   } yield a
 
+  /** Tags this `Elem` to use a Monoid instance that
+    * lines up elements horizontally instead of 
+    * vertically (which is the default behavior)
+    */
+  def horizontal: Elem @@ Horizontal = Horizontal(self)
+
+  /** Tags this `Elem` to use a Monoid instance that
+    * lines up elements vertically.
+    *
+    * This is the default behavior so this function needs
+    * only be called on `Elem`s tagged with the `Horizontal`
+    * tag.
+    */
+  def vertical: Elem = self
+
+  /** Creates a new panel and adds all widgets of this
+    * `Elem` to it.
+    */
   final def panel: IO[Panel] = Panel() >>= addTo[Panel]
 
+  /** Puts an `Elem` to the right of this `Elem` */
   final def beside[A:AsElem](a: A): Elem = Elem.Beside(this, Elem(a))
+
+  /** Puts an `Elem` below this `Elem` */
   final def above[A:AsElem](a: A): Elem = Elem.Above(this, Elem(a))
+
+  /** Symbolic alias for `beside` */
   final def <>[A:AsElem](a: A): Elem = beside(a)
+
+  /** Symbolic alias for `above` */
   final def ^^[A:AsElem](a: A): Elem = above(a)
 
   private[swing] def add[A:Container](x: Int, y: Int, a: A): IO[Unit]
@@ -88,6 +117,12 @@ object Elem extends AsElemInstances with AsElemSyntax {
     override private[swing] def add[A:Container](x: Int, y: Int, a: A) =
       IO.ioUnit
   }
+
+  /** This used to tag `Elem`s to use a different Monoid instance */
+  sealed trait Horizontal
+
+  /** Tags an `Elem` with the `Horizontal` tag */
+  def Horizontal[A](a: A): A @@ Horizontal = Tag[A, Horizontal](a)
   
   private case class Beside (left: Elem, right: Elem) extends Elem {
     lazy val height = left.height max right.height
@@ -202,6 +237,8 @@ trait AsElemFunctions {
 }
 
 trait AsElemInstances extends AsElemFunctions {
+  import Elem.Horizontal
+
   implicit val ElemAsElem: AsElem[Elem] = asElem(identity)
 
   implicit val StringAsElem: AsSingleElem[String] = noFill(new JLabel(_))
@@ -209,6 +246,12 @@ trait AsElemInstances extends AsElemFunctions {
   implicit val ElemMonoid = new Monoid[Elem] {
     val zero = Elem.Empty
     def append(a: Elem, b: ⇒ Elem) = a above b
+  }
+
+  implicit val HorizontalMonoid = new Monoid[Elem @@ Horizontal] {
+    def zero = Elem.Empty.horizontal
+    def append (a: Elem @@ Horizontal, b: ⇒ Elem @@ Horizontal) =
+      a beside b horizontal
   }
 }
 
