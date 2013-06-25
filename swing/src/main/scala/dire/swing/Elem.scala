@@ -236,7 +236,11 @@ trait AsElemFunctions {
   }
 }
 
-trait AsElemInstances extends AsElemFunctions {
+trait AsElemInstances0 {
+  implicit val SingleAsSingle: AsSingleElem[Elem.Single] = Elem asSingle identity
+}
+
+trait AsElemInstances extends AsElemFunctions with AsElemInstances0 {
   import Elem.Horizontal
 
   implicit val ElemAsElem: AsElem[Elem] = asElem(identity)
