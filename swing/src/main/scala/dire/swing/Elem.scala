@@ -68,7 +68,13 @@ sealed trait Elem { self ⇒
   /** Creates a new panel and adds all widgets of this
     * `Elem` to it.
     */
-  final def panel: IO[Panel] = Panel() >>= addTo[Panel]
+  final def panel: IO[Panel] = panel()
+
+  /** Creates a new panel with a border and adds all widgets of this
+    * `Elem` to it.
+    */
+  final def panel(props: Panel ⇒ IO[Unit]*): IO[Panel] = 
+    Panel(props: _*) >>= addTo[Panel]
 
   /** Puts an `Elem` to the right of this `Elem` */
   final def beside[A:AsElem](a: A): Elem = Elem.Beside(this, Elem(a))

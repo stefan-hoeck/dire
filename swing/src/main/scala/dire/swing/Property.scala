@@ -5,7 +5,6 @@ import java.awt.{Font, Color, Component ⇒ AComponent,
                  Window ⇒ AWindow, Image, Frame ⇒ AFrame}
 import javax.swing._, javax.swing.{AbstractButton ⇒ JAbstractButton}
 import javax.swing.text.JTextComponent
-import javax.swing.border.Border
 import scalaz.Foldable
 import scalaz.effect.IO
 
@@ -55,7 +54,7 @@ trait Properties {
 
   val background = compP(_.setBackground)
 
-  val border = componentP(_.setBorder)
+  val border = componentP[Border](c ⇒ b ⇒ c.setBorder(b.jborder))
 
   val bounds = compP[Rect](c ⇒ r ⇒ c.setBounds(rectangle(r)))
 

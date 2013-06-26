@@ -3,7 +3,6 @@ package dire.swing
 import dire._
 import java.awt.{Font, Color, Image}
 import javax.swing.Icon
-import javax.swing.border.Border
 import javax.swing.text.Caret
 import scala.reflect.runtime.universe.TypeTag
 import scalaz._, Scalaz._, effect.IO

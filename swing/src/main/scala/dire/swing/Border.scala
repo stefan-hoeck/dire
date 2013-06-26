@@ -2,7 +2,7 @@ package dire.swing
 
 import java.awt.{Color, Font}
 import javax.swing.{BorderFactory ⇒ BF}
-import javax.swing.border.{Border ⇒ JBorder, BevelBorder}
+import javax.swing.border.{Border ⇒ JBorder, BevelBorder, TitledBorder}
 import scalaz._, Scalaz._, scalaz.effect.IO
 
 sealed trait Border {
@@ -44,7 +44,13 @@ object Border {
   def insets(top: Int, left: Int, bottom: Int, right: Int): Border =
     Insets(top, left, bottom, right)
 
-  def title(text: String): Border = ???
+  def title(text: String,
+            border: Option[Border] = None,
+            justification: TitleJustification = TitleJustification.Default,
+            position: TitlePosition = TitlePosition.Default,
+            color: Option[Color] = None,
+            font: Option[Font] = None): Border =
+          Title(border, text, justification, position, color, font)
 
   implicit val BorderMonoid: Monoid[Border] = new Monoid[Border] {
     val zero = empty
@@ -126,6 +132,25 @@ object BevelType {
 
 sealed abstract class TitlePosition(val v: Int)
 
+object TitlePosition {
+  case object AboveTop extends TitlePosition(TitledBorder.ABOVE_TOP)
+  case object Top extends TitlePosition(TitledBorder.TOP)
+  case object BelowTop extends TitlePosition(TitledBorder.BELOW_TOP)
+  case object AboveBottom extends TitlePosition(TitledBorder.ABOVE_BOTTOM)
+  case object Bottom extends TitlePosition(TitledBorder.BOTTOM)
+  case object BelowBottom extends TitlePosition(TitledBorder.BELOW_BOTTOM)
+  case object Default extends TitlePosition(TitledBorder.DEFAULT_POSITION)
+}
+
 sealed abstract class TitleJustification(val v: Int)
+
+object TitleJustification {
+  case object Left extends TitleJustification(TitledBorder.LEFT)
+  case object Center extends TitleJustification(TitledBorder.CENTER)
+  case object Right extends TitleJustification(TitledBorder.RIGHT)
+  case object Leading extends TitleJustification(TitledBorder.LEADING)
+  case object Trailing extends TitleJustification(TitledBorder.TRAILING)
+  case object Default extends TitleJustification(TitledBorder.DEFAULT_JUSTIFICATION)
+}
 
 // vim: set ts=2 sw=2 et:

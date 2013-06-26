@@ -2,7 +2,6 @@ package dire.swing
 
 import javax.swing.JScrollPane
 import javax.swing.ScrollPaneConstants._
-import javax.swing.border.Border
 
 trait ScrollPaneLike[-A] extends Component[A] {
   def peer(a: A): JScrollPane
@@ -11,7 +10,7 @@ trait ScrollPaneLike[-A] extends Component[A] {
     sink(p ⇒ peer(a).setHorizontalScrollBarPolicy(p.v))
 
   final def viewportBorder(a: A): Sink[Border] =
-    sink(peer(a).setViewportBorder)
+    sink(b ⇒ peer(a).setViewportBorder(b.jborder))
 
   final def vScrollBarPolicy(a: A): Sink[VScrollBarPolicy] =
     sink(p ⇒ peer(a).setVerticalScrollBarPolicy(p.v))
