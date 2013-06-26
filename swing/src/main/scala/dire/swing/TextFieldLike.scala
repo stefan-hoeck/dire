@@ -28,6 +28,9 @@ trait TextFieldLike[A]
   final def textEvents(a: A): SIn[String] = 
     in(a) on actionEvents(a)
 
+  final def sfE(a: A): SF[String,String] = 
+    SF.id.to(text(a)) >> textEvents(a)
+
   override def setHTextPos(a: A, h: HAlign) = IO.ioUnit
   override def setVAlign(a: A, v: VAlign) = IO.ioUnit
   override def setVTextPos(a: A, v: VAlign) = IO.ioUnit
