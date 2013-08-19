@@ -6,7 +6,6 @@ import java.awt.event.{MouseMotionListener, MouseListener, KeyListener,
                        MouseEvent ⇒ JMouseEvent, KeyEvent ⇒ JKeyEvent,
                        FocusEvent ⇒ JFocusEvent, FocusListener} 
 import javax.swing.JComponent
-import javax.swing.border.Border
 
 /** Type class representing a `java.awt.Component` */
 trait Comp[-A] {
@@ -77,7 +76,8 @@ trait Comp[-A] {
 trait Component[-A] extends Container[A] {
   def peer(a: A): JComponent
 
-  final def border(a: A): Sink[Border] = sink(peer(a).setBorder)
+  final def border(a: A): Sink[Border] = 
+    sink(b ⇒ peer(a).setBorder(b.jborder))
 
   final def doubleBuffered(a: A): Sink[Boolean] =
     sink(peer(a).setDoubleBuffered)

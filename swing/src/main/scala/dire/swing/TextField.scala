@@ -4,8 +4,15 @@ import dire._
 import javax.swing.{JTextField}
 import scalaz._, Scalaz._, effect.IO
 
-class TextField(val peer: JTextField) {
+final class TextField(val peer: JTextField) {
   private var blocked = false
+
+  /** A signal function that consumes and produces 'String'
+    * events, but an event is only produced upon an action event
+    * (when 'Enter' is hit for instance).
+    */
+  def sfE: SF[String,String] =
+    TextField.TextFieldComponent sfE this
 }
 
 object TextField {
