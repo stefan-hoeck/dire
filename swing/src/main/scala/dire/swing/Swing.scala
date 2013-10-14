@@ -78,6 +78,7 @@ object Swing
     def textA[B](implicit F: TextDisplay[A]): Sink[B] = F textA a
     def textEvents(implicit F: TextFieldLike[A]): SIn[String] = F textEvents a
     def textIn(implicit F: TextComponent[A]): SIn[String] = F in a
+    def textInComboBox(implicit F: ComboBoxLike[A,String]): SIn[String] = F textIn a
     def textS[B:Show](implicit F: TextDisplay[A]): Sink[B] = F textS a
     def title(implicit F: FrameLike[A]): Sink[String] = F title a
     def tooltip(implicit F: Component[A]): Sink[Option[String]] = F tooltip a

@@ -24,6 +24,10 @@ trait ComboBoxLike[A,B]
 
   final def itemInO(a: A): SIn[Option[B]] = SF.src[A,Option[B]](a)
 
+  final def textInO(a: A): SIn[Option[String]] = SF.src[A,Option[String]](a)
+
+  final def textIn(a: A): SIn[String] = textInO(a) collectO identity
+
   final def out(a: A): Sink[B] = item(a)
 
   final def setEditable(a: A, b: Boolean) = IO(peer(a).setEditable(b))
@@ -48,6 +52,13 @@ trait ComboBoxLike[A,B]
   private implicit def source: Source[A,Option[B]] =
     src[A,Option[B]](now) { c ⇒ o ⇒ 
       val a = ali(_ ⇒ { if (! isBlocked(c)) o(now(c)) })
+      peer(c).addActionListener(a)
+      _ ⇒ peer(c).removeActionListener(a)
+    }
+
+  private implicit def textSource: Source[A,Option[String]] =
+    src[A,Option[String]](textNow) { c ⇒ o ⇒ 
+      val a = ali(_ ⇒ { if (! isBlocked(c)) o(textNow(c)) })
       peer(c).addActionListener(a)
       _ ⇒ peer(c).removeActionListener(a)
     }
