@@ -17,7 +17,7 @@ final class Var[A] private (ini: A, s: Strategy)
   
   private[this] var started = false
 
-  private[this] def notify() {
+  private[this] def fire() {
     listeners foreach { _(actual).unsafePerformIO() }
   }
 
@@ -40,7 +40,7 @@ final class Var[A] private (ini: A, s: Strategy)
 
     case Mod(f)      ⇒ if (active) {
       actual = f(actual)
-      if(started) notify()
+      if(started) fire()
     }
   }
 
@@ -74,7 +74,7 @@ final class Var[A] private (ini: A, s: Strategy)
     */
   def read: IO[A] = IO(get)
 
-  protected def doStart() { started = true; notify() }
+  protected def doStart() { started = true; fire() }
 
   protected def doStop() { listeners.clear() }
 
