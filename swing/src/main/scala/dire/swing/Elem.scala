@@ -2,6 +2,7 @@ package dire.swing
 
 import java.awt.{GridBagLayout, GridBagConstraints, Insets}
 import GridBagConstraints._
+import java.awt.{Component ⇒ AComp}
 import javax.swing.{JComponent ⇒ JComp, JLabel}
 import scalaz._, Scalaz._, effect.IO
 
@@ -97,7 +98,7 @@ object Elem extends AsElemInstances with AsElemSyntax {
   private val insets = new Insets(1, 3, 1, 3)
 
   case class Single (
-      comp: JComp,
+      comp: AComp,
       width: Int = 1,
       height: Int = 1,
       f: Fill = Fill.H,
@@ -227,17 +228,17 @@ trait AsElemFunctions {
     def single(a: A) = f(a)
   }
 
-  def noFill[A](f: A ⇒ JComp): AsSingleElem[A] = asSingle { a ⇒ 
+  def noFill[A](f: A ⇒ AComp): AsSingleElem[A] = asSingle { a ⇒ 
     Single(f(a), f = Fill.None, a = Anchor.W, wx = 0D)
   }
 
-  def hFill[A](f: A ⇒ JComp): AsSingleElem[A] = asSingle { a ⇒ Single(f(a)) }
+  def hFill[A](f: A ⇒ AComp): AsSingleElem[A] = asSingle { a ⇒ Single(f(a)) }
 
-  def vFill[A](f: A ⇒ JComp): AsSingleElem[A] = asSingle { a ⇒ 
+  def vFill[A](f: A ⇒ AComp): AsSingleElem[A] = asSingle { a ⇒ 
     Single(f(a), f = Fill.V, wx = 0D, wy = 1D)
   }
 
-  def vhFill[A](f: A ⇒ JComp): AsSingleElem[A] = asSingle { a ⇒ 
+  def vhFill[A](f: A ⇒ AComp): AsSingleElem[A] = asSingle { a ⇒ 
     Single(f(a), f = Fill.VH, wy = 1D)
   }
 }
