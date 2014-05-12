@@ -101,7 +101,7 @@ trait DataSourceFunctions {
     : S ⇒ Out[V] ⇒ IO[IO[Unit]] = s ⇒ o ⇒ IO {
       val sink = cb(s)(v ⇒ o(v).unsafePerformIO())
 
-      IO { sink apply () }
+      IO { sink.apply(()) }
     }
 }
 
@@ -110,7 +110,7 @@ trait DataSourceInstances {
   import DataSource.{eventSrcInpure, eventSrc}
 
   private[dire] implicit val ticks: DataSource[Time,Unit] = 
-    eventSrc[Time,Unit](t ⇒ o ⇒ Clock(T0, t, _ ⇒ o apply ()))
+    eventSrc[Time,Unit](t ⇒ o ⇒ Clock(T0, t, _ ⇒ o.apply(())))
 
   private[dire] def all[A](as: ⇒ List[A]): DataSource[Unit,A] =
     eventSrcInpure[Unit,A](_ ⇒ su ⇒ {as foreach su; identity})

@@ -2,9 +2,9 @@ import sbt._
 import Keys._
 
 object BuildSettings {
-  val sv = "2.10.3"
+  val sv = "2.11.0"
   val buildOrganization = "dire"
-  val buildVersion = "0.1.1-SNAPSHOT"
+  val buildVersion = "0.1.1"
 
   val buildSettings = Defaults.defaultSettings ++ Seq (
     organization := buildOrganization,
@@ -22,7 +22,7 @@ object BuildSettings {
 
 object Dependencies {
   val scalaz = "org.scalaz"
-  val scalazV = "7.0.4"
+  val scalazV = "7.0.6"
 
   val scala_reflect = "org.scala-lang" % "scala-reflect" % BuildSettings.sv
 
@@ -31,7 +31,7 @@ object Dependencies {
   val scalaz_concurrent = scalaz %% "scalaz-concurrent" % scalazV
   val scalacheckZ = scalaz %% "scalaz-scalacheck-binding" % scalazV % "test"
 
-  val scalacheck = "org.scalacheck" %% "scalacheck" % "1.10.0" % "test"
+  val scalacheck = "org.scalacheck" %% "scalacheck" % "1.11.4" % "test"
 
   val coolness = Seq(scalaz_core, scalaz_effect, scalaz_concurrent,
                      scalacheckZ, scalacheck)

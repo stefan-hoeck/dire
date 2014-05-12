@@ -247,8 +247,11 @@ class SF[-A,+B] private[dire](
     *
     * This can be useful to improve type inference.
     */
-  def sin(implicit WS: dire.In <~< A): SIn[B] =
-    WS.subst[({type λ[-α]=SF[α,B]})#λ](this)
+  def sin(implicit WS: dire.In <~< A): SIn[B] = {
+    type MyType[-X] =SF[X,B]
+
+    WS.subst[MyType](this)
+  }
 
   /** Accumulates successive events in slides of size `n` */
   def sliding(n: Int): SF[A,List[B]] = {
@@ -322,7 +325,7 @@ class SF[-A,+B] private[dire](
   }
 
   /** Zips together the events of two behaviors */
-  def zip[C,AA<:A](that: SF[AA,C]): SF[AA,(B,C)] = <*>(that)(Pair.apply)
+  def zip[C,AA<:A](that: SF[AA,C]): SF[AA,(B,C)] = <*>(that)(Tuple2.apply)
 
   /** Alias for `andThen` */
   def >=>[C](that: SF[B,C]): SF[A,C] = andThen(that)
@@ -424,7 +427,7 @@ trait SFFunctions {
     */
   def asyncIO[A,B](f: A ⇒ IO[B]): SF[A,B] = sfIO(f, None)
 
-  private def connectOuts[A,B](f: Out[B] ⇒ Out[A], s: StrategyO)
+  def connectOuts[A,B](f: Out[B] ⇒ Out[A], s: StrategyO)
     : SF[A,B] = SF { (ra,r) ⇒ r.connectOuts(f, s)(ra) }
 
   //@TODO: Documentation
@@ -713,7 +716,7 @@ private[dire] object SFArrowImpl extends Arrow[SF] with Choice[SF] {
 
   def first[A,B,C](f: SF[A,B]): SF[(A,C),(B,C)] =
     (arr { p: (A,C) ⇒ p._1 } andThen f) ⊛ 
-    (arr { p: (A,C) ⇒ p._2 }) apply Pair.apply
+    (arr { p: (A,C) ⇒ p._2 }) apply Tuple2.apply
 
   def choice[A,B,C](f: => SF[A,C], g: => SF[B,C]): SF[A \/ B,C] =
     (id[A\/B].collectL >=> f) ⊹ (id[A\/B].collectR >=> g)

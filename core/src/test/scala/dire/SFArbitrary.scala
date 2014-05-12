@@ -20,12 +20,12 @@ trait SFArbitrary {
 
   val distinct: SFTT = idTT.distinct
 
-  val single: Gen[SFTT] = Gen oneOf (
-    idTT,
-    asyncTT,
-    square,
-    inverse,
-    distinct,
+  val single: Gen[SFTT] = Gen.oneOf[SFTT](
+    idTT: Gen[SFTT],
+    asyncTT: Gen[SFTT],
+    square: Gen[SFTT],
+    inverse: Gen[SFTT],
+    distinct: Gen[SFTT],
     arb[Long] map const)
 
   lazy val composed: Gen[SFTT] = for {
