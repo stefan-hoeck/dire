@@ -18,6 +18,7 @@ cases for functional reactive programming. Each of the examples extends
 Run any of the examples from the sbt prompt like so:
 
 ```
+$ sbt
 > project dire-example
 > run
 
