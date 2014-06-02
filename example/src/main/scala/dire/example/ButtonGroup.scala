@@ -5,7 +5,7 @@ import dire.swing._, Swing._
 import scalaz._, Scalaz._, effect.IO
 
 /** A user interface with a group of four radio buttons */
-object ButtonGroupApp extends SwingApp {
+object ButtonGroup extends SwingApp {
   override def behavior(f: Frame) = for {
     lbl  ← Label(text := " ")
     btns ← labels traverse (l ⇒ RadioButton(text := l))

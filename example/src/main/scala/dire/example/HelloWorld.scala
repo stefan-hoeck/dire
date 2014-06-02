@@ -1,9 +1,9 @@
 package dire.example
 
 import dire._, SF.{id, loop, asyncIO, const} 
-import scalaz._, Scalaz._, effect.IO
+import scalaz._, Scalaz._, scalaz.effect.{SafeApp, IO}
 
-object HelloWorld {
+object HelloWorld extends SafeApp {
 
   private final val Quit = ":q"
 
@@ -20,7 +20,8 @@ object HelloWorld {
 
   def goodbye = name on quit syncTo { s ⇒ IO putStrLn s"Goodbye $s!" }
 
-  def run = SF.run(const("World") >=> hello >=> goodbye)(_ ⇒ true)
+  // scalaz.effect.SafeApp entry point
+  override def runc = SF.run(const("World") >=> hello >=> goodbye)(_ ⇒ true)
 }
 
 // vim: set ts=2 sw=2 et:

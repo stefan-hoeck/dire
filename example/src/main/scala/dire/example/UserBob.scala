@@ -1,15 +1,10 @@
 package dire.example
 
 import dire._
-import scalaz._, Scalaz._, effect.IO
+import scalaz._, Scalaz._, scalaz.effect.{SafeApp, IO}
 
-/** Simulation of asynchronuous client accesses to a server
-  *
-  * To run, modify [[dire.example.Main]] like so:
-  *
-  * `def runc = UserBob.run`
-  */
-object UserBob {
+/** Simulation of asynchronuous client accesses to a server */
+object UserBob extends SafeApp {
 
   implicit def SMonoid[A:Monoid] = Monoid.liftMonoid[SIn,A]
 
@@ -34,7 +29,8 @@ object UserBob {
                             ("Gundi", 4012L, 0.2),
                             ("Mary", 2113L, 0.8))
 
-  def run = SF.run(ratio.events.count)(_ >= stopAfter)
+  // scalaz.effect.SafeApp entry point
+  override def runc = SF.run(ratio.events.count)(_ >= stopAfter)
 
   private def user(d: UserData): SIn[Int] = d match {
     case (name, seed, rate) ⇒ {

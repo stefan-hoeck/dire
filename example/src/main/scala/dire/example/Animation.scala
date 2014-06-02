@@ -8,13 +8,8 @@ import scala.collection.immutable.{IndexedSeq ⇒ IxSeq}
 import scalaz._, Scalaz._
 import scalaz.std.indexedSeq._
 
-/** A combination of simple animations
-  *
-  * To run, modify [[dire.example.Main]] like so:
-  *
-  * `def runc = Animation.run`
-  */
-object AnimationApp extends SwingApp {
+/** A combination of simple animations */
+object Animation extends SwingApp {
 
   implicit def SMonoid[A:Monoid] = Monoid.liftMonoid[SIn,A]
 

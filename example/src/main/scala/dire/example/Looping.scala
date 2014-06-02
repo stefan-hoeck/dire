@@ -1,16 +1,13 @@
 package dire.example
 
 import dire._, DataSink.stdOut, SF.{id, loop, const}
-import scalaz._, Scalaz._, effect.IO
+import scalaz._, Scalaz._, scalaz.effect.{SafeApp, IO}
 
-/** An event stream that uses its own output as input
-  *
-  * To run, modify [[dire.example.Main]] like so:
-  *
-  * `def runc = Looping.run`
-  */
-object Looping {
-  def run = for {
+/** An event stream that uses its own output as input */
+object Looping extends SafeApp {
+
+  // scalaz.effect.SafeApp entry point
+  override def runc = for {
     rs   ← dire.control.ReactiveSystem()
     _    ← rs forever looping
     _    ← IO(Thread.sleep(2000))
