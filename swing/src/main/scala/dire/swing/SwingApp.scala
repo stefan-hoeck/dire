@@ -3,12 +3,13 @@ package dire.swing
 import dire._
 import scalaz._, Scalaz._, effect.{IO, SafeApp}
 
-trait SwingApp {
+trait SwingApp extends SafeApp {
   import Window.WindowEvent, Swing._
 
   protected def behavior(f: Frame): IO[SIn[Any]]
 
-  def run = for {
+  // scalaz.effect.SafeApp entry point
+  override def runc = for {
     frame   ← Frame()
     sf      ← behavior(frame)
     _       ← frame properties (visible := true)

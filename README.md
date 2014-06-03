@@ -13,18 +13,32 @@ can then be found under
 ## Examples
 
 The *example* subproject contains an ever growing list of simple examples and use
-cases for functional reactive programming. Each of the examples (with exception to
-the `Time`-example), comes with a `run` method of type `IO[Unit]`. In order to
-run an example, modify `dire.example.Main` like so:
+cases for functional reactive programming. Each of the examples extends
+`scalaz.effect.SafeApp` and overrides the `runc` method of type `IO[Unit]`.
+Run any of the examples from the sbt prompt like so:
 
-```scala
-object Main extends SafeApp {
-  override def runc: IO[Unit] = ExampleName.run
-}
 ```
+$ sbt
+> project dire-example
+> run
 
-where `ExampleName` is the name of the example object. Then build using command
-`one-jar` and run the executable found in the location described above.
+Multiple main classes detected, select one to run:
+
+ [1] dire.example.TimeExample
+ [2] dire.example.ButtonApp
+ [3] dire.example.UserBob
+ [4] dire.example.ButtonGroup
+ [5] dire.example.Looping
+ [6] dire.example.HelloWorld
+ [7] dire.example.FormattedIntegers
+ [8] dire.example.TextFieldsValidated
+ [9] dire.example.TextFields
+ [10] dire.example.Drawing
+ [11] dire.example.Animation
+ [12] dire.example.URLReaderExample
+
+Enter number:
+```
 
 ## Documentation
 
