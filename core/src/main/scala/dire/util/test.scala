@@ -22,7 +22,7 @@ trait TestFunctions {
   protected val step = 1L
 
   /** Collects events of an input signal function but uses another
-    * signal function for the abbort condition
+    * signal function for the abort condition
     */
   def run[A,B](in: SIn[A])(ab: SF[A,B])(stop: B ⇒ Boolean): List[A] = {
     val as = new MList[A]
@@ -42,7 +42,7 @@ trait TestFunctions {
     run(in)(SF.id[A].count)(n <= _)
 
   /** Collects events of an input signal until an event is fired
-    * that fullfills the given predicate
+    * that fulfills the given predicate
     */
   def runUntil[A](in: SIn[A])(stop: A ⇒ Boolean): List[A] =
     run(in)(SF.id[A])(stop)

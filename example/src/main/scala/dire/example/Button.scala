@@ -4,7 +4,7 @@ import dire._
 import dire.swing._, Swing._
 import scalaz._, Scalaz._
 
-/** A simple user inteface with a button that counts its own clicks */
+/** A simple user interface with a button that counts its own clicks */
 object ButtonApp extends SwingApp {
   override def behavior(f: Frame) = for {
     btn ← Button(text := "0 clicks")

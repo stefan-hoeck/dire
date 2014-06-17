@@ -102,7 +102,7 @@ private[control] final class RootNode extends Node {
   *
   * Child nodes can have an arbitrary number of parents and
   * children. They represent signals that
-  * synchronuously react on changes in one or more other
+  * synchronously react on changes in one or more other
   * signal.
   */
 private[control] abstract class ChildNode extends Node {

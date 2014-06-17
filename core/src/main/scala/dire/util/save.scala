@@ -68,7 +68,7 @@ object save {
     * to be saved.
     *
     * Param `handle` collects SaveOut events and fires `Unit` whenever
-    * data was safed. The resulting signal function still fires all
+    * data was saved. The resulting signal function still fires all
     * `SaveOut` events if they are needed by other parts of the reactive
     * graph.
     */

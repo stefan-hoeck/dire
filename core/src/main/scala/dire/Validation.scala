@@ -37,7 +37,7 @@ trait ValidationFunctions {
   /** Returns a signal function that takes some validated input
     * and performs some additional validation.
     *
-    * Note thate errors are not accumulated in this case, since the
+    * Note that errors are not accumulated in this case, since the
     * two validation steps happen sequentially.
     */
   def reValidate[A,B](v: Validator[A,B]): SfV[ValRes[A],B] =

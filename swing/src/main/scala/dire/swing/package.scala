@@ -35,10 +35,10 @@ package object swing {
   private[swing] def sinkIO[A](out: A ⇒ IO[Unit]): Sink[A] = swingSink(out)
 
   private[swing] def eventSrc[S,A](out: Callback[S,A]): Source[S,A] =
-    DataSource eventSrcInpure out
+    DataSource eventSrcImpure out
 
   private[swing] def src[S,A](ini: S ⇒ A)(out: Callback[S,A]): Source[S,A] =
-    DataSource.signalSrcInpure(ini)(out)
+    DataSource.signalSrcImpure(ini)(out)
 
   private[swing] def ali(out: Unit ⇒ Unit): ActionListener = 
     new ActionListener { def actionPerformed(e: ActionEvent) = out(()) }

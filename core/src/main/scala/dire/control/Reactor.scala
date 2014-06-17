@@ -40,7 +40,7 @@ final private[dire] class Reactor(
     (cb: Out[A] ⇒ IO[IO[Unit]]): IO[RawSignal[A]] =
       ini >>= { Reactive.source(_, this)(cb) } >>= RawSource.apply
 
-  //creates a new anychronous data sink
+  //creates a new asynchronous data sink
   //must only be called when initializing the reactive graph
   //or (probably) when processing a signal's update event
   //sinks can be cached, therefor the optional key plus typetag
@@ -95,7 +95,7 @@ final private[dire] class Reactor(
     (in: RawSignal[In]): IO[RawSignal[Out]] =
     cache(sig(in,this) map { (in,_) }, key) map { _._2 }
 
-  //loops the output of a signal function asynchronuously back to
+  //loops the output of a signal function asynchronously back to
   //its input
   private[dire] def loop[A]
     (f: (RawSignal[A], Reactor) ⇒ IO[RawSignal[A]])(ra: RawSignal[A])
@@ -120,9 +120,9 @@ final private[dire] class Reactor(
 
   protected def doRun(update: Sink[Time], act: Boolean) = if (act) {
     time += 1L //increase time
-    update(time) //updates the reaktive graph
+    update(time) //updates the reactive graph
 
-    //check wether we have to stop the reactor
+    //check whether we have to stop the reactor
     checkKill()
   }
   
@@ -135,7 +135,7 @@ final private[dire] class Reactor(
 
   protected def doStart() {
     reactives foreach { _.start() }
-    //check wether we already have to stop the reactor
+    //check whether we already have to stop the reactor
     checkKill()
   }
 
