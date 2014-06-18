@@ -3,12 +3,12 @@ package dire.example
 import dire._
 import scalaz._, Scalaz._, scalaz.effect.{SafeApp, IO}
 
-/** Simulation of asynchronuous client accesses to a server */
+/** Simulation of asynchronous client accesses to a server */
 object UserBob extends SafeApp {
 
   implicit def SMonoid[A:Monoid] = Monoid.liftMonoid[SIn,A]
 
-  //numer of user accesses after which the application stops
+  //number of user accesses after which the application stops
   private val stopAfter = 100
 
   //increase this number to reduce the number of noise events that

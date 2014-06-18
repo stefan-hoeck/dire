@@ -2,7 +2,7 @@ package dire
 
 import scalaz._, Scalaz._
 
-/** An abstract class to represent event occurences in
+/** An abstract class to represent event occurrences in
   * an event stream.
   *
   * Clients are not supposed to access or manipulate objects of this

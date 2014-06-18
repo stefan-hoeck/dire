@@ -6,7 +6,7 @@ import scalaz.concurrent.Strategy
 package object dire {
   import control._
 
-  /** Time in a descrete reactive setup */
+  /** Time in a discrete reactive setup */
   type Time = Long
 
   /** The lowest possible value of `Time`*/

@@ -19,7 +19,7 @@ final class ReactiveSystem private(
                  (stop: A ⇒ Boolean): IO[Unit] =
     async(SF.runS(in, s, step)(stop)).void
 
-  /** Ansynchronously starts a reactive graph and runs it until the
+  /** Asynchronously starts a reactive graph and runs it until the
     * returned IO action is executed.
     */
   def forever[A](in: SIn[A],

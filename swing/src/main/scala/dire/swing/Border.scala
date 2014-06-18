@@ -21,7 +21,7 @@ object Border {
   def bevel(bt: BevelType, ho: Color, hi: Color, so: Color, si: Color): Border =
     Bevel(bt, (ho, hi).some, (so, si).some)
 
-  val bevelLowerd: Border = bevel(BevelType.Lowered)
+  val bevelLowered: Border = bevel(BevelType.Lowered)
 
   val bevelRaised: Border = bevel(BevelType.Raised)
 
@@ -33,7 +33,7 @@ object Border {
   def bevelSoft(bt: BevelType, ho: Color, hi: Color, so: Color, si: Color): Border =
     BevelSoft(bt, (ho, hi).some, (so, si).some)
 
-  val bevelSoftLowerd: Border = bevelSoft(BevelType.Lowered)
+  val bevelSoftLowered: Border = bevelSoft(BevelType.Lowered)
 
   val bevelSoftRaised: Border = bevelSoft(BevelType.Raised)
 

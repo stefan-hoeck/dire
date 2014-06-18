@@ -22,7 +22,7 @@ object SFTest
   // the main time signal
   val idTime = SF.id[Time]
 
-  // a second signal that runs asynchronuously to time
+  // a second signal that runs asynchronously to time
   // this is used to test combinations of two signals / event streams
   val tickCount = idTime >> (SF ticks 1L count)
 
@@ -353,7 +353,7 @@ object SFTest
   }
 
   // ***                  ***//
-  // *** Trasformer tests ***//
+  // *** Transformer tests ***//
   // ***                  ***//
 
   property("connectOuts") = {
