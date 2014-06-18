@@ -32,7 +32,7 @@ sealed abstract class HScrollBarPolicy(val v: Int)
 object HScrollBarPolicy {
   private def get(v: Int): HScrollBarPolicy = new HScrollBarPolicy(v){}
 
-  final val Alyways = get(HORIZONTAL_SCROLLBAR_ALWAYS)
+  final val Always = get(HORIZONTAL_SCROLLBAR_ALWAYS)
   final val Never = get(HORIZONTAL_SCROLLBAR_NEVER)
   final val AsNeeded = get(HORIZONTAL_SCROLLBAR_AS_NEEDED)
 }
@@ -42,7 +42,7 @@ sealed abstract class VScrollBarPolicy(val v: Int)
 object VScrollBarPolicy {
   private def get(v: Int): VScrollBarPolicy = new VScrollBarPolicy(v){}
 
-  final val Alyways = get(VERTICAL_SCROLLBAR_ALWAYS)
+  final val Always = get(VERTICAL_SCROLLBAR_ALWAYS)
   final val Never = get(VERTICAL_SCROLLBAR_NEVER)
   final val AsNeeded = get(VERTICAL_SCROLLBAR_AS_NEEDED)
 }

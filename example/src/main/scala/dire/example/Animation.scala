@@ -36,7 +36,7 @@ object Animation extends SwingApp {
     : SIn[Double] =
     ticks map { t ⇒ sin(t * 2 * Pi * f / 100 + phi) * a + offset }
 
-  //a red circle that rotates arount point (200, 200)
+  //a red circle that rotates around point (200, 200)
   def s1: SIn[Shape] = ^(
     wave(0.7, 100, 200),
     wave(0.7, 100, 200, Pi / 2)

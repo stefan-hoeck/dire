@@ -9,7 +9,7 @@ import scala.util.control.NonFatal
 
 object URLReaderExample extends SwingApp with SFInstances {
   type Coords = (Double, Double)
-  val cities = List("Zurich", "Boston", "London", "Bejing")
+  val cities = List("Zurich", "Boston", "London", "Beijing")
 
   override def behavior(f: Frame) = for {
     city        ← ComboBox(cities)()

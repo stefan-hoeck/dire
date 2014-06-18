@@ -49,7 +49,7 @@ private[control] abstract class DireActor[A](s: Strategy) extends Reactive {
 
   //asynchronously stops the actor. Typically the calling thread
   //will wait on the countdown latch. The countdown latch is released
-  //once the actor is cleaned up and no more events are to be expeced
+  //once the actor is cleaned up and no more events are to be expected
   final def stop(cdl: CountDownLatch) { actor ! Stop(cdl) }
 
   private[this] def react(e: RunE[A]): Unit = e match {

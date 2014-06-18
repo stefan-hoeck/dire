@@ -43,10 +43,10 @@ trait DataSourceFunctions {
         def cb(s: S) = callback(s)
       }
 
-  /** Same as `create` but for interacting with inpure
+  /** Same as `create` but for interacting with impure
     * third-party libraries
     */
-  final def createInpure[S,V]
+  final def createImpure[S,V]
     (initial: S ⇒ Option[V])
     (callback: S ⇒ Sink[V] ⇒ Sink[Unit]): DataSource[S,V] =
     create[S,V](s ⇒ IO(initial(s)))(impureCb(callback))
@@ -67,10 +67,10 @@ trait DataSourceFunctions {
     (callback: S ⇒ Out[V] ⇒ IO[IO[Unit]]): DataSource[S,V] =
     create[S,V](initial(_) map Some.apply)(callback)
 
-  /** Same as `signalSrc` but for interacting with inpure
+  /** Same as `signalSrc` but for interacting with impure
     * third-party libraries
     */
-  final def signalSrcInpure[S,V]
+  final def signalSrcImpure[S,V]
     (initial: S ⇒ V)
     (callback: S ⇒ Sink[V] ⇒ Sink[Unit]): DataSource[S,V] =
     signalSrc[S,V](s ⇒ IO(initial(s)))(impureCb(callback))
@@ -89,10 +89,10 @@ trait DataSourceFunctions {
     (callback: S ⇒ Out[V] ⇒ IO[IO[Unit]]): DataSource[S,V] =
     DataSource.create[S,V](_ ⇒ IO(None))(callback)
 
-  /** Same as `eventSrc` but for interacting with inpure
+  /** Same as `eventSrc` but for interacting with impure
     * third-party libraries
     */
-  final def eventSrcInpure[S,V]
+  final def eventSrcImpure[S,V]
     (callback: S ⇒ Sink[V] ⇒ Sink[Unit]): DataSource[S,V] =
     eventSrc[S,V](impureCb(callback))
 
@@ -107,13 +107,13 @@ trait DataSourceFunctions {
 
 trait DataSourceInstances {
   import dire.control.Clock
-  import DataSource.{eventSrcInpure, eventSrc}
+  import DataSource.{eventSrcImpure, eventSrc}
 
   private[dire] implicit val ticks: DataSource[Time,Unit] = 
     eventSrc[Time,Unit](t ⇒ o ⇒ Clock(T0, t, _ ⇒ o.apply(())))
 
   private[dire] def all[A](as: ⇒ List[A]): DataSource[Unit,A] =
-    eventSrcInpure[Unit,A](_ ⇒ su ⇒ {as foreach su; identity})
+    eventSrcImpure[Unit,A](_ ⇒ su ⇒ {as foreach su; identity})
 }
 
 // vim: set ts=2 sw=2 et:

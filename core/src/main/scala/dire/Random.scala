@@ -5,7 +5,7 @@ import scalaz._, Scalaz._
 /** A (probably temporary) set of helper functions for random
   * number generators.
   *
-  * Nothing fancy, this is just needed for a very basich simulation
+  * Nothing fancy, this is just needed for a very basic simulation
   * of noise. All code was taken shamelessly from Functional Programming
   * in Scala: http://manning.com/bjarnason/
   */

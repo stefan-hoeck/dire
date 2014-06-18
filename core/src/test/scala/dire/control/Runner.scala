@@ -26,7 +26,7 @@ trait Runner {
     test100(sf)(_ map f flatten )
 
   /** Builds a reactive graph and runs it until an event is fired
-    * that fullfills the given predicate
+    * that fulfills the given predicate
     */
   def runUntil[A](in: SIn[A])(stop: A ⇒ Boolean): Events[A] = {
     val as = new MList[Event[A]]

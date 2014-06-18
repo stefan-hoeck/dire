@@ -27,7 +27,7 @@ class SF[-A,+B] private[dire](
   /** Sequentially combines two signal functions */
   def andThen[C](that: SF[B,C]): SF[A,C] = that compose this
 
-  /** Like `syncTo` but performs side effects asynchronuously,
+  /** Like `syncTo` but performs side effects asynchronously,
     * that is, the main `Reactor` thread is not blocked.
     *
     * The reactive system guarantees that, as long as the given
@@ -286,7 +286,7 @@ class SF[-A,+B] private[dire](
     * running thread that updates
     * the main reactive graph. Therefore, side effects performed
     * by `out` need to be fast if the system should stay reactive.
-    * Consider using `asyncTo` instead for fully asynchronuous
+    * Consider using `asyncTo` instead for fully asynchronous
     * side effects or when side effects have to be performed in a
     * special type of thread (the Swing event dispatch thread for instance).
     */
@@ -302,7 +302,7 @@ class SF[-A,+B] private[dire](
     map(st) scanStV n collectO identity
   }
 
-  /** Asynchronuously output the values of this signal to a data sink
+  /** Asynchronously output the values of this signal to a data sink
     *
     * How the data sink operates and what concurrency strategy is
     * applied is defined in the [[dire.DataSink]] type class.
@@ -436,7 +436,7 @@ trait SFFunctions {
   //@TODO: Documentation
   def connectAsync[A,B](f: Out[B] ⇒ Out[A]): SF[A,B] = connectOuts(f, None)
 
-  /** Asynchronuously loops back the output of the given
+  /** Asynchronously loops back the output of the given
     * event stream to its input
     */
   def loop[A](sf: SF[A,A]): SF[A,A] = SF { (ra,r) ⇒ r.loop(sf.run)(ra) }
@@ -472,10 +472,10 @@ trait SFFunctions {
   def src[S,V](s: S)(implicit Src: DataSource[S,V]): SIn[V] =
     SF { (_,r) ⇒ r.source(Src ini s)(Src cb s) }
 
-  /** Asynchronuously fires the given event once */
+  /** Asynchronously fires the given event once */
   def once[A](a: ⇒ A): SIn[A] = all(List(a))
 
-  /** Asynchronuously fires the given event once */
+  /** Asynchronously fires the given event once */
   def all[A,F[_]:Foldable](as: ⇒ F[A]): SIn[A] =
     src(())(DataSource all as.toList)
 
@@ -522,7 +522,7 @@ trait SFFunctions {
     *
     * This is very useful as a basic source of events to simulate
     * all kinds of real time applications.
-    * Note that an arbitrary number of completely independant
+    * Note that an arbitrary number of completely independent
     * event streams can thus be created. 
     */
   def ticks(step: Time): SIn[Unit] = src[Time,Unit](step)
@@ -533,10 +533,10 @@ trait SFFunctions {
   // ***                          *** //
 
   /** Sets up a reactive network and runs it until the given
-    * abort condition is fullfilled.
+    * abort condition is fulfilled.
     *
-    * Note that the calling thread is blocked until the abbort
-    * condition is fullfilled and the reactive system shutdown
+    * Note that the calling thread is blocked until the abort
+    * condition is fulfilled and the reactive system shutdown
     *
     * @param in  The signal function that describes the reactive
     *            network
@@ -555,7 +555,7 @@ trait SFFunctions {
     *             less than two.
     *
     * @param stop This function should return `true` when a certain
-    *             abbort condition is fulfilled. In that case, the
+    *             abort condition is fulfilled. In that case, the
     *             reactive framework will cease to run and release
     *             all its resources. Note that the framework will
     *             stop immediately AFTER `stop` has returned true
@@ -574,10 +574,10 @@ trait SFFunctions {
   }
 
   /** Sets up a reactive network and runs it until the given
-    * abort condition is fullfilled.
+    * abort condition is fulfilled.
     *
-    * Note that the calling thread is blocked until the abbort
-    * condition is fullfilled and the reactive system shutdown.
+    * Note that the calling thread is blocked until the abort
+    * condition is fulfilled and the reactive system shutdown.
     * Note also, that if the provided strategy for parallel
     * execution is single-threaded, some constructs like loops
     * may lead to non-termination. It is far better and safer
@@ -598,7 +598,7 @@ trait SFFunctions {
     *                 are used.
     *
     * @param stop This function should return `true` when a certain
-    *             abbort condition is fulfilled. In that case, the
+    *             abort condition is fulfilled. In that case, the
     *             reactive framework will cease to run and release
     *             all its resources. Note that the framework will
     *             stop immediately AFTER `stop` has returned true
@@ -626,7 +626,7 @@ trait SFFunctions {
   // ***  package private helper functions *** //
   // ***                                   *** //
 
-  /** Creates a derrived signal depending on two input signals
+  /** Creates a derived signal depending on two input signals
     * that is synchronously updated whenever one of the two
     * input signals changes
     *
@@ -657,7 +657,7 @@ trait SFFunctions {
       } yield rc
     )
 
-  /** Creates a derrived signal depending on one input signal
+  /** Creates a derived signal depending on one input signal
     * that is synchronously updated whenever the
     * input signal changes
     *
