@@ -16,12 +16,12 @@ object HelloWorld extends SafeApp {
 
   def name = id filter Quit.≠
 
-  def hello = loop(name andThen asyncIO(prompt))
+  def hello = loop(name andThen asyncIO(prompt) hold "World")
 
   def goodbye = name on quit syncTo { s ⇒ IO putStrLn s"Goodbye $s!" }
 
   // scalaz.effect.SafeApp entry point
-  override def runc = SF.run(const("World") >=> hello >=> goodbye)(_ ⇒ true)
+  override def runc = SF.run(hello.in >=> goodbye)(_ ⇒ true)
 }
 
 // vim: set ts=2 sw=2 et:
