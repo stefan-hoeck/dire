@@ -50,7 +50,7 @@ trait DataSinkFunctions {
 
   final val stdOut: DataSink[Any] = sync(a ⇒ IO.putStrLn(a.toString))
 
-  final def sdtOutS[A:Show]: DataSink[A] = stdOut ∙ { _.shows }
+  final def stdOutS[A:Show]: DataSink[A] = stdOut ∙ { _.shows }
 
   final def buffer[A](bf: collection.mutable.ListBuffer[A]): DataSink[A] =
     sync(a ⇒ IO(bf += a))
