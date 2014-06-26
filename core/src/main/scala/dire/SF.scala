@@ -475,7 +475,7 @@ trait SFFunctions {
   /** Asynchronously fires the given event once */
   def once[A](a: ⇒ A): SIn[A] = all(List(a))
 
-  /** Asynchronously fires the given event once */
+  /** Asynchronously fires each of the given events once */
   def all[A,F[_]:Foldable](as: ⇒ F[A]): SIn[A] =
     src(())(DataSource all as.toList)
 
