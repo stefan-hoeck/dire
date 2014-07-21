@@ -63,7 +63,7 @@ object Swing
     def out[B](implicit F: IOWidget[A,B]): Sink[B] = F out a
     def password(implicit F: PasswordDisplay[A]): Sink[String] = F password a
     def preferredSize(implicit F: Comp[A]): Sink[Dim] = F preferredSize a
-    def properties(props: A ⇒ IO[Unit]*): IO[Unit] = setList(props.toList)
+    def properties(props: (A ⇒ IO[Unit])*): IO[Unit] = setList(props.toList)
     def resizable(implicit F: FrameLike[A]): Sink[Boolean] = F resizable a
     def rightClicks(implicit F: Comp[A]): SIn[Unit] = F rightClicks a
     def selected(implicit F: AbstractButton[A]): Sink[Boolean] = F selected a

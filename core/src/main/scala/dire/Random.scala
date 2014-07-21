@@ -19,7 +19,7 @@ object Random {
     (s2, (s2 >>> 16).asInstanceOf[Int])
   }
 
-  /** A random positive integer */
+  /** A random non-negative integer */
   val intPos: RNG[Int] = lcg flatMap {
     case Int.MinValue ⇒ intPos
     case x            ⇒ x.abs.η[RNG]

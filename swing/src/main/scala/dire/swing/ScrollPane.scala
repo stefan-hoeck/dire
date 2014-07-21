@@ -7,7 +7,7 @@ import scalaz._, Scalaz._, effect.IO
 final case class ScrollPane(peer: JScrollPane)
 
 object ScrollPane {
-  def apply[A:Comp](a: A, props: ScrollPane ⇒ IO[Unit]*)
+  def apply[A:Comp](a: A, props: (ScrollPane ⇒ IO[Unit])*)
     : IO[ScrollPane] = for {
         res ← IO(new ScrollPane(new JScrollPane(Comp[A] peer a)))
         _   ← res setList props.toList

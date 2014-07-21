@@ -9,7 +9,7 @@ import scalaz._, Scalaz._, effect.IO
 class Frame(val peer: JFrame)
 
 object Frame {
-  def apply(props: Frame ⇒ IO[Unit]*): IO[Frame] = for {
+  def apply(props: (Frame ⇒ IO[Unit])*): IO[Frame] = for {
     res ← IO(new Frame(new JFrame()))
     _   ← props.toList foldMap { _(res) }
   } yield res

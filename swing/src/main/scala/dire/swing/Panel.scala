@@ -7,7 +7,7 @@ import scalaz._, Scalaz._, effect.IO
 final class Panel(val peer: JPanel)
 
 object Panel {
-  def apply(props: Panel ⇒ IO[Unit]*): IO[Panel] = for {
+  def apply(props: (Panel ⇒ IO[Unit])*): IO[Panel] = for {
     res ← IO(new Panel(new JPanel()))
     _   ← props.toList foldMap { _(res) }
   } yield res

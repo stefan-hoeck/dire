@@ -16,7 +16,7 @@ final class TextField(val peer: JTextField) {
 }
 
 object TextField {
-  def apply(props: TextField ⇒ IO[Unit]*): IO[TextField] = for {
+  def apply(props: (TextField ⇒ IO[Unit])*): IO[TextField] = for {
     res ← IO(new TextField(new JTextField()))
     _   ← props.toList foldMap { _(res) }
   } yield res
