@@ -8,7 +8,7 @@ final class PasswordField(val peer: JPasswordField) {
 }
 
 object PasswordField {
-  def apply(props: PasswordField ⇒ IO[Unit]*): IO[PasswordField] = for {
+  def apply(props: (PasswordField ⇒ IO[Unit])*): IO[PasswordField] = for {
     res ← IO(new PasswordField(new JPasswordField()))
     _   ← props.toList foldMap { _(res) }
   } yield res

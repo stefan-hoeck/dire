@@ -9,7 +9,7 @@ case class ComboBox[A](peer: JComboBox[A]) {
 }
 
 object ComboBox {
-  def apply[A](items: List[A])(props: ComboBox[A] ⇒ IO[Unit]*)
+  def apply[A](items: List[A])(props: (ComboBox[A] ⇒ IO[Unit])*)
     : IO[ComboBox[A]] = for {
       res ← IO(new ComboBox[A](new JComboBox[A]()))
       _   ← Swing.items[A,List].:=(items)(res)(ComboBoxComponent[A])

@@ -8,7 +8,7 @@ import Swing._
 final class Button(val peer: JButton)
 
 object Button {
-  def apply(props: Button ⇒ IO[Unit]*): IO[Button] = for {
+  def apply(props: (Button ⇒ IO[Unit])*): IO[Button] = for {
     res ← IO(new Button(new JButton()))
     _   ← res setList props.toList
   } yield res

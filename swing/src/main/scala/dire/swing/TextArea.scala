@@ -9,7 +9,7 @@ class TextArea(val peer: JTextArea) {
 }
 
 object TextArea {
-  def apply(props: TextArea ⇒ IO[Unit]*): IO[TextArea] = for {
+  def apply(props: (TextArea ⇒ IO[Unit])*): IO[TextArea] = for {
     res ← IO(new TextArea(new JTextArea()))
     _   ← props.toList foldMap { _(res) }
   } yield res

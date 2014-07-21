@@ -29,7 +29,7 @@ final class Scene private () {
 }
 
 object Scene {
-  def apply(props: Scene ⇒ IO[Unit]*): IO[Scene] = for {
+  def apply(props: (Scene ⇒ IO[Unit])*): IO[Scene] = for {
     res ← IO(new Scene())
     _   ← props.toList foldMap { _(res) }
   } yield res

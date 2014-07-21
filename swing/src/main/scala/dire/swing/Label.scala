@@ -7,7 +7,7 @@ import scalaz._, Scalaz._, effect.IO
 final class Label(val peer: JLabel)
 
 object Label {
-  def apply(props: Label ⇒ IO[Unit]*): IO[Label] = for {
+  def apply(props: (Label ⇒ IO[Unit])*): IO[Label] = for {
     res ← IO(new Label(new JLabel()))
     _   ← props.toList foldMap { _(res) }
   } yield res

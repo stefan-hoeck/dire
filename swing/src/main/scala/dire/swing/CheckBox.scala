@@ -9,7 +9,7 @@ final class CheckBox(val peer: JCheckBox) {
 }
 
 object CheckBox {
-  def apply(props: CheckBox ⇒ IO[Unit]*): IO[CheckBox] = for {
+  def apply(props: (CheckBox ⇒ IO[Unit])*): IO[CheckBox] = for {
     res ← IO(new CheckBox(new JCheckBox()))
     _   ← props.toList foldMap { _(res) }
   } yield res

@@ -9,7 +9,7 @@ class RadioButton(val peer: JRadioButton) {
 }
 
 object RadioButton {
-  def apply(props: RadioButton ⇒ IO[Unit]*): IO[RadioButton] = for {
+  def apply(props: (RadioButton ⇒ IO[Unit])*): IO[RadioButton] = for {
     res ← IO(new RadioButton(new JRadioButton()))
     _   ← props.toList foldMap { _(res) }
   } yield res
