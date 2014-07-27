@@ -10,7 +10,7 @@ import scalaz._, Scalaz._
   * in Scala: http://manning.com/bjarnason/
   */
 object Random {
-  type RNG[+A] = State[Long,A]
+  type RNG[A] = State[Long,A]
 
   /** Implementation of a linear congruential generator */
   val lcg: RNG[Int] = State[Long,Int] { s ⇒

@@ -1,6 +1,6 @@
 package dire.control
 
-import dire.{Out, DataSource, DataSink, SIn, SF, StrategyO}
+import dire.{Out, DataSource, DataSink, StrategyO, SIn, SF}
 import java.util.concurrent.{CountDownLatch ⇒ CDL}
 import scala.reflect.runtime.universe.TypeTag
 import scalaz._, Scalaz._, effect.IO

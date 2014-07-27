@@ -9,41 +9,46 @@ import scalaz._, Scalaz._
   * type directly but should use the corresponding combinators
   * defined for signal functions instead
   */
-sealed trait Event[+A] extends Any {
+sealed trait Event[A] extends Any {
+  import Event._
+
   private[dire] def at: Time
 
   private[dire] def orAt(t: Time): Event[A] =
-    fold(Once(at max t, _), Never)
+    fold(once(at max t, _), never)
 
   private[dire] def fold[B](once: A ⇒ B, never: ⇒ B): B = this match {
-    case Never     ⇒ never
     case Once(_,v) ⇒ once(v)
+    case _         ⇒ never
   }
 
   private[dire] def flatMap[B](f: A ⇒ Event[B]): Event[B] = 
-    fold[Event[B]](f(_) orAt at, Never)
+    fold[Event[B]](f(_) orAt at, never)
 
   private[dire] def map[B](f: A ⇒ B): Event[B] =
-    flatMap(a ⇒ Once(at, f(a)))
+    flatMap(a ⇒ once(at, f(a)))
 
   private[dire] def collect[B](f: A ⇒ Option[B]): Event[B] =
-    flatMap(a ⇒ f(a).fold[Event[B]](Never)(Once(at,_)))
+    flatMap(a ⇒ f(a).fold[Event[B]](never)(once(at,_)))
 
   private[dire] def orElse[B>:A](e: ⇒ Event[B]): Event[B] =
-    fold(Once(at, _), e)
+    fold(once(at, _), e)
 
-  private[dire] def toOption: Option[A] = fold(Some(_), None)
+  private[dire] def toOption: Option[A] = fold(some(_), none)
 }
 
 private[dire] case object Never extends Event[Nothing] {
   val at = T0
 }
 
-private[dire] case class Once[+A](at: Time, v: A) extends Event[A]
+private[dire] case class Once[A](at: Time, v: A) extends Event[A]
 
 object Event {
-  def apply[A](o: Option[A]): Event[A] =
-    o.fold[Event[A]](Never)(Once(T0,_))
+  def never[A]: Event[A] = Never.asInstanceOf[Event[A]]
+
+  def once[A](at: Time, v: A): Event[A] = Once(at, v)
+
+  def apply[A](o: Option[A]): Event[A] = o.fold(never[A])(once(T0,_))
 
   implicit def EventEqual[A:Equal]: Equal[Event[A]] = new Equal[Event[A]] {
     def equal(a: Event[A], b: Event[A]) = (a,b) match {
@@ -55,12 +60,12 @@ object Event {
 
   implicit val EventMonad: Monad[Event] with Traverse[Event] =
     new Monad[Event] with Traverse[Event] {
-      def point[A](a: ⇒ A) = Once(T0, a)
+      def point[A](a: ⇒ A) = once(T0, a)
       def bind[A,B](e: Event[A])(f: A ⇒ Event[B]) = e flatMap f
       def traverseImpl[G[_],A,B](fa: Event[A])
                                 (f: A ⇒ G[B])
                                 (implicit F: Applicative[G]): G[Event[B]] =
-      fa.fold(a ⇒ F.map(f(a))(Once(fa.at, _)), F point Never)
+      fa.fold(a ⇒ F.map(f(a))(once(fa.at, _)), F point never)
     }
 }
 

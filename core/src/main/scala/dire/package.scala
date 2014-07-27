@@ -4,7 +4,7 @@ import scalaz._, Scalaz._
 import scalaz.concurrent.Strategy
 
 package object dire {
-  import control._
+  //import control._
 
   /** Time in a discrete reactive setup */
   type Time = Long
@@ -12,7 +12,7 @@ package object dire {
   /** The lowest possible value of `Time`*/
   final val T0: Time = 0L
 
-  type Out[-A] = A ⇒ IO[Unit]
+  type Out[A] = A ⇒ IO[Unit]
 
   /** Dummy trait to represent pure input signals
     *
@@ -25,7 +25,7 @@ package object dire {
   sealed trait In
 
   /** Type alias for an input signal */
-  type SIn[+A] = SF[In,A]
+  type SIn[A] = SF[In,A]
 
   /** Optional scalaz.concurrent.Strategy argument
     *

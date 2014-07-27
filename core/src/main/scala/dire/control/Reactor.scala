@@ -4,6 +4,7 @@ import dire._
 import collection.mutable.ListBuffer
 import java.util.concurrent.{CountDownLatch, ExecutorService, Executors}
 import scala.reflect.runtime.universe._
+import scalaz.Scalaz.none
 import scalaz.effect.IO
 import scalaz.syntax.monad._
 import scalaz.concurrent.{Actor, Strategy}
@@ -38,7 +39,7 @@ final private[dire] class Reactor(
   private[dire] def source[A]
     (ini: IO[Event[A]])
     (cb: Out[A] ⇒ IO[IO[Unit]]): IO[RawSignal[A]] =
-      ini >>= { Reactive.source(_, this)(cb) } >>= RawSource.apply
+      ini >>= { Reactive.source(_, this)(cb) } >>= RawSource.apply[A]
 
   //creates a new asynchronous data sink
   //must only be called when initializing the reactive graph
@@ -67,7 +68,7 @@ final private[dire] class Reactor(
     (f: A ⇒ IO[B], s: StrategyO)
     (in: RawSignal[A]): IO[RawSignal[B]] = for {
       v ← Var.forReactor[Event[IO[B]]](in.last map f, this, s)
-      s ← Reactive.sourceNoCb[B](Never, this, s)
+      s ← Reactive.sourceNoCb[B](Event.never[B], this, s)
       r ← RawSource(s)
       _ ← IO {
             in.node.connectChild(Node.child{_ ⇒ v.set(in.last map f); false})
@@ -78,10 +79,10 @@ final private[dire] class Reactor(
   private[dire] def connectOuts[A,B]
     (f: Out[B] ⇒ Out[A], st: StrategyO)
     (in: RawSignal[A]): IO[RawSignal[B]] = for {
-      s ← Reactive.sourceNoCb[B](Never, this, None)
+      s ← Reactive.sourceNoCb[B](Event.never[B], this, none)
       o: Out[A] = f(b ⇒ IO(s fire b))
       r ← RawSource(s)
-      _ ← sink[A](_.fold(o, IO.ioUnit), IO.ioUnit, st, None)(in)
+      _ ← sink[A](_.fold(o, IO.ioUnit), IO.ioUnit, st, none)(in)
     } yield r
 
   private[dire] def timeSignal: IO[RawSignal[Time]] =

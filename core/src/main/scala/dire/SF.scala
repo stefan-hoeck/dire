@@ -4,6 +4,7 @@ import dire.control.{RawSignal ⇒ RS, Reactor}
 import java.util.concurrent.{ExecutorService, Executors}
 import scala.reflect.runtime.universe.TypeTag
 import scala.concurrent.{Future, Await, duration}, duration.Duration.Inf
+import scalaz.Leibniz.===
 import scalaz._, Scalaz._, effect.IO, Liskov.<~<
 import scalaz.concurrent.Strategy
 
@@ -17,12 +18,12 @@ import scalaz.concurrent.Strategy
   * @tparam A  Type of events fired by the input signal or event stream
   * @tparam B  Type of events fired by the output signal or event stream
   */
-class SF[-A,+B] private[dire](
+class SF[A,B] private[dire](
     private[dire] val run: (RS[A], Reactor) ⇒ IO[RS[B]]) {
   import SF._
 
   /** Applies a time-changing function to the signals values */
-  def ap[C,AA<:A](f: SF[AA,B ⇒ C]): SF[AA,C] = (f <*> this)(_ apply _)
+  def ap[C](f: SF[A,B ⇒ C]): SF[A,C] = (f <*> this)(_ apply _)
 
   /** Sequentially combines two signal functions */
   def andThen[C](that: SF[B,C]): SF[A,C] = that compose this
@@ -89,9 +90,9 @@ class SF[-A,+B] private[dire](
   /** Returns a signal that only fires an event if its new
     * value is different from its old one
     */
-  def distinct[BB>:B:Equal]: SF[A,BB] =
-    sync1[A,B,BB](this)(identity)(
-      (eb,ec) ⇒ if (ec.toOption ≟ eb.toOption) Never else eb)
+  def distinct(implicit B: Equal[B]): SF[A,B] =
+    sync1[A,B,B](this)(identity)(
+      (eb,ec) ⇒ if (ec.toOption ≟ eb.toOption) Event.never else eb)
 
   /** Ignores the first n events and passes on the rest */
   def drop(n: Int): SF[A,B] = {
@@ -103,7 +104,7 @@ class SF[-A,+B] private[dire](
   /** Creates an event stream that fires whenever this signal
     * fires an event but skips the signal's initial value if any.
     */
-  def events: SF[A,B] = sync1[A,B,B](this)(_ ⇒ Never)((cb,_) ⇒ cb)
+  def events: SF[A,B] = sync1[A,B,B](this)(_ ⇒ Event.never)((cb,_) ⇒ cb)
 
   // used in unit tests
   private[dire] def eventsTo(out: Out[Event[B]]): SF[A,B] =
@@ -144,8 +145,8 @@ class SF[-A,+B] private[dire](
     * If the original event stream fires an event at T0 its value is replaced
     * by `ini`.
     */
-  def hold[C>:B](ini: ⇒ C): SF[A,C] = 
-    sync1(this)(e ⇒ Once(e.at, ini))((e,_) ⇒ e)
+  def hold(ini: ⇒ B): SF[A,B] = 
+    sync1(this)(e ⇒ Event.once(e.at, ini))((e,_) ⇒ e)
 
   /** Transforms this signal function into an input signal function
     * (`SIn`) by prepending the empty event stream.
@@ -166,8 +167,8 @@ class SF[-A,+B] private[dire](
     * If both event streams fire at the same time, the event of the
     * second (right) stream is ignored
     */
-  def merge[AA<:A,BB>:B](that: SF[AA,BB]): SF[AA,BB] = {
-    def later(c1: Event[BB], c2: Event[BB]) = (c1, c2) match {
+  def merge(that: SF[A,B]): SF[A,B] = {
+    def later(c1: Event[B], c2: Event[B]) = (c1, c2) match {
       case (a@Once(at1,x), b@Once(at2,y)) ⇒ if (at1 >= at2) a else b
       case (ox, oy)                       ⇒ ox orElse oy
     }
@@ -178,10 +179,10 @@ class SF[-A,+B] private[dire](
   /** Returns an event stream that fires this signals actual value
     * whenever the given event stream fires
     */
-  def on[C,AA<:A](ef: SF[AA,C]): SF[AA,B] = upon(ef)((b,_) ⇒ b)
+  def on[C](ef: SF[A,C]): SF[A,B] = upon(ef)((b,_) ⇒ b)
 
   /** Merges two event streams returning an event stream of a disjunction */
-  def or[C,AA<:A](sf: SF[AA,C]): SF[AA,B \/ C] =
+  def or[C](sf: SF[A,C]): SF[A,B \/ C] =
     map{ _.left[C] } merge sf.map{ _.right[B] }
 
   /** Accumulates events fired by this event stream in a signal
@@ -210,8 +211,8 @@ class SF[-A,+B] private[dire](
   def scanMap[C:Monoid](f: B ⇒ C): SF[A,C] = scan(∅[C])((a,b) ⇒ b ⊹ f(a))
 
   /** Accumulates events in a container */
-  def scanPlus[F[+_]](implicit P: ApplicativePlus[F])
-    : SF[A,F[B]] = scanMap(_.η[F])(P.monoid)
+  def scanPlus[F[_]](implicit P: ApplicativePlus[F]): SF[A,F[B]] =
+    scanMap(_.η[F])(P.monoid)
 
   /** Accumulates the results of a stateful calculation */
   def scanSt[S,C](ini: S)(implicit WS: B <~< State[S,C]): SF[A,(S,C)] = {
@@ -240,18 +241,15 @@ class SF[-A,+B] private[dire](
     * This can be useful when combining input signal functions with
     * other signal transformers.
     */
-  def sf[C](implicit WS: In <~< A): SF[C,B] = 
+  def sf[C](implicit WS: A === In): SF[C,B] = 
     SF.id[C] >> sin
 
   /** Changes the type of this signal function to `SIn`.
     *
     * This can be useful to improve type inference.
     */
-  def sin(implicit WS: dire.In <~< A): SIn[B] = {
-    type MyType[-X] =SF[X,B]
-
-    WS.subst[MyType](this)
-  }
+  def sin(implicit WS: A === In): SIn[B] =
+    WS.subst[({type λ[α]=SF[α,B]})#λ](this)
 
   /** Accumulates successive events in slides of size `n` */
   def sliding(n: Int): SF[A,List[B]] = {
@@ -277,7 +275,7 @@ class SF[-A,+B] private[dire](
     sliding(3) collect { case a::b::c::Nil ⇒ (a,b,c) }
 
   /** Accumulates events using a Monoid */
-  def sum[BB>:B](implicit M: Monoid[BB]): SF[A,BB] = scanMap[BB](identity)
+  def sum(implicit M: Monoid[B]): SF[A,B] = scanMap[B](identity)
 
   /** Performs the given IO-action with this signal's initial value
     * and whenever this signal changes.
@@ -316,16 +314,15 @@ class SF[-A,+B] private[dire](
     * The resulting event stream fires only, when the given
     * event stream fires.
     */
-  def upon[C,D,AA<:A](ef: SF[AA,C])
-                     (f: (B,C) ⇒ D): SF[AA,D] = {
+  def upon[C,D](ef: SF[A,C])(f: (B,C) ⇒ D): SF[A,D] = {
     def g(eb: Event[B], ec: Event[C]): Event[D] =
-      if (ec.at >= eb.at) ^(eb,ec)(f) else Never
+      if (ec.at >= eb.at) ^(eb,ec)(f) else Event.never
 
     sync2(this,ef)(g)((eb,ec,_) ⇒ g(eb,ec))
   }
 
   /** Zips together the events of two behaviors */
-  def zip[C,AA<:A](that: SF[AA,C]): SF[AA,(B,C)] = <*>(that)(Tuple2.apply)
+  def zip[C](that: SF[A,C]): SF[A,(B,C)] = <*>(that)(Tuple2.apply)
 
   /** Alias for `andThen` */
   def >=>[C](that: SF[B,C]): SF[A,C] = andThen(that)
@@ -334,7 +331,7 @@ class SF[-A,+B] private[dire](
   def <=<[C](that: SF[C,A]): SF[C,B] = compose(that)
 
   /** Combines two signals with a pure function */
-  def <*>[C,D,AA<:A](that: SF[AA,C])(f: (B,C) ⇒ D): SF[AA,D] =
+  def <*>[C,D](that: SF[A,C])(f: (B,C) ⇒ D): SF[A,D] =
     sync2(this, that)(^(_,_)(f))((cb,cc,_) ⇒ ^(cb, cc)(f))
 
   /** Alias for `contramap`*/

@@ -9,7 +9,7 @@ import scalaz._, Scalaz._, effect.IO
   * in the reactive graph and a method to request the latest
   * event that happened in the signal
   */
-sealed trait RawSignal[+A] { self ⇒ 
+sealed trait RawSignal[A] { self ⇒ 
   private[control] def node: Node
 
   private[control] def last: Event[A]
@@ -19,7 +19,7 @@ sealed trait RawSignal[+A] { self ⇒
 }
 
 /** Represents a signal that never changes */
-final private[dire] case class Const[+A](last: Event[A]) extends RawSignal[A] {
+final private[dire] case class Const[A](last: Event[A]) extends RawSignal[A] {
   val node = Isolated
 
   override private[dire] def map[B](f: A ⇒ B): IO[RawSignal[B]] =
@@ -33,7 +33,7 @@ final private[dire] class RawSource[A] private(s: RSource[A])
 }
 
 private[dire] object RawSource {
-  def apply[A](s: RSource[A]): IO[RawSource[A]] = IO(new RawSource(s))
+  def apply[A](s: RSource[A]): IO[RawSignal[A]] = IO(new RawSource(s))
 }
 
 /** A derived signal that updates synchronously when its parent
@@ -52,11 +52,13 @@ final private[dire] class Sync[A](ini: Event[A], next: Event[A] ⇒ Event[A])
 
 private[dire] object RawSignal {
 
-  private[dire] val empty: RawSignal[Nothing] = Const(Never)
+  private[dire] def empty[A]: RawSignal[A] = Const(Event.never)
 
-  def const[A](a: ⇒ A): IO[RawSignal[A]] = IO(Const(Once(T0,a)))
+  def const[A](a: ⇒ A): IO[RawSignal[A]] = IO(Const(Event.once(T0,a)))
 
   def never[A]: IO[RawSignal[A]] = IO(empty)
+
+  def source[A](s: RSource[A]): IO[RawSignal[A]] = RawSource(s)
 
   /** Creates a derived signal from an existing one.
     *
@@ -66,16 +68,15 @@ private[dire] object RawSignal {
   private[dire] def sync1[A,B]
     (a: RawSignal[A])
     (ini: Event[A] ⇒ Event[B])
-    (next: (Event[A],Event[B]) ⇒ Event[B])
-    : IO[RawSignal[B]] = IO {
-    val sync = new Sync[B](
-      ini(a.last) orAt a.last.at,
-      eb ⇒ next(a.last, eb) orAt a.last.at
-    )
+    (next: (Event[A],Event[B]) ⇒ Event[B]): IO[RawSignal[B]] = IO {
+      val sync = new Sync[B](
+        ini(a.last) orAt a.last.at,
+        eb ⇒ next(a.last, eb) orAt a.last.at
+      )
 
-    a.node connectChild sync.node
-    sync
-  }
+      a.node connectChild sync.node
+      sync
+    }
 
   /** Combines two signals to create a new signal that is
     * updated synchronously whenever one or both of the

@@ -5,7 +5,7 @@ import scala.reflect.runtime.universe.TypeTag
 import scalaz._, Scalaz._, effect.{IO, IORef}
 
 /** Consumes values using a declared concurrency strategy */
-sealed trait DataSink[-A] { self ⇒ 
+sealed trait DataSink[A] { self ⇒ 
   private[dire] def connect(raw: RS[A], r: Reactor): IO[Unit]
 
   def contramap[B](f: B ⇒ A): DataSink[B] = new DataSink[B] {

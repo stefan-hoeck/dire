@@ -11,7 +11,7 @@ object SFTest
   import dire.control.Runner.Events
 
   //Signal function from Time to A
-  type TSF[+A] = SF[Time,A]
+  type TSF[A] = SF[Time,A]
 
   val appLaw = Applicative[TSF].applicativeLaw
 
@@ -181,8 +181,8 @@ object SFTest
     val cached = SF.cached(t, "events")
 
     def calc(ts: Events[Time]): Events[Time] = ts match {
-      case Nil   ⇒ Never :: Nil
-      case e::es ⇒ Never :: es
+      case Nil   ⇒ Event.never[Time] :: Nil
+      case e::es ⇒ Event.never[Time] :: es
     }
 
     compare(cached, cached.events, 100L)(calc)
@@ -221,14 +221,14 @@ object SFTest
   property("once") = forAll { i: Int ⇒ 
     val res = runUntil(SF once i)(i ≟ _)
     
-    res ≟ List(Never, Once(1L, i))
+    res ≟ List(Event.never[Int], Event.once(1L, i))
   }
 
   property("all") = {
     val is = (0 to 10).toList
     val res = runUntil(SF all is)(10 ≟ _)
     
-    res ≟ (Never :: is.map { i ⇒ Once(i + 1, i) })
+    res ≟ (Event.never[Int] :: is.map { i ⇒ Event.once(i + 1, i) })
   }
 
   property("on_never") = {
@@ -312,17 +312,15 @@ object SFTest
   property("upon_never") = forAll { sf: SFTT ⇒ 
     val sfCached: TSF[Time] = SF.cached(sf, "upon_sf")
 
-    val upon = sfCached.upon[Time,Time,Time](
-      idTime >> SF.never[Time]){ _ + _ }
+    val upon = sfCached.upon(idTime >> SF.never[Time]){ _ + _ }
 
-    compare(sfCached, upon, 100L)(_ ⇒ List(Never))
+    compare(sfCached, upon, 100L)(_ ⇒ List(Event.never))
   }
 
   property("upon_now") = forAll { sf: SFTT ⇒ 
     val sfCached: TSF[Time] = SF.cached(sf, "upon_sf")
 
-    val upon = sfCached.upon[Time,Time,Time](
-      idTime >> SF.const(12L)){ _ + _ }
+    val upon = sfCached.upon(idTime >> SF.const(12L)){ _ + _ }
 
     def calc(cs: Events[Time]): Events[Time] =
       List(Once(T0, cs.head.fold(_ + 12L, sys.error("What?"))))

@@ -81,7 +81,7 @@ trait Runner {
 }
 
 object Runner {
-  type Events[+A] = List[Event[A]]
+  type Events[A] = List[Event[A]]
 }
 
 // vim: set ts=2 sw=2 et:

@@ -8,29 +8,29 @@ trait ValidationFunctions {
   type Errors = NonEmptyList[String]
 
   /** A validated value */
-  type ValRes[+A] = Validation[Errors,A]
+  type ValRes[A] = Validation[Errors,A]
 
   /** A validated value represented as a disjunction */
-  type DisRes[+A] = Errors \/ A
+  type DisRes[A] = Errors \/ A
 
   /** An IO action returning a disjunction */
-  type DisIO[+A] = EitherT[IO,Errors,A]
+  type DisIO[A] = EitherT[IO,Errors,A]
 
   /** Reads an input value of type `A` and returns a 
     * validated value of type `B`.
     */
-  type Validator[-A,+B] = Kleisli[DisRes,A,B]
+  type Validator[A,B] = Kleisli[DisRes,A,B]
 
   /** Reads an input value of type `A` and returns a 
     * validated value of type `B` in an IO action.
     */
-  type ValidatorIO[-A,+B] = Kleisli[DisIO,A,B]
+  type ValidatorIO[A,B] = Kleisli[DisIO,A,B]
 
   /** Signal function of a validated value */
-  type SfV[-A,+B] = SF[A,ValRes[B]]
+  type SfV[A,B] = SF[A,ValRes[B]]
 
   /** Input signal of a validated value */
-  type VSIn[+A] = SIn[ValRes[A]]
+  type VSIn[A] = SIn[ValRes[A]]
 
   def point[A,B](b: ⇒ B): SfV[A,B] = validation.SfVApplicative[A] point b
 

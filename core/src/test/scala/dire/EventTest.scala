@@ -6,12 +6,13 @@ import scalaz.scalacheck.ScalazArbitrary._
 import scalaz.scalacheck.ScalaCheckBinding._
 
 object EventTest extends Properties("Event") {
+  import Event.{once, never}
 
-  private def once[A:Arbitrary]: Gen[Event[A]] =
-    ^(Gen choose (T0, T0 + 1000), arb[A])(Once.apply)
+  private def onceG[A:Arbitrary]: Gen[Event[A]] =
+    ^(Gen choose (T0, T0 + 1000), arb[A])(once(_,_))
 
   implicit def EArb[A:Arbitrary]: Arbitrary[Event[A]] =
-    Arbitrary(Gen.frequency[Event[A]]((5, once[A]), (1, Never)))
+    Arbitrary(Gen.frequency[Event[A]]((5, onceG[A]), (1, never[A].point[Gen])))
 
   property("equal") = SP.equal.laws[Event[Int]]
 
