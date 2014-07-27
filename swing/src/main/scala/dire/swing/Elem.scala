@@ -21,7 +21,7 @@ import scalaz._, Scalaz._, effect.IO
   * a much nicer syntax to arrange complex user interfaces
   */
 sealed trait Elem { self ⇒ 
-  import Elem.Horizontal
+  import Elem.HorizontalElem
 
   def prefSize(d: Dim): Dim = identity(d)
 
@@ -55,16 +55,7 @@ sealed trait Elem { self ⇒
     * lines up elements horizontally instead of 
     * vertically (which is the default behavior)
     */
-  def horizontal: Elem @@ Horizontal = Horizontal(self)
-
-  /** Tags this `Elem` to use a Monoid instance that
-    * lines up elements vertically.
-    *
-    * This is the default behavior so this function needs
-    * only be called on `Elem`s tagged with the `Horizontal`
-    * tag.
-    */
-  def vertical: Elem = self
+  def horizontal: HorizontalElem = HorizontalElem(self)
 
   /** Creates a new panel and adds all widgets of this
     * `Elem` to it.
@@ -125,11 +116,15 @@ object Elem extends AsElemInstances with AsElemSyntax {
       IO.ioUnit
   }
 
-  /** This used to tag `Elem`s to use a different Monoid instance */
-  sealed trait Horizontal
-
-  /** Tags an `Elem` with the `Horizontal` tag */
-  def Horizontal[A](a: A): A @@ Horizontal = Tag[A, Horizontal](a)
+  /** New Type whose Monoid instance appends elements besides each other
+    * instead of vertically
+    */
+  final case class HorizontalElem(val elem: Elem) extends AnyVal {
+    /** Back to use a Monoid instance that
+      * lines up elements vertically.
+      */
+    def vertical: Elem = elem
+  }
   
   private case class Beside (left: Elem, right: Elem) extends Elem {
     lazy val height = left.height max right.height
@@ -248,9 +243,11 @@ trait AsElemInstances0 {
 }
 
 trait AsElemInstances extends AsElemFunctions with AsElemInstances0 {
-  import Elem.Horizontal
+  import Elem.HorizontalElem
 
   implicit val ElemAsElem: AsElem[Elem] = asElem(identity)
+
+  implicit val HorizontalElemAsElem: AsElem[HorizontalElem] = asElem(_.elem)
 
   implicit val StringAsElem: AsSingleElem[String] = noFill(new JLabel(_))
 
@@ -259,10 +256,9 @@ trait AsElemInstances extends AsElemFunctions with AsElemInstances0 {
     def append(a: Elem, b: ⇒ Elem) = a above b
   }
 
-  implicit val HorizontalMonoid = new Monoid[Elem @@ Horizontal] {
+  implicit val HorizontalMonoid = new Monoid[HorizontalElem] {
     def zero = Elem.Empty.horizontal
-    def append (a: Elem @@ Horizontal, b: ⇒ Elem @@ Horizontal) =
-      a beside b horizontal
+    def append (a: HorizontalElem, b: ⇒ HorizontalElem) = a.elem beside b horizontal
   }
 }
 

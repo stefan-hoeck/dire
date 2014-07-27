@@ -5,7 +5,7 @@ import scalaz._, Scalaz._, effect.IO
 
 package object swing {
 
-  type Sink[-A] = DataSink[A]
+  type Sink[A] = DataSink[A]
   type Source[S,A] = DataSource[S,A]
   type Callback[-S,+A] = S ⇒ (A ⇒ Unit) ⇒ (Unit ⇒ Unit)
 

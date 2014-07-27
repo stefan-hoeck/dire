@@ -37,6 +37,7 @@ object UndoRedoTest
   case object Undo extends Event(true)
   case object Redo extends Event(true)
 
+  def inE(i: Int): Event = In(i)
   //When to confirm event processing is finished?
   //Undoable events are to be confirmed after undo is registered (urOut)
   //Non undoable events are to be confirmed when they happen
@@ -61,7 +62,7 @@ object UndoRedoTest
     //Hold is important here otherwise the first Input event will neither
     //make it to urOut nor to the end of undoSf and therefore will never
     //be confirmed
-    (id[Event] hold In(-1) syncTo onE collect { case In(i) ⇒ i.right }) >=>
+    (id[Event] hold inE(-1) syncTo onE collect { case In(i) ⇒ i.right[Int] }) >=>
     loop(undoSf).collectL
   }
 }

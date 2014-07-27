@@ -6,7 +6,7 @@ import scalaz._, Scalaz._, effect.{IO, SafeApp}
 trait SwingApp extends SafeApp {
   import Window.WindowEvent, Swing._
 
-  protected def behavior(f: Frame): IO[SIn[Any]]
+  protected def behavior(f: Frame): IO[SIn[_]]
 
   // scalaz.effect.SafeApp entry point
   override def runc = for {

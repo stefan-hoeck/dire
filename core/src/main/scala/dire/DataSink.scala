@@ -48,7 +48,7 @@ trait DataSinkFunctions {
         r.sink[A](out, clean, strategy, key)(raw)
     }
 
-  final val stdOut: DataSink[Any] = sync(a ⇒ IO.putStrLn(a.toString))
+  final def stdOut[A]: DataSink[A] = sync(a ⇒ IO.putStrLn(a.toString))
 
   final def stdOutS[A:Show]: DataSink[A] = stdOut ∙ { _.shows }
 
