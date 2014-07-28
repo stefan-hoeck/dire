@@ -1,14 +1,16 @@
 # dire
 
-A library for discrete functional reactive programming
+A library for discrete functional reactive programming with
+a focus on referential transparency.
 
 ## Building *dire*
 
-In order to build the library, sbt version 0.12.0 or above is needed. In order
-to create a single executable .jar file, use the `one-jar` command. The executable
-can then be found under
+In order to build the library, sbt version 0.13.0 or above is needed. In order
+to create a single executable .jar file, use the `oneJar` command. As
+multiple main classes are detected you will be asked to choose one.
+The executable can then be found under
 
-./example/target/scala-2.10/dire-example[scala-version]-[version]-one-jar.jar
+./example/target/scala-[scala-version]/dire-example[scala-version]-[version]-one-jar.jar
 
 ## Examples
 
@@ -39,6 +41,9 @@ Multiple main classes detected, select one to run:
 
 Enter number:
 ```
+Please note that some examples like HelloWorld will not run
+properly from within sbt. In that case use the `oneJar` command
+to create an executable as described under *Building dire*.
 
 ## Documentation
 
