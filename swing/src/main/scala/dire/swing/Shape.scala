@@ -37,10 +37,8 @@ object Shape {
 
   def oval(x: Double, y: Double, rx: Double, ry: Double, c: Color): Shape =
     Shape { g ⇒
-      def paint(g: Graphics2D) {
-        g.setColor(c)
-        g.fillOval(x.toInt, y.toInt, rx.toInt, ry.toInt)
-      }
+      g.setColor(c)
+      g.fillOval(x.toInt, y.toInt, rx.toInt, ry.toInt)
     }
 
   def square(x: Double, y: Double, s: Double, c: Color) = 
