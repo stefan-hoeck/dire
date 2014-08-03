@@ -27,7 +27,7 @@ object BuildSettings {
 
 object Dependencies {
   val scalaz            = "org.scalaz"
-  val scalazV           = "7.1.0-RC2"
+  val scalazV           = "7.1.0"
 
   val scalaz_core       = scalaz %% "scalaz-core" % scalazV
   val scalaz_effect     = scalaz %% "scalaz-effect" % scalazV
