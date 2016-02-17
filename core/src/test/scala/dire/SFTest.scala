@@ -257,7 +257,7 @@ object SFTest
 
     val set: Set[Int \/ String] = res flatMap { _.toOption} toSet
     
-    (set.size > 100) :| "size" &&
+    (set.size >= 100) :| "size" &&
     ((1 to 100).toList ∀ { i ⇒ set(i.toString.right) }) :| "Rights" &&
     ((1 to (set.size - 100)).toList ∀ { i ⇒ set(i.left) }) :| "Lefts"
   }

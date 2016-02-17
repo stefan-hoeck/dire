@@ -6,6 +6,8 @@ import scalaz._, Scalaz._
 
 /** Generators for all kinds of reactive graphs */
 trait SFArbitrary {
+  val MaxDepth = 5
+
   type SFTT = SF[Time,Time]
 
   def const(t: Time): SFTT = SF.id[Time] >> SF.const(t)
@@ -28,30 +30,31 @@ trait SFArbitrary {
     distinct: Gen[SFTT],
     arb[Long] map const)
 
-  lazy val composed: Gen[SFTT] = for {
+  def composed(d: Int): Gen[SFTT] = for {
     a ← single
-    b ← allSF
+    b ← allSF(d)
   } yield a >>> b
 
-  lazy val applied: Gen[SFTT] = for {
+  def applied(d: Int): Gen[SFTT] = for {
     a ← single
-    b ← allSF
+    b ← allSF(d)
   } yield (a <*> b){ _ - _ }
 
-  lazy val mapped: Gen[SFTT] = for {
+  def mapped(d: Int): Gen[SFTT] = for {
     i ← arb[Long]
-    s ← allSF
+    s ← allSF(d)
   } yield s map (i+)
 
-  lazy val merged: Gen[SFTT] = for {
+  def merged(d: Int): Gen[SFTT] = for {
     a ← single
-    s ← allSF
+    s ← allSF(d)
   } yield a merge s
 
-  lazy val allSF: Gen[SFTT] =
-    Gen oneOf (single, composed, applied, mapped, merged)
+  def allSF(d: Int): Gen[SFTT] = 
+    if (d >= MaxDepth) single
+    else Gen oneOf (single, composed(d+1), applied(d+1), mapped(d+1), merged(d+1))
 
-  implicit lazy val sfttArb: Arbitrary[SFTT] = Arbitrary(allSF)
+  implicit lazy val sfttArb: Arbitrary[SFTT] = Arbitrary(allSF(0))
 }
 
 // vim: set ts=2 sw=2 et:

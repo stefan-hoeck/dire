@@ -14,11 +14,11 @@ object EventTest extends Properties("Event") {
   implicit def EArb[A:Arbitrary]: Arbitrary[Event[A]] =
     Arbitrary(Gen.frequency[Event[A]]((5, onceG[A]), (1, never[A].point[Gen])))
 
-  property("equal") = SP.equal.laws[Event[Int]]
+  include(SP.equal.laws[Event[Int]])
 
-  property("monad") = SP.monad.laws[Event]
+  include(SP.monad.laws[Event])
 
-  property("traverse") = SP.traverse.laws[Event]
+  include(SP.traverse.laws[Event])
 }
 
 // vim: set ts=2 sw=2 et:

@@ -4,9 +4,9 @@ import dire._
 import dire.swing._, Swing._, Shape._
 import math.{Pi, sin, cos}
 import java.awt.Color._
-import scala.collection.immutable.{IndexedSeq ⇒ IxSeq}
+import scala.collection.immutable.{Vector ⇒ IxSeq}
 import scalaz._, Scalaz._
-import scalaz.std.indexedSeq._
+import scalaz.std.vector.{vectorInstance ⇒ VI}
 
 /** A combination of simple animations */
 object Animation extends SwingApp {
@@ -68,7 +68,7 @@ object Animation extends SwingApp {
 
   //a ever growing poly line
   def s6(s: Scene): SIn[Shape]=
-    (s.mousePosition on s.leftClicks).scanPlus[IxSeq]
+    (s.mousePosition on s.leftClicks).scanPlus[IxSeq](VI)
                                      .map { polyLine(_, MAGENTA) }
 
 }

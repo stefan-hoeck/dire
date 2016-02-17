@@ -2,9 +2,9 @@ package dire.example
 
 import dire._
 import dire.swing._, Swing._, dire.swing.{Position ⇒ Pt}, Shape._
-import scala.collection.immutable.{IndexedSeq ⇒ IxSeq}
+import scala.collection.immutable.{Vector ⇒ IxSeq}
 import scalaz._, Scalaz._
-import scalaz.std.indexedSeq._
+import scalaz.std.vector._
 
 object Drawing extends SwingApp {
   type Ps = IxSeq[Pt]
