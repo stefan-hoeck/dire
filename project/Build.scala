@@ -2,7 +2,7 @@ import sbt._
 import Keys._
 
 object BuildSettings {
-  val sv                = "2.11.7"
+  val sv                = "2.11.8"
   val buildOrganization = "dire"
   val buildVersion      = "0.2.1-SNAPSHOT"
 
@@ -29,7 +29,7 @@ object Dependencies {
   val scalacheckV       = "1.12.5"
   val scalaXmlV         = "1.0.5"
   val scalaz            = "org.scalaz"
-  val scalazV           = "7.2.0"
+  val scalazV           = "7.2.4"
 
   val scalaz_core       = scalaz %% "scalaz-core" % scalazV
   val scalaz_effect     = scalaz %% "scalaz-effect" % scalazV
