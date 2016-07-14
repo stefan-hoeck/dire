@@ -4,7 +4,7 @@ import Keys._
 object BuildSettings {
   val sv                = "2.11.8"
   val buildOrganization = "dire"
-  val buildVersion      = "0.2.1-SNAPSHOT"
+  val buildVersion      = "0.2.2-SNAPSHOT"
 
   val buildSettings = Seq (
     organization       := buildOrganization,
