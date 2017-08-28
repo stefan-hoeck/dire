@@ -20,9 +20,9 @@ trait Window[-A] extends Container[A] {
   final def iconImage(a: A): Sink[Image] = sink(peer(a).setIconImage)
 
   final def iconImages(a: A): Sink[List[Image]] = {
-    import scala.collection.JavaConversions._
+    import scala.collection.JavaConverters._
 
-    sink(is ⇒ peer(a).setIconImages(is))
+    sink(is ⇒ peer(a).setIconImages(is.asJava))
   }
 
   final def windowEvents(a: A): SIn[WindowEvent] = SF cachedSrc peer(a)

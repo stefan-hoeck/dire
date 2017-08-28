@@ -113,9 +113,9 @@ trait Properties {
   val iconImage = windowP(_.setIconImage)
 
   val iconImages = {
-    import scala.collection.JavaConversions._
+    import scala.collection.JavaConverters._
 
-    windowP[List[Image]](c ⇒ is ⇒ c.setIconImages(is))
+    windowP[List[Image]](c ⇒ is ⇒ c.setIconImages(is.asJava))
   }
 
   val iconTextGap = new Property[Int,IconDisplay] {
